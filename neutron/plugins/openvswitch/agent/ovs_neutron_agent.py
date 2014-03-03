@@ -14,7 +14,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import distutils.version as dist_version
 import signal
 import sys
 import time
@@ -227,8 +226,11 @@ class OVSNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
 
     def _check_ovs_version(self):
         if p_const.TYPE_VXLAN in self.tunnel_types:
-            check_ovs_version(constants.MINIMUM_OVS_VXLAN_VERSION,
-                              self.root_helper)
+            try:
+                ovs_lib.check_ovs_vxlan_version(self.root_helper)
+            except SystemError:
+                LOG.exception(_("Agent terminated"))
+                raise SystemExit(1)
 
     def _report_state(self):
         # How many devices are likely used by a VM
@@ -1248,44 +1250,6 @@ class OVSNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
 
 def handle_sigterm(signum, frame):
     sys.exit(1)
-
-
-def check_ovs_version(min_required_version, root_helper):
-    LOG.debug(_("Checking OVS version for VXLAN support"))
-    installed_klm_version = ovs_lib.get_installed_ovs_klm_version()
-    installed_usr_version = ovs_lib.get_installed_ovs_usr_version(root_helper)
-    # First check the userspace version
-    if installed_usr_version:
-        if dist_version.StrictVersion(
-                installed_usr_version) < dist_version.StrictVersion(
-                min_required_version):
-            LOG.error(_('Failed userspace version check for Open '
-                        'vSwitch with VXLAN support. To use '
-                        'VXLAN tunnels with OVS, please ensure '
-                        'the OVS version is %s '
-                        'or newer!'), min_required_version)
-            sys.exit(1)
-        # Now check the kernel version
-        if installed_klm_version:
-            if dist_version.StrictVersion(
-                    installed_klm_version) < dist_version.StrictVersion(
-                    min_required_version):
-                LOG.error(_('Failed kernel version check for Open '
-                            'vSwitch with VXLAN support. To use '
-                            'VXLAN tunnels with OVS, please ensure '
-                            'the OVS version is %s or newer!'),
-                          min_required_version)
-                raise SystemExit(1)
-        else:
-            LOG.warning(_('Cannot determine kernel Open vSwitch version, '
-                          'please ensure your Open vSwitch kernel module '
-                          'is at least version %s to support VXLAN '
-                          'tunnels.'), min_required_version)
-    else:
-        LOG.warning(_('Unable to determine Open vSwitch version. Please '
-                      'ensure that its version is %s or newer to use VXLAN '
-                      'tunnels with OVS.'), min_required_version)
-        raise SystemExit(1)
 
 
 def create_agent_config_map(config):
