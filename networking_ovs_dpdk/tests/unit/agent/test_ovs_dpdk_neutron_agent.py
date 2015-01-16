@@ -22,6 +22,8 @@ from oslo.config import cfg
 from oslo import messaging
 import testtools
 
+from networking_ovs_dpdk.agent import ovs_dpdk_neutron_agent
+from networking_ovs_dpdk.common import constants
 from neutron.agent.linux import async_process
 from neutron.agent.linux import ip_lib
 from neutron.agent.linux import ovs_lib
@@ -30,8 +32,6 @@ from neutron.common import constants as n_const
 from neutron.openstack.common import log
 from neutron.plugins.common import constants as p_const
 from neutron.plugins.ml2.drivers.l2pop import rpc as l2pop_rpc
-from neutron.plugins.openvswitch.agent import ovs_neutron_agent
-from neutron.plugins.openvswitch.common import constants
 from neutron.tests import base
 
 
@@ -46,7 +46,8 @@ FAKE_IP2 = '10.0.0.2'
 class CreateAgentConfigMap(base.BaseTestCase):
 
     def test_create_agent_config_map_succeeds(self):
-        self.assertTrue(ovs_neutron_agent.create_agent_config_map(cfg.CONF))
+        self.assertTrue(ovs_dpdk_neutron_agent.
+                        create_agent_config_map(cfg.CONF))
 
     def test_create_agent_config_map_fails_for_invalid_tunnel_config(self):
         # An ip address is required for tunneling but there is no default,
@@ -54,29 +55,29 @@ class CreateAgentConfigMap(base.BaseTestCase):
         cfg.CONF.set_override('tunnel_types', [p_const.TYPE_GRE],
                               group='AGENT')
         with testtools.ExpectedException(ValueError):
-            ovs_neutron_agent.create_agent_config_map(cfg.CONF)
+            ovs_dpdk_neutron_agent.create_agent_config_map(cfg.CONF)
         cfg.CONF.set_override('tunnel_types', [p_const.TYPE_VXLAN],
                               group='AGENT')
         with testtools.ExpectedException(ValueError):
-            ovs_neutron_agent.create_agent_config_map(cfg.CONF)
+            ovs_dpdk_neutron_agent.create_agent_config_map(cfg.CONF)
 
     def test_create_agent_config_map_fails_no_local_ip(self):
         # An ip address is required for tunneling but there is no default
         cfg.CONF.set_override('tunnel_types', [p_const.TYPE_VXLAN],
                               group='AGENT')
         with testtools.ExpectedException(ValueError):
-            ovs_neutron_agent.create_agent_config_map(cfg.CONF)
+            ovs_dpdk_neutron_agent.create_agent_config_map(cfg.CONF)
 
     def test_create_agent_config_map_fails_for_invalid_tunnel_type(self):
         cfg.CONF.set_override('tunnel_types', ['foobar'], group='AGENT')
         with testtools.ExpectedException(ValueError):
-            ovs_neutron_agent.create_agent_config_map(cfg.CONF)
+            ovs_dpdk_neutron_agent.create_agent_config_map(cfg.CONF)
 
     def test_create_agent_config_map_multiple_tunnel_types(self):
         cfg.CONF.set_override('local_ip', '10.10.10.10', group='OVS')
         cfg.CONF.set_override('tunnel_types', [p_const.TYPE_GRE,
                               p_const.TYPE_VXLAN], group='AGENT')
-        cfgmap = ovs_neutron_agent.create_agent_config_map(cfg.CONF)
+        cfgmap = ovs_dpdk_neutron_agent.create_agent_config_map(cfg.CONF)
         self.assertEqual(cfgmap['tunnel_types'],
                          [p_const.TYPE_GRE, p_const.TYPE_VXLAN])
 
@@ -85,14 +86,14 @@ class CreateAgentConfigMap(base.BaseTestCase):
         # Verify setting only enable_tunneling will default tunnel_type to GRE
         cfg.CONF.set_override('enable_distributed_routing', True,
                               group='AGENT')
-        cfgmap = ovs_neutron_agent.create_agent_config_map(cfg.CONF)
+        cfgmap = ovs_dpdk_neutron_agent.create_agent_config_map(cfg.CONF)
         self.assertEqual(cfgmap['enable_distributed_routing'], True)
 
 
-class TestOvsNeutronAgent(base.BaseTestCase):
+class TestOVSDPDKNeutronAgent(base.BaseTestCase):
 
     def setUp(self):
-        super(TestOvsNeutronAgent, self).setUp()
+        super(TestOVSDPDKNeutronAgent, self).setUp()
         notifier_p = mock.patch(NOTIFIER)
         notifier_cls = notifier_p.start()
         self.notifier = mock.Mock()
@@ -100,7 +101,7 @@ class TestOvsNeutronAgent(base.BaseTestCase):
         cfg.CONF.set_default('firewall_driver',
                              'neutron.agent.firewall.NoopFirewallDriver',
                              group='SECURITYGROUP')
-        kwargs = ovs_neutron_agent.create_agent_config_map(cfg.CONF)
+        kwargs = ovs_dpdk_neutron_agent.create_agent_config_map(cfg.CONF)
 
         class MockFixedIntervalLoopingCall(object):
             def __init__(self, f):
@@ -110,11 +111,11 @@ class TestOvsNeutronAgent(base.BaseTestCase):
                 self.f()
 
         with contextlib.nested(
-            mock.patch('neutron.plugins.openvswitch.agent.ovs_neutron_agent.'
-                       'OVSNeutronAgent.setup_integration_br',
+            mock.patch('networking_ovs_dpdk.agent.ovs_dpdk_neutron_agent.'
+                       'OVSDPDKNeutronAgent.setup_integration_br',
                        return_value=mock.Mock()),
-            mock.patch('neutron.plugins.openvswitch.agent.ovs_neutron_agent.'
-                       'OVSNeutronAgent.setup_ancillary_bridges',
+            mock.patch('networking_ovs_dpdk.agent.ovs_dpdk_neutron_agent.'
+                       'OVSDPDKNeutronAgent.setup_ancillary_bridges',
                        return_value=[]),
             mock.patch('neutron.agent.linux.ovs_lib.OVSBridge.'
                        'create'),
@@ -129,7 +130,7 @@ class TestOvsNeutronAgent(base.BaseTestCase):
             mock.patch('neutron.openstack.common.loopingcall.'
                        'FixedIntervalLoopingCall',
                        new=MockFixedIntervalLoopingCall)):
-            self.agent = ovs_neutron_agent.OVSNeutronAgent(**kwargs)
+            self.agent = ovs_dpdk_neutron_agent.OVSDPDKNeutronAgent(**kwargs)
             # set back to true because initial report state will succeed due
             # to mocked out RPC calls
             self.agent.use_call = True
@@ -145,7 +146,7 @@ class TestOvsNeutronAgent(base.BaseTestCase):
                       'ip_address': '1.1.1.1'}]
         if old_local_vlan is not None:
             self.agent.local_vlan_map[net_uuid] = (
-                ovs_neutron_agent.LocalVLANMapping(
+                ovs_dpdk_neutron_agent.LocalVLANMapping(
                     old_local_vlan, None, None, None))
         with contextlib.nested(
             mock.patch('neutron.agent.linux.ovs_lib.OVSBridge.'
@@ -752,12 +753,13 @@ class TestOvsNeutronAgent(base.BaseTestCase):
         ) as (set_ovs_db_func, get_ovs_db_func, add_flow_func):
             self.agent.port_dead(port)
         get_ovs_db_func.assert_called_once_with("Port", mock.ANY, "tag")
-        if cur_tag == ovs_neutron_agent.DEAD_VLAN_TAG:
+        if cur_tag == ovs_dpdk_neutron_agent.DEAD_VLAN_TAG:
             self.assertFalse(set_ovs_db_func.called)
             self.assertFalse(add_flow_func.called)
         else:
             set_ovs_db_func.assert_called_once_with(
-                "Port", mock.ANY, "tag", str(ovs_neutron_agent.DEAD_VLAN_TAG))
+                "Port", mock.ANY, "tag",
+                str(ovs_dpdk_neutron_agent.DEAD_VLAN_TAG))
             add_flow_func.assert_called_once_with(
                 priority=2, in_port=port.ofport, actions="drop")
 
@@ -765,7 +767,7 @@ class TestOvsNeutronAgent(base.BaseTestCase):
         self._test_port_dead()
 
     def test_port_dead_with_port_already_dead(self):
-        self._test_port_dead(ovs_neutron_agent.DEAD_VLAN_TAG)
+        self._test_port_dead(ovs_dpdk_neutron_agent.DEAD_VLAN_TAG)
 
     def mock_scan_ports(self, vif_port_set=None, registered_ports=None,
                         updated_ports=None, port_tags_dict=None):
@@ -833,7 +835,7 @@ class TestOvsNeutronAgent(base.BaseTestCase):
         br = ovs_lib.OVSBridge('br-int', 'sudo')
         mac = "ca:fe:de:ad:be:ef"
         port = ovs_lib.VifPort(1, 1, 1, mac, br)
-        lvm = ovs_neutron_agent.LocalVLANMapping(
+        lvm = ovs_dpdk_neutron_agent.LocalVLANMapping(
             1, '1', None, 1, {port.vif_id: port})
         local_vlan_map = {'1': lvm}
         vif_port_set = set([1, 3])
@@ -856,7 +858,7 @@ class TestOvsNeutronAgent(base.BaseTestCase):
             mock.patch.object(self.agent.int_br, 'get_vif_port_by_id',
                               return_value=mock.Mock())):
             self.assertRaises(
-                ovs_neutron_agent.DeviceListRetrievalError,
+                ovs_dpdk_neutron_agent.DeviceListRetrievalError,
                 self.agent.treat_devices_added_or_updated, [{}], False)
 
     def _mock_treat_devices_added_updated(self, details, port, func_name):
@@ -1489,7 +1491,7 @@ class TestOvsNeutronAgent(base.BaseTestCase):
         with contextlib.nested(
             mock.patch.object(self.agent.tun_br, 'add_tunnel_port',
                               return_value=ovs_lib.INVALID_OFPORT),
-            mock.patch.object(ovs_neutron_agent.LOG, 'error')
+            mock.patch.object(ovs_dpdk_neutron_agent.LOG, 'error')
         ) as (add_tunnel_port_fn, log_error_fn):
             ofport = self.agent._setup_tunnel_port(
                 self.agent.tun_br, 'gre-1', 'remote_ip', p_const.TYPE_GRE)
@@ -1505,7 +1507,7 @@ class TestOvsNeutronAgent(base.BaseTestCase):
         with contextlib.nested(
             mock.patch.object(self.agent.tun_br, 'add_tunnel_port',
                               return_value='-1'),
-            mock.patch.object(ovs_neutron_agent.LOG, 'error')
+            mock.patch.object(ovs_dpdk_neutron_agent.LOG, 'error')
         ) as (add_tunnel_port_fn, log_error_fn):
             self.agent.dont_fragment = False
             ofport = self.agent._setup_tunnel_port(
@@ -1570,15 +1572,15 @@ class TestOvsNeutronAgent(base.BaseTestCase):
         with contextlib.nested(
             mock.patch.object(async_process.AsyncProcess, "_spawn"),
             mock.patch.object(log.ContextAdapter, 'exception'),
-            mock.patch.object(ovs_neutron_agent.OVSNeutronAgent,
+            mock.patch.object(ovs_dpdk_neutron_agent.OVSDPDKNeutronAgent,
                               'scan_ports'),
-            mock.patch.object(ovs_neutron_agent.OVSNeutronAgent,
+            mock.patch.object(ovs_dpdk_neutron_agent.OVSDPDKNeutronAgent,
                               'process_network_ports'),
-            mock.patch.object(ovs_neutron_agent.OVSNeutronAgent,
+            mock.patch.object(ovs_dpdk_neutron_agent.OVSDPDKNeutronAgent,
                               'check_ovs_status'),
-            mock.patch.object(ovs_neutron_agent.OVSNeutronAgent,
+            mock.patch.object(ovs_dpdk_neutron_agent.OVSDPDKNeutronAgent,
                               'setup_integration_br'),
-            mock.patch.object(ovs_neutron_agent.OVSNeutronAgent,
+            mock.patch.object(ovs_dpdk_neutron_agent.OVSDPDKNeutronAgent,
                               'setup_physical_bridges'),
             mock.patch.object(time, 'sleep')
         ) as (spawn_fn, log_exception, scan_ports, process_network_ports,
@@ -1629,7 +1631,7 @@ class AncillaryBridgesTest(base.BaseTestCase):
                              'neutron.agent.firewall.NoopFirewallDriver',
                              group='SECURITYGROUP')
         cfg.CONF.set_override('report_interval', 0, 'AGENT')
-        self.kwargs = ovs_neutron_agent.create_agent_config_map(cfg.CONF)
+        self.kwargs = ovs_dpdk_neutron_agent.create_agent_config_map(cfg.CONF)
 
     def _test_ancillary_bridges(self, bridges, ancillary):
         device_ids = ancillary[:]
@@ -1644,8 +1646,8 @@ class AncillaryBridgesTest(base.BaseTestCase):
                 return None
 
         with contextlib.nested(
-            mock.patch('neutron.plugins.openvswitch.agent.ovs_neutron_agent.'
-                       'OVSNeutronAgent.setup_integration_br',
+            mock.patch('networking_ovs_dpdk.agent.ovs_dpdk_neutron_agent.'
+                       'OVSDPDKNeutronAgent.setup_integration_br',
                        return_value=mock.Mock()),
             mock.patch('neutron.agent.linux.utils.get_interface_mac',
                        return_value='00:00:00:00:00:01'),
@@ -1659,7 +1661,8 @@ class AncillaryBridgesTest(base.BaseTestCase):
             mock.patch('neutron.agent.linux.ovs_lib.BaseOVS.'
                        'get_bridge_external_bridge_id',
                        side_effect=pullup_side_effect)):
-            self.agent = ovs_neutron_agent.OVSNeutronAgent(**self.kwargs)
+            self.agent = ovs_dpdk_neutron_agent\
+                .OVSDPDKNeutronAgent(**self.kwargs)
             self.assertEqual(len(ancillary), len(self.agent.ancillary_brs))
             if ancillary:
                 bridges = [br.br_name for br in self.agent.ancillary_brs]

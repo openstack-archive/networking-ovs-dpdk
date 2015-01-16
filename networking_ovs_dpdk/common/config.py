@@ -14,9 +14,9 @@
 
 from oslo.config import cfg
 
+from networking_ovs_dpdk.common import constants
 from neutron.agent.common import config
 from neutron.plugins.common import constants as p_const
-from neutron.plugins.openvswitch.common import constants
 
 
 DEFAULT_BRIDGE_MAPPINGS = []

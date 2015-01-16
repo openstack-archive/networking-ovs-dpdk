@@ -20,14 +20,12 @@ import sys
 import time
 
 import eventlet
-eventlet.monkey_patch()
-
 import netaddr
-from neutron.plugins.openvswitch.agent import ovs_dvr_neutron_agent
 from oslo.config import cfg
 from oslo import messaging
 from six import moves
 
+from networking_ovs_dpdk.common import constants
 from neutron.agent import l2population_rpc
 from neutron.agent.linux import ip_lib
 from neutron.agent.linux import ovs_lib
@@ -46,11 +44,14 @@ from neutron.i18n import _LE, _LI, _LW
 from neutron.openstack.common import log as logging
 from neutron.openstack.common import loopingcall
 from neutron.plugins.common import constants as p_const
-from neutron.plugins.openvswitch.common import constants
+from neutron.plugins.openvswitch.agent import ovs_dvr_neutron_agent
+
+
+eventlet.monkey_patch()
 
 
 LOG = logging.getLogger(__name__)
-cfg.CONF.import_group('AGENT', 'neutron.plugins.openvswitch.common.config')
+cfg.CONF.import_group('AGENT', 'networking_ovs_dpdk.common.config')
 
 # A placeholder for dead vlans.
 DEAD_VLAN_TAG = str(q_const.MAX_VLAN_TAG + 1)
@@ -96,7 +97,7 @@ class OVSSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpcMixin):
         self.init_firewall(defer_refresh_firewall=True)
 
 
-class OVSNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
+class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
                       l2population_rpc.L2populationRpcCallBackTunnelMixin,
                       dvr_rpc.DVRAgentRpcCallbackMixin):
     '''Implements OVS-based tunneling, VLANs and flat networks.
@@ -164,7 +165,7 @@ class OVSNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
         :param use_veth_interconnection: use veths instead of patch ports to
                interconnect the integration bridge to physical bridges.
         '''
-        super(OVSNeutronAgent, self).__init__()
+        super(OVSDPDKNeutronAgent, self).__init__()
         self.use_veth_interconnection = use_veth_interconnection
         self.veth_mtu = veth_mtu
         self.root_helper = root_helper
@@ -1568,7 +1569,7 @@ def main():
         # commands target xen dom0 rather than domU.
         cfg.CONF.set_default('ip_lib_force_root', True)
 
-    agent = OVSNeutronAgent(**agent_config)
+    agent = OVSDPDKNeutronAgent(**agent_config)
     signal.signal(signal.SIGTERM, agent._handle_sigterm)
 
     # Start everything.
