@@ -19,6 +19,7 @@ from neutron.plugins.common import constants as p_const
 # Special vlan_id value in ovs_vlan_allocations table indicating flat network
 FLAT_VLAN_ID = -1
 
+AGENT_TYPE_OVS_DPDK = 'DPDK OVS Agent'
 # Topic for tunnel notifications between the plugin and agent
 TUNNEL = 'tunnel'
 

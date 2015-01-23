@@ -188,7 +188,7 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
                                self.arp_responder_enabled,
                                'enable_distributed_routing':
                                self.enable_distributed_routing},
-            'agent_type': q_const.AGENT_TYPE_OVS,
+            'agent_type': constants.AGENT_TYPE_OVS_DPDK,
             'start_flag': True}
 
         # Keep track of int_br's device count for use by _report_state()
