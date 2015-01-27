@@ -83,3 +83,23 @@ ARP_RESPONDER_ACTIONS = ('move:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],'
 OVS_RESTARTED = 0
 OVS_NORMAL = 1
 OVS_DEAD = 2
+
+#  - vhost_user_ovs_plug: Boolean used to inform Nova that the ovs plug
+#                         method should be used when binding the
+#                         vhost user vif.
+VHOST_USER_OVS_PLUG = 'vhostuser_ovs_plug'
+
+#  - vhost_user_mode: String value used to declare how the mode of a
+#                     vhost-user socket
+VHOST_USER_MODE = 'vhostuser_mode'
+#  - server: socket created by hypervisor
+VHOST_USER_MODE_SERVER = 'server'
+#  - client: socket created by vswitch
+VHOST_USER_MODE_CLIENT = 'client'
+
+#  - vhost_user_dir: String value used to declare the directory in which
+#                     vhost-user sockets will be created
+VHOST_USER_DIR = 'vhostuser_sock_dir'
+
+#  - vif_type_vhost_user: vif type to enable use of the qemu vhost-user vif
+VIF_TYPE_VHOST_USER = 'vhostuser'
