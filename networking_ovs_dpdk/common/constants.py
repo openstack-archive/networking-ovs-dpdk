@@ -83,3 +83,17 @@ ARP_RESPONDER_ACTIONS = ('move:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],'
 OVS_RESTARTED = 0
 OVS_NORMAL = 1
 OVS_DEAD = 2
+
+#  - vhost_user_ovs_plug: Boolean used to inform Nova that the ovs plug
+#                         method should be used when binding the
+#                         vhost user vif.
+#  - vhost_user_mode: String value used declare how the mode of a
+#                     vhost-user socket
+
+VHOST_USER_OVS_PLUG = 'vhostuser_ovs_plug'
+VHOST_USER_MODE = 'vhostuser_mode'
+VHOST_USER_MODE_SERVER = 'server'
+VHOST_USER_MODE_CLIENT = 'client'
+VHOST_USER_DIR = 'vhostuser_sock_dir'
+
+VIF_TYPE_VHOST_USER = 'vhostuser'
