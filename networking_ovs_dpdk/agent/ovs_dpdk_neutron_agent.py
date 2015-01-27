@@ -54,7 +54,7 @@ LOG = logging.getLogger(__name__)
 cfg.CONF.import_group('AGENT', 'networking_ovs_dpdk.common.config')
 
 # A placeholder for dead vlans.
-DEAD_VLAN_TAG = str(q_const.MAX_VLAN_TAG + 1)
+DEAD_VLAN_TAG = q_const.MAX_VLAN_TAG + 1
 
 
 class DeviceListRetrievalError(exceptions.NeutronException):
@@ -83,16 +83,8 @@ class LocalVLANMapping(object):
                  self.segmentation_id))
 
 
-class OVSPluginApi(agent_rpc.PluginApi, dvr_rpc.DVRServerRpcApiMixin):
+class OVSPluginApi(agent_rpc.PluginApi):
     pass
-
-
-class OVSSecurityGroupAgent(sg_rpc.SecurityGroupAgentRpcMixin):
-    def __init__(self, context, plugin_rpc, root_helper):
-        self.context = context
-        self.plugin_rpc = plugin_rpc
-        self.root_helper = root_helper
-        self.init_firewall(defer_refresh_firewall=True)
 
 
 class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
@@ -227,7 +219,7 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
 
         self.dvr_agent = ovs_dvr_neutron_agent.OVSDVRNeutronAgent(
             self.context,
-            self.plugin_rpc,
+            self.dvr_plugin_rpc,
             self.int_br,
             self.tun_br,
             self.patch_int_ofport,
@@ -251,9 +243,9 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
         self.ancillary_brs = self.setup_ancillary_bridges(integ_br, tun_br)
 
         # Security group agent support
-        self.sg_agent = OVSSecurityGroupAgent(self.context,
-                                              self.sg_plugin_rpc,
-                                              root_helper)
+        self.sg_agent = sg_rpc.SecurityGroupAgentRpc(self.context,
+                self.sg_plugin_rpc, root_helper, defer_refresh_firewall=True)
+
         # Initialize iteration counter
         self.iter_num = 0
         self.run_daemon_loop = True
@@ -282,6 +274,7 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
         self.topic = topics.AGENT
         self.plugin_rpc = OVSPluginApi(topics.PLUGIN)
         self.sg_plugin_rpc = sg_rpc.SecurityGroupServerRpcApi(topics.PLUGIN)
+        self.dvr_plugin_rpc = dvr_rpc.DVRServerRpcApi(topics.PLUGIN)
         self.state_rpc = agent_rpc.PluginReportStateAPI(topics.PLUGIN)
 
         # RPC network init
@@ -651,9 +644,9 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
 
         # Do not bind a port if it's already bound
         cur_tag = self.int_br.db_get_val("Port", port.port_name, "tag")
-        if cur_tag != str(lvm.vlan):
+        if cur_tag != lvm.vlan:
             self.int_br.set_db_attribute("Port", port.port_name, "tag",
-                                         str(lvm.vlan))
+                                         lvm.vlan)
             if port.ofport != -1:
                 self.int_br.delete_flows(in_port=port.ofport)
 
