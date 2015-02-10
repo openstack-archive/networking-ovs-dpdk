@@ -1,0 +1,43 @@
+NETWOKING_OVS_DPDK_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd .. && pwd )
+
+
+#dpdk settings
+OVS_DPDK_GIT_REPO=${OVS_DPDK_GIT_REPO:- http://dpdk.org/git/dpdk}
+OVS_DPDK_GIT_TAG=${OVS_DPDK_GIT_TAG:-v1.7.1}
+OVS_DPDK_DIR=${OVS_DPDK_DIR:-$DEST/DPDK-$OVS_DPDK_GIT_TAG}
+RTE_TARGET=${RTE_TARGET:-x86_64-ivshmem-linuxapp-gcc}
+OVS_DPDK_MEM_SEGMENTS=${OVS_DPDK_MEM_SEGMENTS:-256}
+OVS_DPDK_VHOST_USER_DEBUG=${OVS_DPDK_VHOST_USER_DEBUG:-n}
+
+
+#ovs settings
+OVS_DIR=${OVS_DIR:-$DEST/ovs}
+OVS_GIT_REPO=${OVS_GIT_REPO:-https://github.com/openvswitch/ovs.git}
+OVS_GIT_TAG=${OVS_GIT_TAG:-b35839f3855e3b812709c6ad1c9278f498aa9935}
+OVS_HUGEPAGE_MOUNT=${OVS_HUGEPAGE_MOUNT:-/mnt/huge}
+OVS_NUM_HUGEPAGES=${OVS_NUM_HUGEPAGES:-0}
+OVS_SOCKET_MEM=${OVS_SOCKET_MEM:-auto}
+OVS_MEM_CHANNELS=${OVS_MEM_CHANNELS:-4}
+OVS_DB_CONF=/usr/etc/openvswitch/conf.db
+OVS_DB_SOCKET=/usr/var/run/openvswitch/db.sock
+if is_fedora; then
+       OVS_DB_CONF=/etc/openvswitch/conf.db
+       OVS_DB_SOCKET=/var/run/openvswitch/db.sock
+fi
+
+
+#patch settings
+#do not install any patches by default.
+OVS_PATCHES=${OVS_PATCHES:-''}
+OVS_DPDK_PATCHES=${OVS_DPDK_PATCHES:-''}
+
+
+# agent settings
+Q_AGENT=ovsdpdk
+if [ ! -e $TOP_DIR/lib/neutron_plugins/${Q_AGENT}_agent ]; then
+        ln -s $NETWOKING_OVS_DPDK_DIR/devstack/libs/agent $TOP_DIR/lib/neutron_plugins/${Q_AGENT}_agent
+fi
+
+source $TOP_DIR/lib/neutron
+source $TOP_DIR/lib/neutron_plugins/ml2
+source $TOP_DIR/lib/neutron_plugins/${Q_AGENT}_agent
