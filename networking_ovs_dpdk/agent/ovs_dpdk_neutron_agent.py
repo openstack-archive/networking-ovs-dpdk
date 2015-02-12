@@ -21,8 +21,8 @@ import time
 
 import eventlet
 import netaddr
-from oslo.config import cfg
-from oslo import messaging
+from oslo_config import cfg
+import oslo_messaging
 from six import moves
 
 from networking_ovs_dpdk.common import constants
@@ -88,8 +88,8 @@ class OVSPluginApi(agent_rpc.PluginApi):
 
 
 class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
-                      l2population_rpc.L2populationRpcCallBackTunnelMixin,
-                      dvr_rpc.DVRAgentRpcCallbackMixin):
+                          l2population_rpc.L2populationRpcCallBackTunnelMixin,
+                          dvr_rpc.DVRAgentRpcCallbackMixin):
     '''Implements OVS-based tunneling, VLANs and flat networks.
 
     Two local bridges are created: an integration bridge (defaults to
@@ -120,7 +120,7 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
     #   1.0 Initial version
     #   1.1 Support Security Group RPC
     #   1.2 Support DVR (Distributed Virtual Router) RPC
-    target = messaging.Target(version='1.2')
+    target = oslo_messaging.Target(version='1.2')
 
     def __init__(self, integ_br, tun_br, local_ip,
                  bridge_mappings, root_helper,
@@ -131,7 +131,8 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
                  ovsdb_monitor_respawn_interval=(
                      constants.DEFAULT_OVSDBMON_RESPAWN),
                  arp_responder=False,
-                 use_veth_interconnection=False):
+                 use_veth_interconnection=False,
+                 quitting_rpc_timeout=None):
         '''Constructor.
 
         :param integ_br: name of the integration bridge.
@@ -154,6 +155,8 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
                supported.
         :param use_veth_interconnection: use veths instead of patch ports to
                interconnect the integration bridge to physical bridges.
+        :param quitting_rpc_timeout: timeout in seconds for rpc calls after
+               SIGTERM is received
         '''
         super(OVSDPDKNeutronAgent, self).__init__()
         self.use_veth_interconnection = use_veth_interconnection
@@ -259,6 +262,8 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
 
         # The initialization is complete; we can start receiving messages
         self.connection.consume_in_threads()
+
+        self.quitting_rpc_timeout = quitting_rpc_timeout
 
     def _report_state(self):
         # How many devices are likely used by a VM
@@ -1517,6 +1522,13 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
     def _handle_sigterm(self, signum, frame):
         LOG.debug("Agent caught SIGTERM, quitting daemon loop.")
         self.run_daemon_loop = False
+        if self.quitting_rpc_timeout:
+            self.set_rpc_timeout(self.quitting_rpc_timeout)
+
+    def set_rpc_timeout(self, timeout):
+        for rpc_api in (self.plugin_rpc, self.sg_plugin_rpc,
+                        self.dvr_plugin_rpc, self.state_rpc):
+            rpc_api.client.timeout = timeout
 
 
 def _ofport_set_to_str(ofport_set):
@@ -1548,6 +1560,7 @@ def create_agent_config_map(config):
         l2_population=config.AGENT.l2_population,
         arp_responder=config.AGENT.arp_responder,
         use_veth_interconnection=config.OVS.use_veth_interconnection,
+        quitting_rpc_timeout=config.AGENT.quitting_rpc_timeout
     )
 
     # Verify the tunnel_types specified are valid
