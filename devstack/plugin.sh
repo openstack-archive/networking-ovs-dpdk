@@ -1,4 +1,4 @@
-local xtrace=$(set +o | grep xtrace)
+xtrace=$(set +o | grep xtrace)
 set +o xtrace
 set -x
 

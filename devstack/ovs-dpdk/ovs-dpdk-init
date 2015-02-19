@@ -190,15 +190,18 @@ free_hugepages() {
        return 0
     fi
 
-    if [ -d $OVS_HUGEPAGE_MOUNT ]
+    # de-allocate hugepages
+    if [ $OVS_ALLOCATE_HUGEPAGES == 'True' ]
     then
-       sudo rm -rf ${OVS_HUGEPAGE_MOUNT}/rtemap*
+       if [ -d $OVS_HUGEPAGE_MOUNT ]
+       then
+          sudo rm -rf ${OVS_HUGEPAGE_MOUNT}/rtemap*
+       fi
+
+       for d in /sys/devices/system/node/node? ; do
+          echo 0 | sudo tee $d/hugepages/hugepages-${HUGEPAGE_SIZE}kB/nr_hugepages
+       done
     fi
-    for d in /sys/devices/system/node/node? ; do
-       echo 0 | sudo tee $d/hugepages/hugepages-${HUGEPAGE_SIZE}kB/nr_hugepages
-    done
-
-
     if [ $? -eq 0 ]
      then
         sudo umount ${OVS_HUGEPAGE_MOUNT}
@@ -226,9 +229,14 @@ alloc_hugepages() {
     then
         free_hugepages
     fi
-    for d in /sys/devices/system/node/node? ; do
-        echo $OVS_NUM_HUGEPAGES | sudo tee $d/hugepages/hugepages-${HUGEPAGE_SIZE}kB/nr_hugepages
-    done
+    #allocate hugepages
+    if [ $OVS_ALLOCATE_HUGEPAGES == 'True' ]
+    then
+        for d in /sys/devices/system/node/node? ; do
+            echo $OVS_NUM_HUGEPAGES | sudo tee $d/hugepages/hugepages-${HUGEPAGE_SIZE}kB/nr_hugepages
+        done
+    fi
+
     if is_ubuntu
     then
         qemu_user_id=$(id -u libvirt-qemu)
