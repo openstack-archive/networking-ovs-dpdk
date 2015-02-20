@@ -97,9 +97,13 @@ VHOST_USER_MODE_SERVER = 'server'
 #  - client: socket created by vswitch
 VHOST_USER_MODE_CLIENT = 'client'
 
-#  - vhost_user_dir: String value used to declare the directory in which
-#                     vhost-user sockets will be created
-VHOST_USER_DIR = 'vhostuser_sock_dir'
+#  - vhostuser_socket String value used to declare the vhostuser socket name
+VHOST_USER_SOCKET = 'vhostuser_socket'
 
 #  - vif_type_vhost_user: vif type to enable use of the qemu vhost-user vif
 VIF_TYPE_VHOST_USER = 'vhostuser'
+
+# default location for vhostuser sockets
+VHOSTUSER_SOCKET_DIR = '/tmp'
+# prefix for ovs port
+PORT_PREFIX = 'vhu'

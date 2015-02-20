@@ -13,10 +13,14 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import copy
+import os
+
 from networking_ovs_dpdk.common import constants
 from neutron.extensions import portbindings
 from neutron.openstack.common import log
 from neutron.plugins.common import constants as npcc
+from neutron.plugins.ml2 import driver_api as api
 from neutron.plugins.ml2.drivers import mech_agent
 
 LOG = log.getLogger(__name__)
@@ -39,8 +43,7 @@ class OVSDPDKMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
         vif_details = {portbindings.CAP_PORT_FILTER: False,
                        constants.VHOST_USER_MODE:
                        constants.VHOST_USER_MODE_CLIENT,
-                       constants.VHOST_USER_OVS_PLUG: True,
-                       constants.VHOST_USER_DIR: "/tmp/"}
+                       constants.VHOST_USER_OVS_PLUG: True}
 
         super(OVSDPDKMechanismDriver, self).__init__(
             constants.AGENT_TYPE_OVS_DPDK,
@@ -53,3 +56,17 @@ class OVSDPDKMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
 
     def get_mappings(self, agent):
         return agent['configurations'].get('bridge_mappings', {})
+
+    def try_to_bind_segment_for_agent(self, context, segment, agent):
+        if self.check_segment_for_agent(segment, agent):
+            sock_name = (constants.PORT_PREFIX + context.current['id'])[:14]
+            vif_details = copy.copy(self.vif_details)
+            vif_details[constants.VHOST_USER_SOCKET] = os.path.join(
+                                        constants.VHOSTUSER_SOCKET_DIR,
+                                        sock_name)
+            context.set_binding(segment[api.ID],
+                                self.vif_type,
+                                vif_details)
+            return True
+        else:
+            return False

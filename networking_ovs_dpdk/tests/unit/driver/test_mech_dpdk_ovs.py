@@ -15,6 +15,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import os
+
 from networking_ovs_dpdk.common import constants
 from networking_ovs_dpdk.driver import mech_ovs_dpdk
 from neutron.extensions import portbindings
@@ -23,11 +25,13 @@ from neutron.tests.unit.ml2 import _test_mech_agent as base
 
 class OVSDPDKMechanismBaseTestCase(base.AgentMechanismBaseTestCase):
     VIF_TYPE = constants.VIF_TYPE_VHOST_USER
+    socket_path = os.path.join(constants.VHOSTUSER_SOCKET_DIR,
+                               (constants.PORT_PREFIX + 'fake_port')[:14])
     VIF_DETAILS = {portbindings.CAP_PORT_FILTER: False,
                    constants.VHOST_USER_MODE:
                        constants.VHOST_USER_MODE_CLIENT,
                    constants.VHOST_USER_OVS_PLUG: True,
-                   constants.VHOST_USER_DIR: "/tmp/"}
+                   constants.VHOST_USER_SOCKET: socket_path}
 
     AGENT_TYPE = constants.AGENT_TYPE_OVS_DPDK
 
