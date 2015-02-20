@@ -268,7 +268,7 @@ class TestOVSDPDKNeutronAgent(base.BaseTestCase):
         self.assertEqual(expected, actual)
 
     def test_update_ports_returns_changed_vlan(self):
-        br = ovs_lib.OVSBridge('br-int', 'sudo')
+        br = ovs_lib.OVSBridge('br-int')
         mac = "ca:fe:de:ad:be:ef"
         port = ovs_lib.VifPort(1, 1, 1, mac, br)
         lvm = ovs_dpdk_neutron_agent.LocalVLANMapping(
@@ -890,7 +890,7 @@ class TestOVSDPDKNeutronAgent(base.BaseTestCase):
             'neutron.agent.linux.polling.get_polling_manager') as mock_get_pm:
             with mock.patch.object(self.agent, 'rpc_loop') as mock_loop:
                 self.agent.daemon_loop()
-        mock_get_pm.assert_called_with(True, 'sudo',
+        mock_get_pm.assert_called_with(True,
                                        constants.DEFAULT_OVSDBMON_RESPAWN)
         mock_loop.assert_called_once_with(polling_manager=mock.ANY)
 
