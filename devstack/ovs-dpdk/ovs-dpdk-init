@@ -326,8 +326,7 @@ start_ovs(){
     printf -v CORE_MASK_HEX "%x" "$CORE_MASK"
     printf -v VSWITCH_CORE_HEX "%x" "$VSWITCH_CORE"
     sudo rm -f $OVS_LOG_DIR/ovs-vswitchd.log
-    echo  screen -dms ovs-vswitchd sudo su -c "${OVS_INSTALL_DIR}/sbin/ovs-vswitchd --dpdk -c $CORE_MASK_HEX -n $OVS_MEM_CHANNELS  --proc-type primary  --huge-dir $OVS_HUGEPAGE_MOUNT  --socket-mem $OVS_SOCKET_MEM -- --log-file=${OVS_LOG_DIR}/ovs-vswitchd.log"
-    screen -dms ovs-vswitchd sudo su -c "${OVS_INSTALL_DIR}/sbin/ovs-vswitchd --dpdk -c $CORE_MASK_HEX -n $OVS_MEM_CHANNELS  --proc-type primary  --huge-dir $OVS_HUGEPAGE_MOUNT --socket-mem $OVS_SOCKET_MEM  -- --log-file=${OVS_LOG_DIR}/ovs-vswitchd.log unix:$OVS_DB_SOCKET"
+    screen -dms ovs-vswitchd sudo su -c "${OVS_INSTALL_DIR}/sbin/ovs-vswitchd --dpdk -c $CORE_MASK_HEX -n $OVS_MEM_CHANNELS  --proc-type primary  --huge-dir $OVS_HUGEPAGE_MOUNT --socket-mem $OVS_SOCKET_MEM  -- unix:$OVS_DB_SOCKET 2>&1 | tee ${OVS_LOG_DIR}/ovs-vswitchd.log"
     sleep 1
     PID=$(pidof ovs-vswitchd)
     if [ $? -eq 0 ]
@@ -336,7 +335,7 @@ start_ovs(){
     else
         die $LINENO "ovs-vswitchd application failed to start $PID"
     fi
-    while [ ! -e  $OVS_LOG_DIR/ovs-vswitchd.log ]; do
+    while [ ! $(grep "unix.*connected" ${OVS_LOG_DIR}/ovs-vswitchd.log) ]; do
        PID=$(pidof ovs-vswitchd)
        if [ $? -eq 0 ]; then
            echo "Waiting for ovs-vswitchd to start..."

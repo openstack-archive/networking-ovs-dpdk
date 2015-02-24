@@ -220,6 +220,7 @@ sudo sed "s#OVS_DB_CONF=.*#OVS_DB_CONF=$OVS_DB_CONF#" -i /etc/default/ovs-dpdk
 sudo sed "s#OVS_SOCKET_MEM=.*#OVS_SOCKET_MEM=$OVS_SOCKET_MEM#" -i /etc/default/ovs-dpdk
 sudo sed "s#OVS_MEM_CHANNELS=.*#OVS_MEM_CHANNELS=$OVS_MEM_CHANNELS#" -i /etc/default/ovs-dpdk
 sudo sed "s#OVS_ALLOCATE_HUGEPAGES=.*#OVS_ALLOCATE_HUGEPAGES=$OVS_ALLOCATE_HUGEPAGES#" -i /etc/default/ovs-dpdk
+sudo sed "s#OVS_LOG_DIR=.*#OVS_LOG_DIR=$OVS_LOG_DIR#" -i /etc/default/ovs-dpdk
 
 if [ $OVS_SOCKET_MEM == "auto" ] ; then
     for d in /sys/devices/system/node/node? ; do
