@@ -248,7 +248,11 @@ alloc_hugepages() {
 
     grep -s $OVS_HUGEPAGE_MOUNT /proc/mounts > /dev/null
     if [ $? -ne 0 ] ; then
-        sudo mount -t hugetlbfs -o uid=$qemu_user_id,gid=$qemu_group_id  nodev $OVS_HUGEPAGE_MOUNT
+        if [ -n "$OVS_HUGEPAGE_MOUNT_PAGESIZE" ]; then
+            sudo mount -t hugetlbfs -o uid=$qemu_user_id,gid=$qemu_group_id,pagesize=$OVS_HUGEPAGE_MOUNT_PAGESIZE  nodev $OVS_HUGEPAGE_MOUNT
+        else
+            sudo mount -t hugetlbfs -o uid=$qemu_user_id,gid=$qemu_group_id  nodev $OVS_HUGEPAGE_MOUNT
+        fi
     fi
     if is_ubuntu; then
         restart_service libvirt-bin
