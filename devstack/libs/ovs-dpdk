@@ -213,6 +213,7 @@ sudo sed "s#RTE_TARGET=.*#RTE_TARGET=$RTE_TARGET#" -i /etc/default/ovs-dpdk
 sudo sed "s#OVS_SRC_DIR=.*#OVS_SRC_DIR=$OVS_DIR#" -i /etc/default/ovs-dpdk
 sudo sed "s#OVS_NUM_HUGEPAGES=.*#OVS_NUM_HUGEPAGES=$OVS_NUM_HUGEPAGES#" -i /etc/default/ovs-dpdk
 sudo sed "s#OVS_HUGEPAGE_MOUNT=.*#OVS_HUGEPAGE_MOUNT=$OVS_HUGEPAGE_MOUNT#" -i /etc/default/ovs-dpdk
+sudo sed "s#OVS_HUGEPAGE_MOUNT_PAGESIZE=.*#OVS_HUGEPAGE_MOUNT_PAGESIZE=$OVS_HUGEPAGE_MOUNT_PAGESIZE#" -i /etc/default/ovs-dpdk
 sudo sed "s#OVS_DB_SOCKET_DIR=.*#OVS_DB_SOCKET_DIR=$OVS_DB_SOCKET_DIR#" -i /etc/default/ovs-dpdk
 sudo sed "s#OVS_DB_CONF_DIR=.*#OVS_DB_CONF_DIR=$OVS_DB_CONF_DIR#" -i /etc/default/ovs-dpdk
 sudo sed "s#OVS_DB_SOCKET=.*#OVS_DB_SOCKET=$OVS_DB_SOCKET#" -i /etc/default/ovs-dpdk
