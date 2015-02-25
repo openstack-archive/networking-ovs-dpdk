@@ -326,24 +326,47 @@ start_ovs(){
     printf -v CORE_MASK_HEX "%x" "$CORE_MASK"
     printf -v VSWITCH_CORE_HEX "%x" "$VSWITCH_CORE"
     sudo rm -f $OVS_LOG_DIR/ovs-vswitchd.log
-    screen -dms ovs-vswitchd sudo su -c "${OVS_INSTALL_DIR}/sbin/ovs-vswitchd --dpdk -c $CORE_MASK_HEX -n $OVS_MEM_CHANNELS  --proc-type primary  --huge-dir $OVS_HUGEPAGE_MOUNT --socket-mem $OVS_SOCKET_MEM  -- unix:$OVS_DB_SOCKET 2>&1 | tee ${OVS_LOG_DIR}/ovs-vswitchd.log"
+    if [ -n "$OVS_LOCK_DIR" ]; then
+        retry_count=1
+        max_retry_count=60
+        while [ "$retry_count" -le "$max_retry_count" ]; do
+            if [[ ! -d $OVS_LOCK_DIR ]]; then
+                sudo mkdir $OVS_LOCK_DIR
+                if [ $? == 0 ]; then
+                    echo "start ovs-vswitchd $retry_count/$max_retry_count"
+                    screen -dms ovs-vswitchd sudo su -c "${OVS_INSTALL_DIR}/sbin/ovs-vswitchd --dpdk -c $CORE_MASK_HEX -n $OVS_MEM_CHANNELS  --proc-type primary  --huge-dir $OVS_HUGEPAGE_MOUNT --socket-mem $OVS_SOCKET_MEM  -- unix:$OVS_DB_SOCKET 2>&1 | tee ${OVS_LOG_DIR}/ovs-vswitchd.log"
+                    break
+                fi
+            fi
+            let retry_count="$retry_count+1"
+            sleep 10
+        done
+    else
+        screen -dms ovs-vswitchd sudo su -c "${OVS_INSTALL_DIR}/sbin/ovs-vswitchd --dpdk -c $CORE_MASK_HEX -n $OVS_MEM_CHANNELS  --proc-type primary  --huge-dir $OVS_HUGEPAGE_MOUNT --socket-mem $OVS_SOCKET_MEM  -- unix:$OVS_DB_SOCKET 2>&1 | tee ${OVS_LOG_DIR}/ovs-vswitchd.log"
+    fi
     sleep 1
     PID=$(pidof ovs-vswitchd)
-    if [ $? -eq 0 ]
-    then
+    if [ $? -eq 0 ]; then
         echo $PID > $OVS_LOG_DIR/ovs-vswitchd.pid
     else
+        if [ -n "$OVS_LOCK_DIR" ]; then
+            sudo rm -rf $OVS_LOCK_DIR
+        fi
         die $LINENO "ovs-vswitchd application failed to start $PID"
     fi
     while [ ! $(grep "unix.*connected" ${OVS_LOG_DIR}/ovs-vswitchd.log) ]; do
-       PID=$(pidof ovs-vswitchd)
-       if [ $? -eq 0 ]; then
-           echo "Waiting for ovs-vswitchd to start..."
-           sleep 1
-       else
-           die $LINENO "ovs-vswitchd application failed to start $PID"
-       fi
+        PID=$(pidof ovs-vswitchd)
+        if [ $? -eq 0 ]; then
+            echo "Waiting for ovs-vswitchd to start..."
+            sleep 1
+        else
+            if [ -n "$OVS_LOCK_DIR" ]; then
+                sudo rm -rf $OVS_LOCK_DIR
+            fi
+            die $LINENO "ovs-vswitchd application failed to start $PID"
+        fi
     done
+    sudo rm -rf $OVS_LOCK_DIR
 
 }
 

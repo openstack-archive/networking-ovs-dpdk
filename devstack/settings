@@ -33,7 +33,7 @@ OVS_LOG_DIR=${OVS_LOG_DIR:-/tmp}
 #do not install any patches by default.
 OVS_PATCHES=${OVS_PATCHES:-''}
 OVS_DPDK_PATCHES=${OVS_DPDK_PATCHES:-''}
-
+OVS_LOCK_DIR=${OVS_LOCK_DIR:-''}
 
 # agent settings
 Q_AGENT=ovsdpdk
