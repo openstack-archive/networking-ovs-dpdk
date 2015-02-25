@@ -189,23 +189,23 @@ free_hugepages() {
        echo "Hugepages not mounted, nothing to clean"
        return 0
     fi
+    #remove ovs reserved hugepages
+    if [ -d $OVS_HUGEPAGE_MOUNT ]
+    then
+       sudo rm -rf ${OVS_HUGEPAGE_MOUNT}/rtemap*
+    fi
+
+    #unmount ovs mountpoint
+    sudo umount ${OVS_HUGEPAGE_MOUNT}
 
     # de-allocate hugepages
     if [ $OVS_ALLOCATE_HUGEPAGES == 'True' ]
     then
-       if [ -d $OVS_HUGEPAGE_MOUNT ]
-       then
-          sudo rm -rf ${OVS_HUGEPAGE_MOUNT}/rtemap*
-       fi
-
        for d in /sys/devices/system/node/node? ; do
           echo 0 | sudo tee $d/hugepages/hugepages-${HUGEPAGE_SIZE}kB/nr_hugepages
        done
     fi
-    if [ $? -eq 0 ]
-     then
-        sudo umount ${OVS_HUGEPAGE_MOUNT}
-     fi
+
     if is_ubuntu; then
         restart_service libvirt-bin
     else
@@ -353,6 +353,7 @@ start_ovs(){
     if [ $? -eq 0 ]; then
         echo $PID > $OVS_LOG_DIR/ovs-vswitchd.pid
     else
+        free_hugepages
         if [ -n "$OVS_LOCK_DIR" ]; then
             sudo rm -rf $OVS_LOCK_DIR
         fi
@@ -364,6 +365,7 @@ start_ovs(){
             echo "Waiting for ovs-vswitchd to start..."
             sleep 1
         else
+            free_hugepages
             if [ -n "$OVS_LOCK_DIR" ]; then
                 sudo rm -rf $OVS_LOCK_DIR
             fi
