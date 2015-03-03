@@ -295,6 +295,7 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
         consumers = [[topics.PORT, topics.UPDATE],
                      [topics.NETWORK, topics.DELETE],
                      [constants.TUNNEL, topics.UPDATE],
+                     [constants.TUNNEL, topics.DELETE],
                      [topics.SECURITY_GROUP, topics.UPDATE],
                      [topics.DVR, topics.UPDATE]]
         if self.l2_pop:
@@ -353,6 +354,28 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
             self._setup_tunnel_port(self.tun_br, tun_name, tunnel_ip,
                                     tunnel_type)
 
+    def tunnel_delete(self, context, **kwargs):
+        LOG.debug("tunnel_delete received")
+        if not self.enable_tunneling:
+            return
+        tunnel_ip = kwargs.get('tunnel_ip')
+        if not tunnel_ip:
+            LOG.error(_LE("No tunnel_ip specified, cannot delete tunnels"))
+            return
+        tunnel_type = kwargs.get('tunnel_type')
+        if not tunnel_type:
+            LOG.error(_LE("No tunnel_type specified, cannot delete tunnels"))
+            return
+        if tunnel_type not in self.tunnel_types:
+            LOG.error(_LE("tunnel_type %s not supported by agent"),
+                      tunnel_type)
+            return
+        ofport = self.tun_br_ofports[tunnel_type].get(tunnel_ip)
+        self.cleanup_tunnel_port(self.tun_br, ofport, tunnel_type)
+
+    def _tunnel_port_lookup(self, network_type, remote_ip):
+        return self.tun_br_ofports[network_type].get(remote_ip)
+
     def fdb_add(self, context, fdb_entries):
         LOG.debug("fdb_add received")
         for lvm, agent_ports in self.get_agent_ports(fdb_entries,
@@ -362,10 +385,10 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
                 if not self.enable_distributed_routing:
                     with self.tun_br.deferred() as deferred_br:
                         self.fdb_add_tun(context, deferred_br, lvm,
-                                         agent_ports, self.tun_br_ofports)
+                                         agent_ports, self._tunnel_port_lookup)
                 else:
                     self.fdb_add_tun(context, self.tun_br, lvm,
-                                     agent_ports, self.tun_br_ofports)
+                                     agent_ports, self._tunnel_port_lookup)
 
     def fdb_remove(self, context, fdb_entries):
         LOG.debug("fdb_remove received")
@@ -376,10 +399,11 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
                 if not self.enable_distributed_routing:
                     with self.tun_br.deferred() as deferred_br:
                         self.fdb_remove_tun(context, deferred_br, lvm,
-                                            agent_ports, self.tun_br_ofports)
+                                            agent_ports,
+                                            self._tunnel_port_lookup)
                 else:
                     self.fdb_remove_tun(context, self.tun_br, lvm,
-                                        agent_ports, self.tun_br_ofports)
+                                        agent_ports, self._tunnel_port_lookup)
 
     def add_fdb_flow(self, br, port_info, remote_ip, lvm, ofport):
         if port_info == q_const.FLOODING_ENTRY:
@@ -402,6 +426,9 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
 
     def del_fdb_flow(self, br, port_info, remote_ip, lvm, ofport):
         if port_info == q_const.FLOODING_ENTRY:
+            if ofport not in lvm.tun_ofports:
+                LOG.debug("attempt to remove a non-existent port %s", ofport)
+                return
             lvm.tun_ofports.remove(ofport)
             if len(lvm.tun_ofports) > 0:
                 ofports = _ofport_set_to_str(lvm.tun_ofports)
@@ -1307,8 +1334,7 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
         try:
             return '%08x' % netaddr.IPAddress(ip_address, version=4)
         except Exception:
-            LOG.warn(_LW("Unable to create tunnel port. "
-                         "Invalid remote IP: %s"), ip_address)
+            LOG.warn(_LW("Invalid remote IP: %s"), ip_address)
             return
 
     def tunnel_sync(self):
@@ -1316,7 +1342,8 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
             for tunnel_type in self.tunnel_types:
                 details = self.plugin_rpc.tunnel_sync(self.context,
                                                       self.local_ip,
-                                                      tunnel_type)
+                                                      tunnel_type,
+                                                      cfg.CONF.host)
                 if not self.l2_pop:
                     tunnels = details['tunnels']
                     for tunnel in tunnels:
@@ -1589,7 +1616,11 @@ def main():
         # commands target xen dom0 rather than domU.
         cfg.CONF.set_default('ip_lib_force_root', True)
 
-    agent = OVSDPDKNeutronAgent(**agent_config)
+    try:
+        agent = OVSDPDKNeutronAgent(**agent_config)
+    except RuntimeError as e:
+        LOG.error(_LE("%s Agent terminated!"), e)
+        sys.exit(1)
     signal.signal(signal.SIGTERM, agent._handle_sigterm)
 
     # Start everything.
