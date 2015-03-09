@@ -1,0 +1,324 @@
+#!/bin/bash
+#
+# common functions for ovs based plugin
+# -------------------------------------
+
+# Save trace setting
+OVSB_XTRACE=$(set +o | grep xtrace)
+set +o xtrace
+
+
+
+function start_ovs_dpdk {
+    if  [ -e /etc/init.d/ovs-dpdk ]; then
+        sudo service ovs-dpdk start
+    fi
+}
+
+function stop_ovs_dpdk {
+    if  [ -e /etc/init.d/ovs-dpdk ]; then
+        sudo service ovs-dpdk stop
+    fi
+}
+
+
+
+function ovs_dpdk_configure_bridge_datapath {
+    local bridge=$1
+    if [[ $OVS_DATAPATH_TYPE != "" ]]; then
+        sudo ovs-vsctl --no-wait set Bridge $bridge datapath_type=${OVS_DATAPATH_TYPE}
+    fi
+}
+
+function ovs_dpdk_add_bridge {
+    local bridge=$1
+    sudo ovs-vsctl --no-wait -- --may-exist add-br $bridge
+    ovs_dpdk_configure_bridge_datapath $bridge
+    sudo ovs-vsctl --no-wait br-set-external-id $bridge bridge-id $bridge
+}
+
+
+function ovs_dpdk_setup_bridge {
+    local bridge=$1
+    neutron-ovs-cleanup
+    ovs_dpdk_add_bridge $bridge
+}
+
+
+function ovs_dpdk_create_kvm_wrapper(){
+    install_package qemu-kvm
+    if [ -e /usr/bin/kvm ]
+    then
+        KVM_CMD="/usr/bin/kvm"
+    elif [ -e /usr/bin/qemu-kvm ]
+    then
+        KVM_CMD="/usr/bin/qemu-kvm"
+    fi
+
+    sudo mv $KVM_CMD $KVM_CMD.orig
+cat << 'EOF' | sudo tee  $KVM_CMD
+#!/bin/bash -
+VIRTIO_OPTIONS="csum=off,gso=off,guest_tso4=off,guest_tso6=off,guest_ecn=off"
+VHOST_FORCE="vhostforce"
+SHARE="share=on"
+add_mem=False
+i=0
+while [ $# -gt 0 ]; do
+     case "$1" in
+
+     -device)
+        args[i]="$1"
+        (( i++ ))
+        shift
+        if [[ $1 =~ "vhost-user" ]]
+        then
+                args[i]=${1},${VHOST_FORCE}
+                (( i++))
+                shift
+
+        fi
+        ;;
+    -object)
+        args[i]="$1"
+        (( i++ ))
+        shift
+        if [[ $1 =~ "memory-backend-file" ]]
+        then
+                args[i]=${1},${SHARE}
+                (( i++))
+                shift
+
+        fi
+        ;;
+
+     *)
+         args[i]="$1"
+         (( i++ ))
+         shift ;;
+     esac
+done
+echo "qemu ${args[@]}"  >> /tmp/qemu.orig
+exec /usr/bin/qemu-system-x86_64  "${args[@]}"
+EOF
+sudo chmod +x $KVM_CMD
+}
+
+
+function ovs_dpdk_db_cleanup {
+    # remove all OVS ports that look like Neutron created ports
+    for port in $(sudo ovs-vsctl list port | grep -o -e tap[0-9a-f\-]* -e q[rg]-[0-9a-f\-]*); do
+        sudo ovs-vsctl --no-wait del-port ${port}
+    done
+
+    # remove all OVS bridges created by Neutron
+    for bridge in $(sudo ovs-vsctl list-br | grep -o -e ${OVS_BRIDGE} -e ${PUBLIC_BRIDGE}); do
+        sudo ovs-vsctl --no-wait del-br ${bridge}
+    done
+    if [ -e /usr/bin/kvm ]
+    then
+        KVM_CMD="/usr/bin/kvm"
+    elif [ -e /usr/bin/qemu-kvm ]
+    then
+        KVM_CMD="/usr/bin/qemu-kvm"
+    fi
+    if [ -e $KVM_CMD.orig ]
+    then
+        sudo mv $KVM_CMD.orig $KVM_CMD
+    fi
+    if [[ $OVS_DATAPATH_TYPE != "" ]]; then
+        stop_ovs_dpdk
+        sudo rm -f $OVS_DB_CONF
+    fi
+
+}
+
+function ovs_dpdk_clean(){
+    sudo rm -f /usr/bin/ovs*
+    sudo rm -f $OVS_DB_CONF_DIR/*
+    sudo rm -f $OVS_DB_SOCKET_DIR/*
+    sudo rm -f ${OVS_DIR}/BUILD_COMPLETE
+}
+
+
+function clone_ovs_dpdk(){
+    if [ ! -d ${OVS_DIR} ] || [ "$RECLONE" = True ]; then
+        if [ -d ${OVS_DIR} ]; then
+            rm -rf ${OVS_DIR}
+        fi
+        if [[ $OVS_GIT_TAG != "" ]]; then
+            git_clone ${OVS_GIT_REPO} ${OVS_DIR} $OVS_GIT_TAG
+        else
+            git_clone ${OVS_GIT_REPO} ${OVS_DIR}
+        fi
+    fi
+
+    if [ ! -d "${OVS_DPDK_DIR}" ] || [ "$RECLONE" = True ]; then
+        git_clone ${OVS_DPDK_GIT_REPO} ${OVS_DPDK_DIR} ${OVS_DPDK_GIT_TAG}
+    fi
+    if [[ '' != $OVS_PATCHES ]]; then
+        local patches=( $OVS_PATCHES )
+        pushd  ${OVS_DIR}
+        git clean -f -x -d
+        git reset --hard $OVS_GIT_TAG
+        for url in "${patches[@]}"; do
+            curl $url | patch -p1
+        done
+        popd
+    fi
+    if [[ '' != $OVS_DPDK_PATCHES ]]; then
+        local patches=( $OVS_DPDK_PATCHES )
+        pushd  ${OVS_DPDK_DIR}
+        git clean -f -x -d
+        git reset --hard ${OVS_DPDK_GIT_TAG}
+        for url in "${patches[@]}"; do
+            curl $url | patch -p1
+        done
+        popd
+    fi
+}
+
+function build_ovs_dpdk(){
+   if [  -e ${OVS_DIR}/BUILD_COMPLETE ]
+   then
+       echo "Build alread done."
+       return
+   fi
+   cd ${OVS_DPDK_DIR}
+   make config T=${RTE_TARGET}
+   if [ -e ${OVS_DPDK_DIR}/${RTE_TARGET} ]
+   then
+      rm $RTE_TARGET
+   fi
+   ln -s -f build $RTE_TARGET
+   sed "s/CONFIG_RTE_BUILD_COMBINE_LIBS=n/CONFIG_RTE_BUILD_COMBINE_LIBS=y/" -i ${OVS_DPDK_DIR}/build/.config
+   sed "s/CONFIG_RTE_MAX_MEMSEG=.*$/CONFIG_RTE_MAX_MEMSEG=${OVS_DPDK_MEM_SEGMENTS}/" -i ${OVS_DPDK_DIR}/build/.config
+   sed "s/CONFIG_RTE_LIBRTE_VHOST=n/CONFIG_RTE_LIBRTE_VHOST=y/" -i ${OVS_DPDK_DIR}/build/.config
+   sed "s/CONFIG_RTE_LIBRTE_VHOST_DEBUG=.*$/CONFIG_RTE_LIBRTE_VHOST_DEBUG=${OVS_DPDK_VHOST_USER_DEBUG}/" -i ${OVS_DPDK_DIR}/build/.config
+
+   make -j `nproc`
+   sudo cp ${OVS_DPDK_DIR}/build/lib/libintel_dpdk.* /lib
+   cd ${OVS_DIR}
+   ./boot.sh
+   ./configure --with-dpdk=${OVS_DPDK_DIR}/${RTE_TARGET} --prefix=/usr
+   make -j `nproc`
+   touch ${OVS_DIR}/BUILD_COMPLETE
+   sudo make install
+}
+
+function ovs_dpdk_write_conf {
+sudo cp $NETWOKING_OVS_DPDK_DIR/devstack/ovs-dpdk/ovs-dpdk-conf /etc/default/ovs-dpdk
+
+sudo sed "s#RTE_SDK=.*#RTE_SDK=$OVS_DPDK_DIR#" -i /etc/default/ovs-dpdk
+sudo sed "s#RTE_TARGET=.*#RTE_TARGET=$RTE_TARGET#" -i /etc/default/ovs-dpdk
+sudo sed "s#OVS_SRC_DIR=.*#OVS_SRC_DIR=$OVS_DIR#" -i /etc/default/ovs-dpdk
+sudo sed "s#OVS_NUM_HUGEPAGES=.*#OVS_NUM_HUGEPAGES=$OVS_NUM_HUGEPAGES#" -i /etc/default/ovs-dpdk
+sudo sed "s#OVS_HUGEPAGE_MOUNT=.*#OVS_HUGEPAGE_MOUNT=$OVS_HUGEPAGE_MOUNT#" -i /etc/default/ovs-dpdk
+sudo sed "s#OVS_DB_SOCKET_DIR=.*#OVS_DB_SOCKET_DIR=$OVS_DB_SOCKET_DIR#" -i /etc/default/ovs-dpdk
+sudo sed "s#OVS_DB_CONF_DIR=.*#OVS_DB_CONF_DIR=$OVS_DB_CONF_DIR#" -i /etc/default/ovs-dpdk
+sudo sed "s#OVS_DB_SOCKET=.*#OVS_DB_SOCKET=$OVS_DB_SOCKET#" -i /etc/default/ovs-dpdk
+sudo sed "s#OVS_DB_CONF=.*#OVS_DB_CONF=$OVS_DB_CONF#" -i /etc/default/ovs-dpdk
+sudo sed "s#OVS_SOCKET_MEM=.*#OVS_SOCKET_MEM=$OVS_SOCKET_MEM#" -i /etc/default/ovs-dpdk
+sudo sed "s#OVS_MEM_CHANNELS=.*#OVS_MEM_CHANNELS=$OVS_MEM_CHANNELS#" -i /etc/default/ovs-dpdk
+
+if [ $OVS_SOCKET_MEM == "auto" ] ; then
+    for d in /sys/devices/system/node/node? ; do
+            if [ $OVS_SOCKET_MEM == "auto" ]; then
+                    OVS_SOCKET_MEM=2048
+            else
+                    OVS_SOCKET_MEM=$OVS_SOCKET_MEM,2048
+            fi
+    done
+fi
+
+sudo sed -e "s#OVS_SOCKET_MEM=.*#OVS_SOCKET_MEM=$OVS_SOCKET_MEM#g" -i /etc/default/ovs-dpdk
+
+
+MAPPINGS=${OVS_BRIDGE_MAPPINGS//,/ }
+ARRAY=( $MAPPINGS )
+NICS=""
+for net in "${ARRAY[@]}"; do
+     KEY="${net%%:*}"
+     VALUE="${net##*:}"
+     printf "%s in %s\n" "$KEY" "$VALUE"
+     nic=${VALUE/br-/}
+     if [[ $NICS == "" ]]; then
+        NICS=$nic
+     else
+        NICS=$NICS,$nic
+     fi
+done
+
+sudo sed "s#OVS_BRIDGE_MAPPINGS=.*#OVS_BRIDGE_MAPPINGS=$NICS#" -i /etc/default/ovs-dpdk
+
+}
+
+function install_ovs_dpdk {
+    # Install deps
+    # FIXME add to ``files/apts/neutron``, but don't install if not needed!
+    set +o errexit
+    if is_ubuntu; then
+        stop_service openvswitch-switch
+        uninstall_package openvswitch-switch openvswitch-datapath-dkms openvswitch-common
+        install_package autoconf libtool libfuse-dev
+    elif is_fedora; then
+        stop_service openvswitch
+        uninstall_package openvswitch
+        install_package pciutils autoconf libtool fuse-devel
+    fi
+    # This function exits on an error so that errors don't compound and you see
+    # only the first error that occurred.
+    sudo rmmod openvswitch
+    set -o errexit
+
+    build_ovs_dpdk
+
+    sudo cp $NETWOKING_OVS_DPDK_DIR/devstack/ovs-dpdk/ovs-dpdk-init /etc/init.d/ovs-dpdk
+    ovs_dpdk_write_conf
+    ovs_dpdk_create_kvm_wrapper
+
+    sudo chmod +x /etc/init.d/ovs-dpdk
+    sudo service ovs-dpdk init
+}
+
+
+function ovs_dpdk_configure_debug_command {
+    if [ "$Q_USE_PROVIDERNET_FOR_PUBLIC" = "True" ]; then
+        iniset $NEUTRON_TEST_CONFIG_FILE DEFAULT external_network_bridge ""
+    else
+        iniset $NEUTRON_TEST_CONFIG_FILE DEFAULT external_network_bridge $PUBLIC_BRIDGE
+    fi
+}
+
+function ovs_dpdk_configure_firewall_driver {
+        iniset /$Q_PLUGIN_CONF_FILE securitygroup firewall_driver neutron.agent.firewall.NoopFirewallDriver
+}
+
+function ovs_dpdk_configure_l3_agent {
+    if [ "$Q_USE_PROVIDERNET_FOR_PUBLIC" = "True" ]; then
+        iniset $Q_L3_CONF_FILE DEFAULT external_network_bridge ""
+    else
+        iniset $Q_L3_CONF_FILE DEFAULT external_network_bridge $PUBLIC_BRIDGE
+    fi
+
+#    ovs_dpdk_db_cleanup
+    if [[ "$Q_USE_PUBLIC_VETH" = "True" ]]; then
+        ip link show $Q_PUBLIC_VETH_INT > /dev/null 2>&1 ||
+        sudo ip link add $Q_PUBLIC_VETH_INT type veth \
+            peer name $Q_PUBLIC_VETH_EX
+        sudo ip link set $Q_PUBLIC_VETH_INT up
+        sudo ip link set $Q_PUBLIC_VETH_EX up
+        sudo ip addr flush dev $Q_PUBLIC_VETH_EX
+    else
+        # --no-wait causes a race condition if $PUBLIC_BRIDGE is not up when ip addr flush is called
+       # sudo ovs-vsctl -- --may-exist add-br $PUBLIC_BRIDGE
+       # ovs_dpdk_configure_bridge_datapath $PUBLIC_BRIDGE
+       # sudo ovs-vsctl br-set-external-id $PUBLIC_BRIDGE bridge-id $PUBLIC_BRIDGE
+        # ensure no IP is configured on the public bridge
+       # sudo ip addr flush dev $PUBLIC_BRIDGE
+        ovs_dpdk_add_bridge $PUBLIC_BRIDGE
+    fi
+}
+
+
+# Restore xtrace
+$OVSB_XTRACE
