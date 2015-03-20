@@ -22,6 +22,7 @@ import time
 import eventlet
 import netaddr
 from oslo_config import cfg
+from oslo_log import log as logging
 import oslo_messaging
 from six import moves
 
@@ -42,7 +43,6 @@ from neutron.common import topics
 from neutron.common import utils as q_utils
 from neutron import context
 from neutron.i18n import _LE, _LI, _LW
-from neutron.openstack.common import log as logging
 from neutron.openstack.common import loopingcall
 from neutron.plugins.common import constants as p_const
 from neutron.plugins.openvswitch.agent import ovs_dvr_neutron_agent
@@ -293,6 +293,7 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
         self.endpoints = [self]
         # Define the listening consumers for the agent
         consumers = [[topics.PORT, topics.UPDATE],
+                     [topics.PORT, topics.DELETE],
                      [topics.NETWORK, topics.DELETE],
                      [constants.TUNNEL, topics.UPDATE],
                      [constants.TUNNEL, topics.DELETE],
@@ -330,6 +331,13 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
         # are processed in the same order as the relevant API requests
         self.updated_ports.add(port['id'])
         LOG.debug("port_update message processed for port %s", port['id'])
+
+    def port_delete(self, context, **kwargs):
+        port_id = kwargs.get('port_id')
+        port = self.int_br.get_vif_port_by_id(port_id)
+        # If port exists, delete it
+        if port:
+            self.int_br.delete_port(port.port_name)
 
     def tunnel_update(self, context, **kwargs):
         LOG.debug("tunnel_update received")
@@ -606,8 +614,6 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
         '''Reclaim a local VLAN.
 
         :param net_uuid: the network uuid associated with this vlan.
-        :param lvm: a LocalVLANMapping object that tracks (vlan, lsw_id,
-            vif_ids) mapping.
         '''
         lvm = self.local_vlan_map.pop(net_uuid, None)
         if lvm is None:
@@ -739,10 +745,7 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
     def setup_integration_br(self):
         '''Setup the integration bridge.
 
-        Create patch ports and remove all existing flows.
-
-        :param bridge_name: the name of the integration bridge.
-        :returns: the integration bridge
+        Delete patch ports and remove all existing flows.
         '''
         # Ensure the integration bridge is created.
         # ovs_lib.OVSBridge.create() will run
@@ -913,7 +916,7 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
         '''Setup the physical network bridges.
 
         Creates physical network bridges and links them to the
-        integration bridge using veths.
+        integration bridge using veths or patch ports.
 
         :param bridge_mappings: map physical network names to bridge names.
         '''

@@ -16,9 +16,10 @@
 import copy
 import os
 
+from oslo_log import log
+
 from networking_ovs_dpdk.common import constants
 from neutron.extensions import portbindings
-from neutron.openstack.common import log
 from neutron.plugins.common import constants as npcc
 from neutron.plugins.ml2 import driver_api as api
 from neutron.plugins.ml2.drivers import mech_agent
