@@ -215,6 +215,7 @@ function ovs_dpdk_write_conf {
     sudo sed "s#OVS_ALLOCATE_HUGEPAGES=.*#OVS_ALLOCATE_HUGEPAGES=$OVS_ALLOCATE_HUGEPAGES#" -i /etc/default/ovs-dpdk
     sudo sed "s#OVS_LOG_DIR=.*#OVS_LOG_DIR=$OVS_LOG_DIR#" -i /etc/default/ovs-dpdk
     sudo sed "s#OVS_LOCK_DIR=.*#OVS_LOCK_DIR=$OVS_LOCK_DIR#" -i /etc/default/ovs-dpdk
+    sudo sed "s#OVS_INTERFACE_DRIVER=.*#OVS_INTERFACE_DRIVER=$OVS_INTERFACE_DRIVER#" -i /etc/default/ovs-dpdk
 
     if [ $OVS_SOCKET_MEM == "auto" ] ; then
         for d in /sys/devices/system/node/node? ; do
@@ -227,8 +228,12 @@ function ovs_dpdk_write_conf {
     fi
 
     sudo sed -e "s#OVS_SOCKET_MEM=.*#OVS_SOCKET_MEM=$OVS_SOCKET_MEM#g" -i /etc/default/ovs-dpdk
-
-
+    # creates an array of pci addres to interface names delimeted by # e.g. <pci_address>#<interface name>
+    PAIRS=( `ls -al /sys/class/net/* | grep pci | awk '{print $NF;}' | awk '{split($0,a,"/");print a[6] "#" a[8] }'` )
+    # populates OVS_BRIDGE_MAPPINGS if $PHYSICAL_NETWORK and $OVS_PHYSICAL_BRIDGE are used instead.
+    if [[ "$OVS_DATAPATH_TYPE" != "" ]] && [[ "$OVS_BRIDGE_MAPPINGS" = "" ]] && [[ "$PHYSICAL_NETWORK" != "" ]] && [[ "$OVS_PHYSICAL_BRIDGE" != "" ]]; then
+        OVS_BRIDGE_MAPPINGS=$PHYSICAL_NETWORK:$OVS_PHYSICAL_BRIDGE
+    fi
     MAPPINGS=${OVS_BRIDGE_MAPPINGS//,/ }
     ARRAY=( $MAPPINGS )
     NICS=""
@@ -237,14 +242,18 @@ function ovs_dpdk_write_conf {
          VALUE="${net##*:}"
          printf "%s in %s\n" "$KEY" "$VALUE"
          nic=${VALUE/br-/}
-         if [[ $NICS == "" ]]; then
-            NICS=$nic
-         else
-            NICS=$NICS,$nic
-         fi
+         for pair in "${PAIRS[@]}"; do
+            if [[ $nic == `echo $pair | cut -f 2 -d "#"` ]]; then
+                if [[ $NICS == "" ]]; then
+                    NICS=$pair
+                else
+                    NICS=$NICS,$pair
+                fi
+            fi
+         done
     done
 
-    sudo sed "s#OVS_BRIDGE_MAPPINGS=.*#OVS_BRIDGE_MAPPINGS=$NICS#" -i /etc/default/ovs-dpdk
+    sudo sed "s/OVS_BRIDGE_MAPPINGS=.*/OVS_BRIDGE_MAPPINGS=$NICS/" -i /etc/default/ovs-dpdk
 
 }
 
