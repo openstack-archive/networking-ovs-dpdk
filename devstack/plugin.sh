@@ -9,23 +9,23 @@ set -x
         "stack")
             case $2 in
                 "pre-install")
-                    # Set up system services
-                    echo_summary "Downloading Dependencies"
+                    # cloning source code
+                    echo_summary "Downloading Dependencies for OVS DPDK"
                     clone_ovs_dpdk
                 ;;
                 "install")
                     # Perform installation of ovs dpdk
-                    echo_summary "Installing OVS DPDK"
+                    echo_summary "Configuring, installing and starting OVS DPDK"
                     ovs_dpdk_db_cleanup
                     install_ovs_dpdk
                     pushd $NETWOKING_OVS_DPDK_DIR
                     sudo python setup.py install
                     popd
+                    start_ovs_dpdk
                 ;;
                 "post-config")
-                    # Start ovs-dpdk before l2 service start
-                    echo_summary "Starting OVS DPDK"
-                    start_ovs_dpdk
+                    # no-op
+                    :
                 ;;
                 "extra")
                     # no-op

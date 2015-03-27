@@ -1,6 +1,7 @@
 #!/bin/bash
 # Starts and stops ovs with dpdk
 #
+
 echo "sourceing config"
 source /etc/default/ovs-dpdk
 
