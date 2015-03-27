@@ -68,7 +68,7 @@ restart_service(){
 remove_igb_uio_module()
 {
         echo "Unloading any existing DPDK UIO module"
-        /sbin/lsmod | grep -s igb_uio > /dev/null
+        /sbin/lsmod | grep -ws igb_uio > /dev/null
         if [ $? -eq 0 ] ; then
                 sudo rmmod igb_uio
         fi
@@ -87,7 +87,7 @@ load_igb_uio_module()
 
         remove_igb_uio_module
 
-        lsmod | grep -s uio > /dev/null
+        lsmod | grep -ws uio > /dev/null
         if [ $? -ne 0 ] ; then
                 if  ls /lib/modules/$(uname -r)/kernel/drivers/uio/uio.* 1> /dev/null 2>&1 ; then
                         echo "Loading uio module"
@@ -183,7 +183,7 @@ bind_nics(){
 
 free_hugepages() {
     HUGEPAGE_SIZE=$(grep Hugepagesize /proc/meminfo | awk '{ print $2 }')
-    grep -s $OVS_HUGEPAGE_MOUNT /proc/mounts > /dev/null
+    grep -ws $OVS_HUGEPAGE_MOUNT /proc/mounts > /dev/null
     if [ $? -ne 0 ]
     then
        echo "Hugepages not mounted, nothing to clean"
@@ -223,7 +223,7 @@ alloc_hugepages() {
     then
         die $LINENO "OVS_NUM_HUGEPAGES not set"
     fi
-    grep -s $OVS_HUGEPAGE_MOUNT /proc/mounts > /dev/null
+    grep -ws $OVS_HUGEPAGE_MOUNT /proc/mounts > /dev/null
 
     if [ $? -eq 0 ]
     then
@@ -246,7 +246,7 @@ alloc_hugepages() {
         qemu_group_id=$(id -g qemu)
     fi
 
-    grep -s $OVS_HUGEPAGE_MOUNT /proc/mounts > /dev/null
+    grep -ws $OVS_HUGEPAGE_MOUNT /proc/mounts > /dev/null
     if [ $? -ne 0 ] ; then
         if [ -n "$OVS_HUGEPAGE_MOUNT_PAGESIZE" ]; then
             sudo mount -t hugetlbfs -o uid=$qemu_user_id,gid=$qemu_group_id,pagesize=$OVS_HUGEPAGE_MOUNT_PAGESIZE  nodev $OVS_HUGEPAGE_MOUNT
