@@ -37,11 +37,14 @@ OVS_DPDK_PATCHES=${OVS_DPDK_PATCHES:-''}
 OVS_LOCK_DIR=${OVS_LOCK_DIR:-''}
 
 # agent settings
-Q_AGENT=ovsdpdk
-if [ ! -e $TOP_DIR/lib/neutron_plugins/${Q_AGENT}_agent ]; then
-        ln -s $NETWOKING_OVS_DPDK_DIR/devstack/libs/agent $TOP_DIR/lib/neutron_plugins/${Q_AGENT}_agent
-fi
+Q_AGENT=${OVS_AGENT_TYPE:-ovsdpdk}
 
-source $TOP_DIR/lib/neutron
-source $TOP_DIR/lib/neutron_plugins/ml2
-source $TOP_DIR/lib/neutron_plugins/${Q_AGENT}_agent
+if [ "$Q_AGENT" == "ovsdpdk" ] ; then
+    if [ ! -e $TOP_DIR/lib/neutron_plugins/${Q_AGENT}_agent ]; then
+        ln -s $NETWOKING_OVS_DPDK_DIR/devstack/libs/agent $TOP_DIR/lib/neutron_plugins/${Q_AGENT}_agent
+    fi
+
+    source $TOP_DIR/lib/neutron
+    source $TOP_DIR/lib/neutron_plugins/ml2
+    source $TOP_DIR/lib/neutron_plugins/${Q_AGENT}_agent
+fi
