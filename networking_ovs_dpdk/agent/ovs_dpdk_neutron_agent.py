@@ -19,7 +19,6 @@ import signal
 import sys
 import time
 
-import eventlet
 import netaddr
 from oslo_config import cfg
 from oslo_log import log as logging
@@ -28,11 +27,11 @@ from six import moves
 
 from networking_ovs_dpdk.common import constants
 from neutron.agent.common import config
+from neutron.agent.common import ovs_lib
+from neutron.agent.common import polling
+from neutron.agent.common import utils
 from neutron.agent import l2population_rpc
 from neutron.agent.linux import ip_lib
-from neutron.agent.linux import ovs_lib
-from neutron.agent.linux import polling
-from neutron.agent.linux import utils
 from neutron.agent import rpc as agent_rpc
 from neutron.agent import securitygroups_rpc as sg_rpc
 from neutron.api.rpc.handlers import dvr_rpc
@@ -46,9 +45,6 @@ from neutron.i18n import _LE, _LI, _LW
 from neutron.openstack.common import loopingcall
 from neutron.plugins.common import constants as p_const
 from neutron.plugins.openvswitch.agent import ovs_dvr_neutron_agent
-
-
-eventlet.monkey_patch()
 
 
 LOG = logging.getLogger(__name__)
@@ -184,6 +180,14 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
             'agent_type': constants.AGENT_TYPE_OVS_DPDK,
             'start_flag': True}
 
+        if tunnel_types:
+            self.enable_tunneling = True
+        else:
+            self.enable_tunneling = False
+
+        # Validate agent configurations
+        self._check_agent_configurations()
+
         # Keep track of int_br's device count for use by _report_state()
         self.int_br_device_count = 0
 
@@ -201,11 +205,6 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
         self.polling_interval = polling_interval
         self.minimize_polling = minimize_polling
         self.ovsdb_monitor_respawn_interval = ovsdb_monitor_respawn_interval
-
-        if tunnel_types:
-            self.enable_tunneling = True
-        else:
-            self.enable_tunneling = False
         self.local_ip = local_ip
         self.tunnel_count = 0
         self.vxlan_udp_port = cfg.CONF.AGENT.vxlan_udp_port
@@ -1271,7 +1270,7 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
             try:
                 skipped_devices = self.treat_devices_added_or_updated(
                     devices_added_updated, ovs_restarted)
-                LOG.debug("process_network_ports - iteration:%(iter_num)d -"
+                LOG.debug("process_network_ports - iteration:%(iter_num)d - "
                           "treat_devices_added_or_updated completed. "
                           "Skipped %(num_skipped)d devices of "
                           "%(num_current)d devices currently available. "
@@ -1294,7 +1293,7 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
         if 'removed' in port_info:
             start = time.time()
             resync_b = self.treat_devices_removed(port_info['removed'])
-            LOG.debug("process_network_ports - iteration:%(iter_num)d -"
+            LOG.debug("process_network_ports - iteration:%(iter_num)d - "
                       "treat_devices_removed completed in %(elapsed).3f",
                       {'iter_num': self.iter_num,
                        'elapsed': time.time() - start})
@@ -1411,7 +1410,8 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
 
     def rpc_loop(self, polling_manager=None):
         if not polling_manager:
-            polling_manager = polling.AlwaysPoll()
+            polling_manager = polling.get_polling_manager(
+                minimize_polling=False)
 
         sync = True
         ports = set()
@@ -1493,7 +1493,7 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
                         # If treat devices fails - must resync with plugin
                         sync = self.process_network_ports(port_info,
                                                           ovs_restarted)
-                        LOG.debug("Agent rpc_loop - iteration:%(iter_num)d -"
+                        LOG.debug("Agent rpc_loop - iteration:%(iter_num)d - "
                                   "ports processed. Elapsed:%(elapsed).3f",
                                   {'iter_num': self.iter_num,
                                    'elapsed': time.time() - start})
@@ -1508,7 +1508,7 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
                     if self.ancillary_brs:
                         port_info = self.update_ancillary_ports(
                             ancillary_ports)
-                        LOG.debug("Agent rpc_loop - iteration:%(iter_num)d -"
+                        LOG.debug("Agent rpc_loop - iteration:%(iter_num)d - "
                                   "ancillary port info retrieved. "
                                   "Elapsed:%(elapsed).3f",
                                   {'iter_num': self.iter_num,
@@ -1517,7 +1517,7 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
                         if port_info:
                             rc = self.process_ancillary_network_ports(
                                 port_info)
-                            LOG.debug("Agent rpc_loop - iteration:"
+                            LOG.debug("Agent rpc_loop - iteration: "
                                       "%(iter_num)d - ancillary ports "
                                       "processed. Elapsed:%(elapsed).3f",
                                       {'iter_num': self.iter_num,
@@ -1555,6 +1555,13 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
         for rpc_api in (self.plugin_rpc, self.sg_plugin_rpc,
                         self.dvr_plugin_rpc, self.state_rpc):
             rpc_api.client.timeout = timeout
+
+    def _check_agent_configurations(self):
+        if (self.enable_distributed_routing and self.enable_tunneling
+            and not self.l2_pop):
+            raise ValueError(_("DVR deployments for VXLAN/GRE underlays "
+                               "require L2-pop to be enabled, in both the "
+                               "Agent and Server side."))
 
 
 def _ofport_set_to_str(ofport_set):

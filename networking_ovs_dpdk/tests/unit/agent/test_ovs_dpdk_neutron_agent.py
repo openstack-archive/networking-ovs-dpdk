@@ -24,10 +24,10 @@ import testtools
 
 from networking_ovs_dpdk.agent import ovs_dpdk_neutron_agent
 from networking_ovs_dpdk.common import constants
+from neutron.agent.common import ovs_lib
+from neutron.agent.common import utils
 from neutron.agent.linux import async_process
 from neutron.agent.linux import ip_lib
-from neutron.agent.linux import ovs_lib
-from neutron.agent.linux import utils
 from neutron.common import constants as n_const
 from neutron.plugins.common import constants as p_const
 from neutron.plugins.ml2.drivers.l2pop import rpc as l2pop_rpc
@@ -117,16 +117,16 @@ class TestOVSDPDKNeutronAgent(base.BaseTestCase):
             mock.patch('networking_ovs_dpdk.agent.ovs_dpdk_neutron_agent.'
                        'OVSDPDKNeutronAgent.setup_ancillary_bridges',
                        return_value=[]),
-            mock.patch('neutron.agent.linux.ovs_lib.OVSBridge.'
+            mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
                        'create'),
-            mock.patch('neutron.agent.linux.ovs_lib.OVSBridge.'
+            mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
                        'set_secure_mode'),
-            mock.patch('neutron.agent.linux.ovs_lib.OVSBridge.'
+            mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
                        'get_local_port_mac',
                        return_value='00:00:00:00:00:01'),
             mock.patch('neutron.agent.linux.utils.get_interface_mac',
                        return_value='00:00:00:00:00:01'),
-            mock.patch('neutron.agent.linux.ovs_lib.BaseOVS.get_bridges'),
+            mock.patch('neutron.agent.common.ovs_lib.BaseOVS.get_bridges'),
             mock.patch('neutron.openstack.common.loopingcall.'
                        'FixedIntervalLoopingCall',
                        new=MockFixedIntervalLoopingCall)):
@@ -149,9 +149,9 @@ class TestOVSDPDKNeutronAgent(base.BaseTestCase):
                 ovs_dpdk_neutron_agent.LocalVLANMapping(
                     old_local_vlan, None, None, None))
         with contextlib.nested(
-            mock.patch('neutron.agent.linux.ovs_lib.OVSBridge.'
+            mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
                        'set_db_attribute', return_value=True),
-            mock.patch('neutron.agent.linux.ovs_lib.OVSBridge.'
+            mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
                        'db_get_val', return_value=old_local_vlan),
             mock.patch.object(self.agent.int_br, 'delete_flows')
         ) as (set_ovs_db_func, get_ovs_db_func, delete_flows_func):
@@ -169,6 +169,25 @@ class TestOVSDPDKNeutronAgent(base.BaseTestCase):
             self.assertFalse(set_ovs_db_func.called)
             self.assertFalse(delete_flows_func.called)
 
+    def test_check_agent_configurations_for_dvr_raises(self):
+        self.agent.enable_distributed_routing = True
+        self.agent.enable_tunneling = True
+        self.agent.l2_pop = False
+        self.assertRaises(ValueError,
+                          self.agent._check_agent_configurations)
+
+    def test_check_agent_configurations_for_dvr(self):
+        self.agent.enable_distributed_routing = True
+        self.agent.enable_tunneling = True
+        self.agent.l2_pop = True
+        self.assertIsNone(self.agent._check_agent_configurations())
+
+    def test_check_agent_configurations_for_dvr_with_vlan(self):
+        self.agent.enable_distributed_routing = True
+        self.agent.enable_tunneling = False
+        self.agent.l2_pop = False
+        self.assertIsNone(self.agent._check_agent_configurations())
+
     def test_port_bound_deletes_flows_for_valid_ofport(self):
         self._mock_port_bound(ofport=1, new_local_vlan=1)
 
@@ -182,9 +201,9 @@ class TestOVSDPDKNeutronAgent(base.BaseTestCase):
         port = mock.Mock()
         port.ofport = 1
         with contextlib.nested(
-            mock.patch('neutron.agent.linux.ovs_lib.OVSBridge.'
+            mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
                        'set_db_attribute', return_value=True),
-            mock.patch('neutron.agent.linux.ovs_lib.OVSBridge.'
+            mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
                        'db_get_val', return_value=cur_tag),
             mock.patch.object(self.agent.int_br, 'add_flow')
         ) as (set_ovs_db_func, get_ovs_db_func, add_flow_func):
@@ -916,7 +935,7 @@ class TestOVSDPDKNeutronAgent(base.BaseTestCase):
 
     def test_daemon_loop_uses_polling_manager(self):
         with mock.patch(
-            'neutron.agent.linux.polling.get_polling_manager') as mock_get_pm:
+            'neutron.agent.common.polling.get_polling_manager') as mock_get_pm:
             with mock.patch.object(self.agent, 'rpc_loop') as mock_loop:
                 self.agent.daemon_loop()
         mock_get_pm.assert_called_with(True,
@@ -1113,14 +1132,14 @@ class AncillaryBridgesTest(base.BaseTestCase):
                        return_value=mock.Mock()),
             mock.patch('neutron.agent.linux.utils.get_interface_mac',
                        return_value='00:00:00:00:00:01'),
-            mock.patch('neutron.agent.linux.ovs_lib.OVSBridge.'
+            mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
                        'get_local_port_mac',
                        return_value='00:00:00:00:00:01'),
-            mock.patch('neutron.agent.linux.ovs_lib.OVSBridge.'
+            mock.patch('neutron.agent.common.ovs_lib.OVSBridge.'
                        'set_secure_mode'),
-            mock.patch('neutron.agent.linux.ovs_lib.BaseOVS.get_bridges',
+            mock.patch('neutron.agent.common.ovs_lib.BaseOVS.get_bridges',
                        return_value=bridges),
-            mock.patch('neutron.agent.linux.ovs_lib.BaseOVS.'
+            mock.patch('neutron.agent.common.ovs_lib.BaseOVS.'
                        'get_bridge_external_bridge_id',
                        side_effect=pullup_side_effect)):
             self.agent = ovs_dpdk_neutron_agent\
