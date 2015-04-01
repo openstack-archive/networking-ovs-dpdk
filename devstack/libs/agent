@@ -10,7 +10,7 @@ set +o xtrace
 source $NETWOKING_OVS_DPDK_DIR/devstack/libs/ovs-dpdk
 
 function neutron_plugin_create_nova_conf {
-:
+    :
 }
 
 

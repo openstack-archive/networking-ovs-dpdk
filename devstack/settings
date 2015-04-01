@@ -1,6 +1,5 @@
 NETWOKING_OVS_DPDK_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd .. && pwd )
 
-
 #dpdk settings
 OVS_DPDK_GIT_REPO=${OVS_DPDK_GIT_REPO:- http://dpdk.org/git/dpdk}
 OVS_DPDK_GIT_TAG=${OVS_DPDK_GIT_TAG:-v1.7.1}
@@ -8,7 +7,6 @@ OVS_DPDK_DIR=${OVS_DPDK_DIR:-$DEST/DPDK-$OVS_DPDK_GIT_TAG}
 RTE_TARGET=${RTE_TARGET:-x86_64-ivshmem-linuxapp-gcc}
 OVS_DPDK_MEM_SEGMENTS=${OVS_DPDK_MEM_SEGMENTS:-256}
 OVS_DPDK_VHOST_USER_DEBUG=${OVS_DPDK_VHOST_USER_DEBUG:-n}
-
 
 #ovs settings
 OVS_DIR=${OVS_DIR:-$DEST/ovs}
@@ -27,14 +25,14 @@ if is_fedora; then
 fi
 OVS_DB_SOCKET=$OVS_DB_SOCKET_DIR/db.sock
 OVS_DB_CONF=$OVS_DB_CONF_DIR/conf.db
-
 OVS_ALLOCATE_HUGEPAGES=${OVS_ALLOCATE_HUGEPAGES:-True}
 OVS_LOG_DIR=${OVS_LOG_DIR:-/tmp}
+OVS_LOCK_DIR=${OVS_LOCK_DIR:-''}
+
 #patch settings
 #do not install any patches by default.
 OVS_PATCHES=${OVS_PATCHES:-''}
 OVS_DPDK_PATCHES=${OVS_DPDK_PATCHES:-''}
-OVS_LOCK_DIR=${OVS_LOCK_DIR:-''}
 
 # agent settings
 Q_AGENT=${OVS_AGENT_TYPE:-ovsdpdk}
@@ -43,7 +41,6 @@ if [ "$Q_AGENT" == "ovsdpdk" ] ; then
     if [ ! -e $TOP_DIR/lib/neutron_plugins/${Q_AGENT}_agent ]; then
         ln -s $NETWOKING_OVS_DPDK_DIR/devstack/libs/agent $TOP_DIR/lib/neutron_plugins/${Q_AGENT}_agent
     fi
-
     source $TOP_DIR/lib/neutron
     source $TOP_DIR/lib/neutron_plugins/ml2
     source $TOP_DIR/lib/neutron_plugins/${Q_AGENT}_agent

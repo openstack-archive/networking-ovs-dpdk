@@ -47,14 +47,11 @@ function ovs_dpdk_setup_bridge {
 
 function ovs_dpdk_create_kvm_wrapper(){
     install_package qemu-kvm
-    if [ -e /usr/bin/kvm ]
-    then
+    if [ -e /usr/bin/kvm ]; then
         KVM_CMD="/usr/bin/kvm"
-    elif [ -e /usr/bin/qemu-kvm ]
-    then
+    elif [ -e /usr/bin/qemu-kvm ]; then
         KVM_CMD="/usr/bin/qemu-kvm"
     fi
-
     sudo mv $KVM_CMD $KVM_CMD.orig
 cat << 'EOF' | sudo tee  $KVM_CMD
 #!/bin/bash -
@@ -100,7 +97,7 @@ done
 echo "qemu ${args[@]}"  >> /tmp/qemu.orig
 exec /usr/bin/qemu-system-x86_64  "${args[@]}"
 EOF
-sudo chmod +x $KVM_CMD
+    sudo chmod +x $KVM_CMD
 }
 
 
@@ -114,15 +111,12 @@ function ovs_dpdk_db_cleanup {
     for bridge in $(sudo ovs-vsctl list-br | grep -o -e ${OVS_BRIDGE} -e ${PUBLIC_BRIDGE}); do
         sudo ovs-vsctl --no-wait del-br ${bridge}
     done
-    if [ -e /usr/bin/kvm ]
-    then
+    if [ -e /usr/bin/kvm ]; then
         KVM_CMD="/usr/bin/kvm"
-    elif [ -e /usr/bin/qemu-kvm ]
-    then
+    elif [ -e /usr/bin/qemu-kvm ]; then
         KVM_CMD="/usr/bin/qemu-kvm"
     fi
-    if [ -e $KVM_CMD.orig ]
-    then
+    if [ -e $KVM_CMD.orig ]; then
         sudo mv $KVM_CMD.orig $KVM_CMD
     fi
     if [[ $OVS_DATAPATH_TYPE != "" ]]; then
@@ -178,15 +172,13 @@ function clone_ovs_dpdk(){
 }
 
 function build_ovs_dpdk(){
-   if [  -e ${OVS_DIR}/BUILD_COMPLETE ]
-   then
+   if [  -e ${OVS_DIR}/BUILD_COMPLETE ]; then
        echo "Build alread done."
        return
    fi
    cd ${OVS_DPDK_DIR}
    make config T=${RTE_TARGET}
-   if [ -e ${OVS_DPDK_DIR}/${RTE_TARGET} ]
-   then
+   if [ -e ${OVS_DPDK_DIR}/${RTE_TARGET} ]; then
       rm $RTE_TARGET
    fi
    ln -s -f build $RTE_TARGET
@@ -206,59 +198,58 @@ function build_ovs_dpdk(){
 }
 
 function ovs_dpdk_write_conf {
-sudo cp $NETWOKING_OVS_DPDK_DIR/devstack/ovs-dpdk/ovs-dpdk-conf /etc/default/ovs-dpdk
+    sudo cp $NETWOKING_OVS_DPDK_DIR/devstack/ovs-dpdk/ovs-dpdk-conf /etc/default/ovs-dpdk
 
-sudo sed "s#RTE_SDK=.*#RTE_SDK=$OVS_DPDK_DIR#" -i /etc/default/ovs-dpdk
-sudo sed "s#RTE_TARGET=.*#RTE_TARGET=$RTE_TARGET#" -i /etc/default/ovs-dpdk
-sudo sed "s#OVS_SRC_DIR=.*#OVS_SRC_DIR=$OVS_DIR#" -i /etc/default/ovs-dpdk
-sudo sed "s#OVS_NUM_HUGEPAGES=.*#OVS_NUM_HUGEPAGES=$OVS_NUM_HUGEPAGES#" -i /etc/default/ovs-dpdk
-sudo sed "s#OVS_HUGEPAGE_MOUNT=.*#OVS_HUGEPAGE_MOUNT=$OVS_HUGEPAGE_MOUNT#" -i /etc/default/ovs-dpdk
-sudo sed "s#OVS_HUGEPAGE_MOUNT_PAGESIZE=.*#OVS_HUGEPAGE_MOUNT_PAGESIZE=$OVS_HUGEPAGE_MOUNT_PAGESIZE#" -i /etc/default/ovs-dpdk
-sudo sed "s#OVS_DB_SOCKET_DIR=.*#OVS_DB_SOCKET_DIR=$OVS_DB_SOCKET_DIR#" -i /etc/default/ovs-dpdk
-sudo sed "s#OVS_DB_CONF_DIR=.*#OVS_DB_CONF_DIR=$OVS_DB_CONF_DIR#" -i /etc/default/ovs-dpdk
-sudo sed "s#OVS_DB_SOCKET=.*#OVS_DB_SOCKET=$OVS_DB_SOCKET#" -i /etc/default/ovs-dpdk
-sudo sed "s#OVS_DB_CONF=.*#OVS_DB_CONF=$OVS_DB_CONF#" -i /etc/default/ovs-dpdk
-sudo sed "s#OVS_SOCKET_MEM=.*#OVS_SOCKET_MEM=$OVS_SOCKET_MEM#" -i /etc/default/ovs-dpdk
-sudo sed "s#OVS_MEM_CHANNELS=.*#OVS_MEM_CHANNELS=$OVS_MEM_CHANNELS#" -i /etc/default/ovs-dpdk
-sudo sed "s#OVS_ALLOCATE_HUGEPAGES=.*#OVS_ALLOCATE_HUGEPAGES=$OVS_ALLOCATE_HUGEPAGES#" -i /etc/default/ovs-dpdk
-sudo sed "s#OVS_LOG_DIR=.*#OVS_LOG_DIR=$OVS_LOG_DIR#" -i /etc/default/ovs-dpdk
-sudo sed "s#OVS_LOCK_DIR=.*#OVS_LOCK_DIR=$OVS_LOCK_DIR#" -i /etc/default/ovs-dpdk
+    sudo sed "s#RTE_SDK=.*#RTE_SDK=$OVS_DPDK_DIR#" -i /etc/default/ovs-dpdk
+    sudo sed "s#RTE_TARGET=.*#RTE_TARGET=$RTE_TARGET#" -i /etc/default/ovs-dpdk
+    sudo sed "s#OVS_SRC_DIR=.*#OVS_SRC_DIR=$OVS_DIR#" -i /etc/default/ovs-dpdk
+    sudo sed "s#OVS_NUM_HUGEPAGES=.*#OVS_NUM_HUGEPAGES=$OVS_NUM_HUGEPAGES#" -i /etc/default/ovs-dpdk
+    sudo sed "s#OVS_HUGEPAGE_MOUNT=.*#OVS_HUGEPAGE_MOUNT=$OVS_HUGEPAGE_MOUNT#" -i /etc/default/ovs-dpdk
+    sudo sed "s#OVS_HUGEPAGE_MOUNT_PAGESIZE=.*#OVS_HUGEPAGE_MOUNT_PAGESIZE=$OVS_HUGEPAGE_MOUNT_PAGESIZE#" -i /etc/default/ovs-dpdk
+    sudo sed "s#OVS_DB_SOCKET_DIR=.*#OVS_DB_SOCKET_DIR=$OVS_DB_SOCKET_DIR#" -i /etc/default/ovs-dpdk
+    sudo sed "s#OVS_DB_CONF_DIR=.*#OVS_DB_CONF_DIR=$OVS_DB_CONF_DIR#" -i /etc/default/ovs-dpdk
+    sudo sed "s#OVS_DB_SOCKET=.*#OVS_DB_SOCKET=$OVS_DB_SOCKET#" -i /etc/default/ovs-dpdk
+    sudo sed "s#OVS_DB_CONF=.*#OVS_DB_CONF=$OVS_DB_CONF#" -i /etc/default/ovs-dpdk
+    sudo sed "s#OVS_SOCKET_MEM=.*#OVS_SOCKET_MEM=$OVS_SOCKET_MEM#" -i /etc/default/ovs-dpdk
+    sudo sed "s#OVS_MEM_CHANNELS=.*#OVS_MEM_CHANNELS=$OVS_MEM_CHANNELS#" -i /etc/default/ovs-dpdk
+    sudo sed "s#OVS_ALLOCATE_HUGEPAGES=.*#OVS_ALLOCATE_HUGEPAGES=$OVS_ALLOCATE_HUGEPAGES#" -i /etc/default/ovs-dpdk
+    sudo sed "s#OVS_LOG_DIR=.*#OVS_LOG_DIR=$OVS_LOG_DIR#" -i /etc/default/ovs-dpdk
+    sudo sed "s#OVS_LOCK_DIR=.*#OVS_LOCK_DIR=$OVS_LOCK_DIR#" -i /etc/default/ovs-dpdk
 
-if [ $OVS_SOCKET_MEM == "auto" ] ; then
-    for d in /sys/devices/system/node/node? ; do
+    if [ $OVS_SOCKET_MEM == "auto" ] ; then
+        for d in /sys/devices/system/node/node? ; do
             if [ $OVS_SOCKET_MEM == "auto" ]; then
                     OVS_SOCKET_MEM=2048
             else
                     OVS_SOCKET_MEM=$OVS_SOCKET_MEM,2048
             fi
+        done
+    fi
+
+    sudo sed -e "s#OVS_SOCKET_MEM=.*#OVS_SOCKET_MEM=$OVS_SOCKET_MEM#g" -i /etc/default/ovs-dpdk
+
+
+    MAPPINGS=${OVS_BRIDGE_MAPPINGS//,/ }
+    ARRAY=( $MAPPINGS )
+    NICS=""
+    for net in "${ARRAY[@]}"; do
+         KEY="${net%%:*}"
+         VALUE="${net##*:}"
+         printf "%s in %s\n" "$KEY" "$VALUE"
+         nic=${VALUE/br-/}
+         if [[ $NICS == "" ]]; then
+            NICS=$nic
+         else
+            NICS=$NICS,$nic
+         fi
     done
-fi
 
-sudo sed -e "s#OVS_SOCKET_MEM=.*#OVS_SOCKET_MEM=$OVS_SOCKET_MEM#g" -i /etc/default/ovs-dpdk
-
-
-MAPPINGS=${OVS_BRIDGE_MAPPINGS//,/ }
-ARRAY=( $MAPPINGS )
-NICS=""
-for net in "${ARRAY[@]}"; do
-     KEY="${net%%:*}"
-     VALUE="${net##*:}"
-     printf "%s in %s\n" "$KEY" "$VALUE"
-     nic=${VALUE/br-/}
-     if [[ $NICS == "" ]]; then
-        NICS=$nic
-     else
-        NICS=$NICS,$nic
-     fi
-done
-
-sudo sed "s#OVS_BRIDGE_MAPPINGS=.*#OVS_BRIDGE_MAPPINGS=$NICS#" -i /etc/default/ovs-dpdk
+    sudo sed "s#OVS_BRIDGE_MAPPINGS=.*#OVS_BRIDGE_MAPPINGS=$NICS#" -i /etc/default/ovs-dpdk
 
 }
 
 function install_ovs_dpdk {
     # Install deps
-    # FIXME add to ``files/apts/neutron``, but don't install if not needed!
     set +o errexit
     if is_ubuntu; then
         stop_service openvswitch-switch
@@ -294,7 +285,7 @@ function ovs_dpdk_configure_debug_command {
 }
 
 function ovs_dpdk_configure_firewall_driver {
-        iniset /$Q_PLUGIN_CONF_FILE securitygroup firewall_driver neutron.agent.firewall.NoopFirewallDriver
+    iniset /$Q_PLUGIN_CONF_FILE securitygroup firewall_driver neutron.agent.firewall.NoopFirewallDriver
 }
 
 function ovs_dpdk_configure_l3_agent {
@@ -303,22 +294,13 @@ function ovs_dpdk_configure_l3_agent {
     else
         iniset $Q_L3_CONF_FILE DEFAULT external_network_bridge $PUBLIC_BRIDGE
     fi
-
-#    ovs_dpdk_db_cleanup
     if [[ "$Q_USE_PUBLIC_VETH" = "True" ]]; then
         ip link show $Q_PUBLIC_VETH_INT > /dev/null 2>&1 ||
-        sudo ip link add $Q_PUBLIC_VETH_INT type veth \
-            peer name $Q_PUBLIC_VETH_EX
+        sudo ip link add $Q_PUBLIC_VETH_INT type veth peer name $Q_PUBLIC_VETH_EX
         sudo ip link set $Q_PUBLIC_VETH_INT up
         sudo ip link set $Q_PUBLIC_VETH_EX up
         sudo ip addr flush dev $Q_PUBLIC_VETH_EX
     else
-        # --no-wait causes a race condition if $PUBLIC_BRIDGE is not up when ip addr flush is called
-       # sudo ovs-vsctl -- --may-exist add-br $PUBLIC_BRIDGE
-       # ovs_dpdk_configure_bridge_datapath $PUBLIC_BRIDGE
-       # sudo ovs-vsctl br-set-external-id $PUBLIC_BRIDGE bridge-id $PUBLIC_BRIDGE
-        # ensure no IP is configured on the public bridge
-       # sudo ip addr flush dev $PUBLIC_BRIDGE
         ovs_dpdk_add_bridge $PUBLIC_BRIDGE
     fi
 }
