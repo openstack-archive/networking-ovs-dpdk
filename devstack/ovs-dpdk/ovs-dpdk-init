@@ -68,11 +68,11 @@ restart_service(){
 
 remove_igb_uio_module()
 {
-        echo "Unloading any existing DPDK UIO module"
-        /sbin/lsmod | grep -ws igb_uio > /dev/null
-        if [ $? -eq 0 ] ; then
-                sudo rmmod igb_uio
-        fi
+    echo "Unloading any existing DPDK UIO module"
+    /sbin/lsmod | grep -ws igb_uio > /dev/null
+    if [ $? -eq 0 ] ; then
+        sudo rmmod igb_uio
+    fi
 }
 
 #
@@ -80,72 +80,69 @@ remove_igb_uio_module()
 #
 load_igb_uio_module()
 {
-        if [ ! -f $RTE_SDK/$RTE_TARGET/kmod/igb_uio.ko ];then
-                echo "## ERROR: Target does not have the DPDK UIO Kernel Module."
-                echo "       To fix, please try to rebuild target."
-                return
+    if [ ! -f $RTE_SDK/$RTE_TARGET/kmod/igb_uio.ko ];then
+        echo "## ERROR: Target does not have the DPDK UIO Kernel Module."
+        echo "       To fix, please try to rebuild target."
+        return
+    fi
+
+    remove_igb_uio_module
+
+    lsmod | grep -ws uio > /dev/null
+    if [ $? -ne 0 ] ; then
+        if  ls /lib/modules/$(uname -r)/kernel/drivers/uio/uio.* 1> /dev/null 2>&1 ; then
+            echo "Loading uio module"
+            sudo modprobe uio
         fi
+    fi
 
-        remove_igb_uio_module
+    # UIO may be compiled into kernel, so it may not be an error if it can't
+    # be loaded.
 
-        lsmod | grep -ws uio > /dev/null
-        if [ $? -ne 0 ] ; then
-                if  ls /lib/modules/$(uname -r)/kernel/drivers/uio/uio.* 1> /dev/null 2>&1 ; then
-                        echo "Loading uio module"
-                        sudo modprobe uio
-                fi
-        fi
-
-        # UIO may be compiled into kernel, so it may not be an error if it can't
-        # be loaded.
-
-        echo "Loading DPDK UIO module"
-        sudo insmod $RTE_SDK/$RTE_TARGET/kmod/igb_uio.ko
-        if [ $? -ne 0 ] ; then
-                echo "## ERROR: Could not load kmod/igb_uio.ko."
-                exit 1
-        fi
+    echo "Loading DPDK UIO module"
+    sudo insmod $RTE_SDK/$RTE_TARGET/kmod/igb_uio.ko
+    if [ $? -ne 0 ] ; then
+        echo "## ERROR: Could not load kmod/igb_uio.ko."
+        exit 1
+    fi
 }
 
 unbind_nics(){
     # unbind nics from igb_uio driver
     STATUS=$(RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py --status)
     while read  line; do
-        if [[ $line =~ "drv=igb_uio" ]]
-        then
-                addr=${line%% *}
-                sudo RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py -u $addr
+        if [[ $line =~ "drv=igb_uio" ]]; then
+            addr=${line%% *}
+            sudo RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py -u $addr
         fi
     done <<< "$STATUS"
 
     #bind nics to their standart linux kernel driver
     STATUS=$(RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py --status)
     while read line; do
-        if [[ $line =~ ",igb_uio" || $line =~ "unused=igb_uio" ]] && [[ ! $line =~ "drv=" ]]
-        then
-                addr=${line%% *}
-                drv=${line/*unused=/}
-                drv=${drv/,igb_uio/}
-        if [[ $drv =~ "," ]] ; then
-                        IFS_OLD=$IFS
-                        IFS=","
-                        echo "mulitble dirvers detected: $drv"
-                        drivers=($drv);
-                        for driver in "${drivers[@]}" ; do
-                                if [[ ! $driver == "igb_uio" ]] &&  [[ ! $driver =~ "vfio" ]]; then
-                                        drv=$driver
-                                        echo "selecting $driver"
-                                        break
-                                fi
-                        done
-                        IFS=$IFS_OLD
+        if [[ $line =~ ",igb_uio" || $line =~ "unused=igb_uio" ]] && [[ ! $line =~ "drv=" ]]; then
+            addr=${line%% *}
+            drv=${line/*unused=/}
+            drv=${drv/,igb_uio/}
+        if [[ $drv =~ "," ]]; then
+            IFS_OLD=$IFS
+            IFS=","
+            echo "mulitble dirvers detected: $drv"
+            drivers=($drv);
+            for driver in "${drivers[@]}" ; do
+                if [[ ! $driver == "igb_uio" ]] &&  [[ ! $driver =~ "vfio" ]]; then
+                    drv=$driver
+                    echo "selecting $driver"
+                    break
                 fi
-                #workaround for Fedora pciutils bug
-                if [[ $drv == "" ]]
-                then
-                    drv="ixgbe"
-                fi
-                sudo RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py -b $drv $addr
+            done
+            IFS=$IFS_OLD
+            fi
+            #workaround for Fedora pciutils bug
+            if [[ $drv == "" ]]; then
+                drv="ixgbe"
+            fi
+            sudo RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py -b $drv $addr
         fi
    done <<< "$STATUS"
 }
@@ -163,10 +160,8 @@ bind_nics(){
     STATUS=$(RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py --status)
     while read  line; do
         for nic in "${ARRAY[@]}"; do
-            if [[ $line =~ "$nic " ]] || [[ $line =~ "$nic," ]]
-            then
-                if [[ $line =~ "Active" ]]
-                then
+            if [[ $line =~ "$nic " ]] || [[ $line =~ "$nic," ]]; then
+                if [[ $line =~ "Active" ]]; then
                    sudo ip link $nic 0 down
                 fi
 
@@ -185,14 +180,12 @@ bind_nics(){
 free_hugepages() {
     HUGEPAGE_SIZE=$(grep Hugepagesize /proc/meminfo | awk '{ print $2 }')
     grep -ws $OVS_HUGEPAGE_MOUNT /proc/mounts > /dev/null
-    if [ $? -ne 0 ]
-    then
+    if [ $? -ne 0 ] ; then
        echo "Hugepages not mounted, nothing to clean"
        return 0
     fi
     #remove ovs reserved hugepages
-    if [ -d $OVS_HUGEPAGE_MOUNT ]
-    then
+    if [ -d $OVS_HUGEPAGE_MOUNT ]; then
        sudo rm -rf ${OVS_HUGEPAGE_MOUNT}/rtemap*
     fi
 
@@ -200,8 +193,7 @@ free_hugepages() {
     sudo umount ${OVS_HUGEPAGE_MOUNT}
 
     # de-allocate hugepages
-    if [ $OVS_ALLOCATE_HUGEPAGES == 'True' ]
-    then
+    if [ $OVS_ALLOCATE_HUGEPAGES == 'True' ]; then
        for d in /sys/devices/system/node/node? ; do
           echo 0 | sudo tee $d/hugepages/hugepages-${HUGEPAGE_SIZE}kB/nr_hugepages
        done
@@ -220,26 +212,22 @@ alloc_hugepages() {
     HUGEPAGE_SIZE=$(grep Hugepagesize /proc/meminfo | awk '{ print $2 }')
     sudo mkdir -p $OVS_HUGEPAGE_MOUNT
 
-    if [ $OVS_NUM_HUGEPAGES -eq 0 ]
-    then
+    if [ $OVS_NUM_HUGEPAGES -eq 0 ]; then
         die $LINENO "OVS_NUM_HUGEPAGES not set"
     fi
     grep -ws $OVS_HUGEPAGE_MOUNT /proc/mounts > /dev/null
 
-    if [ $? -eq 0 ]
-    then
+    if [ $? -eq 0 ]; then
         free_hugepages
     fi
     #allocate hugepages
-    if [ $OVS_ALLOCATE_HUGEPAGES == 'True' ]
-    then
+    if [ $OVS_ALLOCATE_HUGEPAGES == 'True' ]; then
         for d in /sys/devices/system/node/node? ; do
             echo $OVS_NUM_HUGEPAGES | sudo tee $d/hugepages/hugepages-${HUGEPAGE_SIZE}kB/nr_hugepages
         done
     fi
 
-    if is_ubuntu
-    then
+    if is_ubuntu; then
         qemu_user_id=$(id -u libvirt-qemu)
         qemu_group_id=$(id -g libvirt-qemu)
     else
@@ -318,8 +306,7 @@ start_ovs(){
     CONFIG_OPT=""
     PORT_MASK=0
     CORE_MASK=3
-    for i in $(seq 0 $((PHYS_PORTS-1)))
-    do
+    for i in $(seq 0 $((PHYS_PORTS-1))); do
         CONFIG_OPT+="($i,0,$(($i+2))),"
         bit=$((2**i))
         PORT_MASK=$((PORT_MASK+bit))
@@ -387,8 +374,8 @@ cmd_start(){
     get_ovs_status
     ret=$?
     if [[ $ret -eq 0 ]]  ; then
-    echo Accelerated ovs already started
-    return 0
+        echo Accelerated ovs already started
+        return 0
     fi
     #if huge pages are not mounted allocate hugepages
     echo "mounting hugepages"
@@ -402,21 +389,11 @@ cmd_start(){
     echo "binding nics"
     echo "starting vswitchd"
     start_ovs
-
-
-    #if 1; then
-
-    #else
-
-    #fi
-    #fi
-
 }
 
 cmd_stop(){
     #if switch is stopped no op/error message
     #else
-
     # retrive pid of each process in $OVS_LOG_DIR/*
     echo "stopping vswitchd"
     echo "stopping ovs db"
@@ -440,32 +417,32 @@ cmd_status(){
 
 
 cmd_init(){
- init_db
+    init_db
 }
 
 case "$1" in
-start)
-    cmd_start
-;;
+    start)
+        cmd_start
+    ;;
 
-stop)
-    cmd_stop
-;;
+    stop)
+        cmd_stop
+    ;;
 
-restart)
-    cmd_stop
-    cmd_start
-;;
+    restart)
+        cmd_stop
+        cmd_start
+    ;;
 
-status)
-    cmd_status
-;;
+    status)
+        cmd_status
+    ;;
 
-init)
-    cmd_init
-;;
+    init)
+        cmd_init
+    ;;
 
-*)
+    *)
         echo "Usage: $0 {start|stop|restart|status|init}"
         exit 1
 esac
