@@ -20,7 +20,7 @@ import os
 from networking_ovs_dpdk.common import constants
 from networking_ovs_dpdk.driver import mech_ovs_dpdk
 from neutron.extensions import portbindings
-from neutron.tests.unit.ml2 import _test_mech_agent as base
+from neutron.tests.unit.plugins.ml2 import _test_mech_agent as base
 
 
 class OVSDPDKMechanismBaseTestCase(base.AgentMechanismBaseTestCase):
