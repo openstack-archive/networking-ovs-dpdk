@@ -135,39 +135,41 @@ function ovs_dpdk_clean(){
 
 
 function clone_ovs_dpdk(){
-    if [ ! -d ${OVS_DIR} ] || [ "$RECLONE" = True ]; then
-        if [ -d ${OVS_DIR} ]; then
-            rm -rf ${OVS_DIR}
+    if "$OFFLINE" != True && [ "$RECLONE" = True  ||  ! -e ${OVS_DIR}/BUILD_COMPLETE ]  ; then
+        if [ ! -d ${OVS_DIR} ] || [ "$RECLONE" = True ]; then
+            if [ -d ${OVS_DIR} ]; then
+                rm -rf ${OVS_DIR}
+            fi
+            if [[ $OVS_GIT_TAG != "" ]]; then
+                git_clone ${OVS_GIT_REPO} ${OVS_DIR} $OVS_GIT_TAG
+            else
+                git_clone ${OVS_GIT_REPO} ${OVS_DIR}
+            fi
         fi
-        if [[ $OVS_GIT_TAG != "" ]]; then
-            git_clone ${OVS_GIT_REPO} ${OVS_DIR} $OVS_GIT_TAG
-        else
-            git_clone ${OVS_GIT_REPO} ${OVS_DIR}
-        fi
-    fi
 
-    if [ ! -d "${OVS_DPDK_DIR}" ] || [ "$RECLONE" = True ]; then
-        git_clone ${OVS_DPDK_GIT_REPO} ${OVS_DPDK_DIR} ${OVS_DPDK_GIT_TAG}
-    fi
-    if [[ '' != $OVS_PATCHES ]]; then
-        local patches=( $OVS_PATCHES )
-        pushd  ${OVS_DIR}
-        git clean -f -x -d
-        git reset --hard $OVS_GIT_TAG
-        for url in "${patches[@]}"; do
-            curl $url | patch -p1
-        done
-        popd
-    fi
-    if [[ '' != $OVS_DPDK_PATCHES ]]; then
-        local patches=( $OVS_DPDK_PATCHES )
-        pushd  ${OVS_DPDK_DIR}
-        git clean -f -x -d
-        git reset --hard ${OVS_DPDK_GIT_TAG}
-        for url in "${patches[@]}"; do
-            curl $url | patch -p1
-        done
-        popd
+        if [ ! -d "${OVS_DPDK_DIR}" ] || [ "$RECLONE" = True ]; then
+            git_clone ${OVS_DPDK_GIT_REPO} ${OVS_DPDK_DIR} ${OVS_DPDK_GIT_TAG}
+        fi
+        if [[ '' != $OVS_PATCHES ]]; then
+            local patches=( $OVS_PATCHES )
+            pushd  ${OVS_DIR}
+            git clean -f -x -d
+            git reset --hard $OVS_GIT_TAG
+            for url in "${patches[@]}"; do
+                curl $url | patch -p1
+            done
+            popd
+        fi
+        if [[ '' != $OVS_DPDK_PATCHES ]]; then
+            local patches=( $OVS_DPDK_PATCHES )
+            pushd  ${OVS_DPDK_DIR}
+            git clean -f -x -d
+            git reset --hard ${OVS_DPDK_GIT_TAG}
+            for url in "${patches[@]}"; do
+                curl $url | patch -p1
+            done
+            popd
+        fi
     fi
 }
 
