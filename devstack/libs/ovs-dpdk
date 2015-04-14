@@ -176,6 +176,8 @@ function clone_ovs_dpdk(){
 function build_ovs_dpdk(){
    if [  -e ${OVS_DIR}/BUILD_COMPLETE ]; then
        echo "Build alread done."
+       cd ${OVS_DIR}
+       sudo make install
        return
    fi
    cd ${OVS_DPDK_DIR}
