@@ -796,6 +796,9 @@ class OVSDPDKNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
             self.tun_br = ovs_lib.OVSBridge(tun_br_name)
 
         self.tun_br.reset_bridge(secure_mode=True)
+        self.tun_br.set_db_attribute('Bridge', tun_br_name,
+                                     'datapath_type', 'netdev',
+                                     True)
         self.patch_tun_ofport = self.int_br.add_patch_port(
             cfg.CONF.OVS.int_peer_patch_port, cfg.CONF.OVS.tun_peer_patch_port)
         self.patch_int_ofport = self.tun_br.add_patch_port(

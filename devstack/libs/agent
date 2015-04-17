@@ -62,6 +62,7 @@ function neutron_plugin_configure_plugin_agent {
         # Replace the first '=' with ' ' for iniset syntax
         iniset /$Q_PLUGIN_CONF_FILE ovs ${I/=/ }
     done
+    iniset /$Q_PLUGIN_CONF_FILE agent tunnel_types $Q_TUNNEL_TYPES
 }
 
 function neutron_plugin_setup_interface_driver {

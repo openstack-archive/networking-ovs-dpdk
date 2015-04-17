@@ -20,6 +20,7 @@ import os
 from networking_ovs_dpdk.common import constants
 from networking_ovs_dpdk.driver import mech_ovs_dpdk
 from neutron.extensions import portbindings
+from neutron.plugins.ml2 import driver_api as api
 from neutron.tests.unit.plugins.ml2 import _test_mech_agent as base
 
 
@@ -36,7 +37,7 @@ class OVSDPDKMechanismBaseTestCase(base.AgentMechanismBaseTestCase):
     AGENT_TYPE = constants.AGENT_TYPE_OVS_DPDK
 
     GOOD_MAPPINGS = {'fake_physical_network': 'fake_bridge'}
-    GOOD_TUNNEL_TYPES = []
+    GOOD_TUNNEL_TYPES = ["vxlan", "gre"]
     GOOD_CONFIGS = {'bridge_mappings': GOOD_MAPPINGS,
                     'tunnel_types': GOOD_TUNNEL_TYPES}
 
@@ -82,3 +83,31 @@ class OVSDPDKMechanismFlatTestCase(OVSDPDKMechanismBaseTestCase,
 class OVSDPDKMechanismVlanTestCase(OVSDPDKMechanismBaseTestCase,
                                    base.AgentMechanismVlanTestCase):
     pass
+
+
+class OVSDPDKMechanismGreTestCase(OVSDPDKMechanismBaseTestCase,
+                                  base.AgentMechanismGreTestCase):
+    pass
+
+
+class OVSDPDKMechanismVxlanTestCase(OVSDPDKMechanismBaseTestCase,
+                                    base.AgentMechanismBaseTestCase):
+    VXLAN_SEGMENTS = [{api.ID: 'unknown_segment_id',
+                       api.NETWORK_TYPE: 'no_such_type'},
+                      {api.ID: 'vxlan_segment_id',
+                       api.NETWORK_TYPE: 'vxlan',
+                       api.SEGMENTATION_ID: 1234}]
+
+    def test_type_vxlan(self):
+        context = base.FakePortContext(self.AGENT_TYPE,
+                                       self.AGENTS,
+                                       self.VXLAN_SEGMENTS)
+        self.driver.bind_port(context)
+        self._check_bound(context, self.VXLAN_SEGMENTS[1])
+
+    def test_type_vxlan_bad(self):
+        context = base.FakePortContext(self.AGENT_TYPE,
+                                       self.AGENTS_BAD,
+                                       self.VXLAN_SEGMENTS)
+        self.driver.bind_port(context)
+        self._check_unbound(context)

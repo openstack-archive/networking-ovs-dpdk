@@ -52,8 +52,9 @@ class OVSDPDKMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
             vif_details)
 
     def get_allowed_network_types(self, agent):
-        return [npcc.TYPE_LOCAL, npcc.TYPE_FLAT,
-                npcc.TYPE_VLAN]
+        return (agent['configurations'].get('tunnel_types', []) +
+                [npcc.TYPE_LOCAL, npcc.TYPE_FLAT,
+                npcc.TYPE_VLAN])
 
     def get_mappings(self, agent):
         return agent['configurations'].get('bridge_mappings', {})
