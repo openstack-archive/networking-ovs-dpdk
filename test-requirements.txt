@@ -16,4 +16,4 @@ testtools>=0.9.34
 flake8==2.1.0
 tempest-lib>=0.2.0
 
--e git+https://github.com/openstack/neutron.git@proposed/kilo#egg=neutron
+-e git+https://github.com/openstack/neutron.git@stable/kilo#egg=neutron
