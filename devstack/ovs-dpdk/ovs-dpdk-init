@@ -2,11 +2,11 @@
 # Starts and stops ovs with dpdk
 #
 
-echo "sourceing config"
+echo "sourcing config"
 source /etc/default/ovs-dpdk
 
 is_ubuntu(){
-    vendor=`lsb_release -i -s`
+    vendor=$(lsb_release -i -s 2> /dev/null)
     if [ "$vendor" == "Ubuntu" ]; then
         return 0
     else
