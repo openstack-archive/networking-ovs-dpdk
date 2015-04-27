@@ -1,0 +1,53 @@
+[[local|localrc]]
+HOST_IP_IFACE=eth0
+HOST_IP=$(ip a show $HOST_IP_IFACE | awk '$1 == "inet" {print substr($2,0,index($2,"/") - 1) }')
+HOST_NAME=$(hostname)
+MYSQL_PASSWORD=password
+DATABASE_PASSWORD=password
+RABBIT_PASSWORD=password
+ADMIN_PASSWORD=password
+SERVICE_PASSWORD=password
+HORIZON_PASSWORD=password
+SERVICE_TOKEN=tokentoken
+
+enable_plugin networking-ovs-dpdk https://github.com/stackforge/networking-ovs-dpdk master
+
+disable_service n-net
+enable_service n-cpu
+enable_service neutron
+enable_service q-svc
+enable_service q-agt
+enable_service q-dhcp
+enable_service q-l3
+enable_service q-meta
+
+DEST=/opt/stack
+SCREEN_LOGDIR=$DEST/logs/screen
+LOGFILE=${SCREEN_LOGDIR}/xstack.sh.log
+LOGDAYS=1
+
+Q_ML2_PLUGIN_MECHANISM_DRIVERS=ovsdpdk
+Q_ML2_PLUGIN_TYPE_DRIVERS=vlan,flat,local
+Q_ML2_TENANT_NETWORK_TYPE=vlan
+ENABLE_TENANT_VLANS=True
+ENABLE_TENANT_TUNNELS=False
+
+OVS_NUM_HUGEPAGES=2048
+OVS_DATAPATH_TYPE=netdev
+OVS_GIT_TAG=3ed424e5e5d614e08a58ffe700bbe88ed0514a7b
+OVS_DPDK_VHOST_USER_DEBUG=n
+OVS_LOG_DIR=/opt/stack/logs
+OVS_HUGEPAGE_MOUNT_PAGESIZE=2M
+OVS_ALLOCATE_HUGEPAGES=True
+OVS_DPDK_GIT_TAG=v2.0.0
+OVS_BRIDGE_MAPPINGS="default:br-eth1"
+BASE_URL="file://$DEST/patches"
+OVS_PATCHES="$BASE_URL/ovs1.patch $BASE_URL/ovs2.patch"
+
+ML2_VLAN_RANGES=default:1000:1010
+MULTI_HOST=1
+
+[[post-config|$NOVA_CONF]]
+[DEFAULT]
+firewall_driver=nova.virt.firewall.NoopFirewallDriver
+scheduler_default_filters=RamFilter,ComputeFilter,AvailabilityZoneFilter,ComputeCapabilitiesFilter,ImagePropertiesFilter,PciPassthroughFilter,NUMATopologyFilter
