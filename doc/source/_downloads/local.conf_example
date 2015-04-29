@@ -10,7 +10,7 @@ SERVICE_PASSWORD=password
 HORIZON_PASSWORD=password
 SERVICE_TOKEN=tokentoken
 
-enable_plugin networking-ovs-dpdk https://github.com/stackforge/networking-ovs-dpdk master
+enable_plugin networking-ovs-dpdk https://github.com/stackforge/networking-ovs-dpdk stable/kilo
 
 disable_service n-net
 enable_service n-cpu
