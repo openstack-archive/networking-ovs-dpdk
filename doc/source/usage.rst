@@ -103,3 +103,6 @@ Default values for the below settings can be found in `settings` file in devstac
 
 **OVS_DATAPATH_TYPE**
     (datapath type) OVS bridges will be set to use this datapath. This parameter should be set to 'netdev' (without '') for userspace OVS.
+
+**OVS_DPDK_RTE_LIBRTE_VHOST**
+    (y/n) Enable libvhost/vhost-cuse. If ovs commit is before vhost-cuse support was added, this should be 'n'. Defaults to 'y'.
