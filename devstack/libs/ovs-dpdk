@@ -119,11 +119,6 @@ function ovs_dpdk_db_cleanup {
     if [ -e $KVM_CMD.orig ]; then
         sudo mv $KVM_CMD.orig $KVM_CMD
     fi
-    if [[ $OVS_DATAPATH_TYPE != "" ]]; then
-        stop_ovs_dpdk
-        sudo rm -f $OVS_DB_CONF
-    fi
-
 }
 
 function ovs_dpdk_clean(){
