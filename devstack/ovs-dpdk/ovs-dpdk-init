@@ -2,6 +2,9 @@
 # Starts and stops ovs with dpdk
 #
 
+set +o xtrace
+set +x
+
 echo "sourcing config"
 source /etc/default/ovs-dpdk
 
@@ -174,43 +177,139 @@ unbind_nics(){
 
 bind_nics(){
     unbind_nics
-    phys_ofport=0
-    #loop over network definitions, create bridges
-    #extract nic name, bind it with OVS_INTERFACE_DRIVER driver, and add it to a bridge
-    #dpdk sorts physical ports on pci addresses,
-    #need to keep that order when adding phys ports to ovs
 
-    NIC_MAPPINGS=${OVS_BRIDGE_MAPPINGS//,/ }
-    NIC_ARRAY=( $NIC_MAPPINGS )
-    for pair in "${NIC_ARRAY[@]}"; do
-        local bridge=`echo $pair | cut -f 2 -d ":"`
-        sudo ovs-vsctl --no-wait -- --may-exist add-br $bridge -- set Bridge $bridge datapath_type=netdev
-    done
+    # Loop over network definitions, create bridges
+    # Extract nic name, bind it with OVS_INTERFACE_DRIVER driver, and add it to a bridge
+    # dpdk sorts physical ports on pci addresses,
+    # need to keep that order when adding phys ports to ovs
+
+    add_bridges $OVS_BRIDGE_MAPPINGS
 
     PCI_MAPPINGS=${OVS_PCI_MAPPINGS//,/ }
     PCI_ARRAY=( $PCI_MAPPINGS )
-    STATUS="$(RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py --status)"
-    for pair in "${PCI_ARRAY[@]}"; do
-        local added=""
-        addr=`echo $pair | cut -f 1 -d "#"`
-        nic=`echo $pair | cut -f 2 -d "#"`
-        while read line; do
-            if [[ $line =~ "$nic " ]] || [[ $line =~ "$nic," ]]; then
-                if [[ $line =~ "Active" ]]; then
-                   sudo ip link set $nic down
-                fi
-                echo sudo RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py -b $OVS_INTERFACE_DRIVER $addr
-                sudo RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py -b $OVS_INTERFACE_DRIVER $addr
-                sudo ovs-vsctl --no-wait --may-exist add-port br-$nic dpdk$phys_ofport -- set Interface dpdk$phys_ofport type=dpdk
-                phys_ofport=$((phys_ofport+1))
-                added="True"
+
+    bind_nic_2_ovsdriver "${PCI_ARRAY[@]}"
+
+    # Add ports to physical nic. Keep the order of physical nic.
+    phys_ofport=0
+    STATUS=$(RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py --status)
+    while read line; do
+        for index in "${!PCI_ARRAY[@]}"; do
+            tuple=${PCI_ARRAY[$index]}
+            addr=`echo $tuple | cut -f 1 -d "#"`
+            nic=`echo $tuple | cut -f 2 -d "#"`
+            if [[ -z "$nic" ]]; then
+                # If the nic interface is empty (the tuple in the array
+                # is deleted), continue to the next register.
+                continue
             fi
-        done <<< "$STATUS"
-        if [[ "$added" != "True" ]]; then
-            sudo ovs-vsctl --no-wait -- --may-exist add-port br-$nic $nic
+            bridge=$(find_bridge $nic $OVS_DPDK_PORT_MAPPINGS)
+            if [[ "$line" =~ "drv=${OVS_INTERFACE_DRIVER}" ]] && [[ "$line" =~ "$addr" ]] && [[ "$bridge" != "" ]]; then
+                # Map this physical nic interface to the logical bridge.
+                echo "sudo ovs-vsctl --no-wait --may-exist add-port $bridge dpdk$phys_ofport -- set Interface dpdk$phys_ofport type=dpdk"
+                sudo ovs-vsctl --no-wait --may-exist add-port $bridge dpdk$phys_ofport -- set Interface dpdk$phys_ofport type=dpdk
+                # Remove element from list.
+                PCI_ARRAY[$index]=''
+                phys_ofport=$((phys_ofport+1))
+            fi
+        done
+    done <<< "$STATUS"
+
+    # Add ports for virtual nic. Read non deleted elements from PCI_ARRAY.
+    for tuple in "${PCI_ARRAY[@]}"; do
+        if [[ ! -z "$tuple" ]]; then
+            nic=`echo $tuple | cut -f 2 -d "#"`
+            bridge=`echo $tuple | cut -f 3 -d "#"`
+            check_nic_presence $nic
+            echo "sudo ovs-vsctl --no-wait -- --may-exist add-port $bridge $nic"
+            sudo ovs-vsctl --no-wait -- --may-exist add-port $bridge $nic
         fi
     done
 }
+
+
+check_nic_presence () {
+    # This function will use the command "ip link" to find if the nic
+    # name, passed as an argument, exists.
+    # List computer interfaces.
+    interfaces=$(ip link)
+    if [[ "$interfaces" =~ ": $nic: " ]]; then
+        return 0
+    fi
+    die "The nic interface $nic is not present in the system"
+}
+
+
+find_bridge() {
+    # Check argument is supplied.
+    if [[ -z "$1" ]]; then
+        die 'No argument supplied, nic expected'
+    fi
+    if [[ -z "$2" ]]; then
+        # OVS_DPDK_PORT_MAPPINGS not present, use the nic interface name
+        # to build the bridge name.
+        echo "br-"$1
+        return 0
+    fi
+
+    # Loop OVS_DPDK_PORT_MAPPINGS tuple list to find the pairing bridge.
+    NIC_MAPPINGS=${2//,/ }
+    NIC_ARRAY=( $NIC_MAPPINGS )
+    for pair in "${NIC_ARRAY[@]}"; do
+        nic=`echo $pair | cut -f 1 -d ":"`
+        if [[ "$nic" == "$1" ]]; then
+            bridge=`echo $pair | cut -f 2 -d ":"`
+            echo $bridge
+            return 0
+        fi
+    done
+    echo ""
+}
+
+
+add_bridges() {
+    # Check argument is supplied.
+    if [[ -z "$1" ]]; then
+        die 'No argument supplied, OVS_BRIDGE_MAPPINGS expected'
+    fi
+
+    # Adds the OVS bridge, given the mapping list OVS_BRIDGE_MAPPINGS.
+    NIC_MAPPINGS=${1//,/ }
+    NIC_ARRAY=( $NIC_MAPPINGS )
+    for pair in "${NIC_ARRAY[@]}"; do
+        bridge=`echo $pair | cut -f 2 -d ":"`
+        sudo ovs-vsctl --no-wait -- --may-exist add-br $bridge -- set Bridge $bridge datapath_type=netdev
+    done
+}
+
+
+bind_nic_2_ovsdriver() {
+    # Check argument is supplied.
+    if [[ -z "$1" ]]; then
+        die 'No argument supplied, PCI_ARRAY[@] expected'
+    fi
+
+    list=("$@")
+    # Bind nics to OVS_INTERFACE_DRIVER.
+    for pair in "${list[@]}"; do
+        addr=`echo $pair | cut -f 1 -d "#"`
+        nic=`echo $pair | cut -f 2 -d "#"`
+        STATUS=$(RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py --status)
+        while read line; do
+            # Check if this physical nic it's using OVS_INTERFACE_DRIVER.
+            if [[ "$line" =~ "unused="[[:graph:]]*"${OVS_INTERFACE_DRIVER}" ]] && [[ "$line" =~ "$addr" ]]; then
+                # Check the status of the nic. If it's up, take it down.
+                if [[ $line =~ "Active" ]]; then
+                    sudo ip link set $nic 0 down
+                fi
+                # Bind nic to OVS_INTERFACE_DRIVER.
+                echo sudo RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py -b $OVS_INTERFACE_DRIVER $addr
+                sudo RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py -b $OVS_INTERFACE_DRIVER $addr
+            fi
+        done <<< "$STATUS"
+    done
+}
+
 
 free_hugepages() {
     HUGEPAGE_SIZE=$(grep Hugepagesize /proc/meminfo | awk '{ print $2 }')
