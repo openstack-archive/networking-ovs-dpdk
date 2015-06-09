@@ -192,6 +192,7 @@ function build_ovs_dpdk(){
     sed "s/CONFIG_RTE_MAX_MEMSEG=.*$/CONFIG_RTE_MAX_MEMSEG=${OVS_DPDK_MEM_SEGMENTS}/" -i ${OVS_DPDK_DIR}/build/.config
     sed "s/CONFIG_RTE_LIBRTE_VHOST=.*$/CONFIG_RTE_LIBRTE_VHOST=${OVS_DPDK_RTE_LIBRTE_VHOST}/" -i ${OVS_DPDK_DIR}/build/.config
     sed "s/CONFIG_RTE_LIBRTE_VHOST_DEBUG=.*$/CONFIG_RTE_LIBRTE_VHOST_DEBUG=${OVS_DPDK_VHOST_USER_DEBUG}/" -i ${OVS_DPDK_DIR}/build/.config
+    sed "s/CONFIG_RTE_LIBRTE_KNI=.*$/CONFIG_RTE_LIBRTE_KNI=n/" -i ${OVS_DPDK_DIR}/build/.config
 
     make -j $(nproc)
     sudo cp ${OVS_DPDK_DIR}/build/lib/libintel_dpdk.* /lib
@@ -236,21 +237,37 @@ function ovs_dpdk_write_conf {
     fi
 
     sudo sed -e "s#OVS_SOCKET_MEM=.*#OVS_SOCKET_MEM=$OVS_SOCKET_MEM#g" -i /etc/default/ovs-dpdk
-    # creates an array of pci addres to interface names delimeted by # e.g. <pci_address>#<interface name>
+
+    # Creates an array of pci addres to interface names delimeted by # e.g. <pci_address>#<interface name>
     PAIRS=( `ls -al /sys/class/net/* | awk '$0 ~ /pci|virtual/ {split($NF,a,"/"); if (a[4] == "virtual") {a[8] = a[6]; a[6] = "virtual."NR}; print a[6] "#" a[8] }'` )
-    # populates OVS_BRIDGE_MAPPINGS if $PHYSICAL_NETWORK and $OVS_PHYSICAL_BRIDGE are used instead.
-    if [ "$OVS_DATAPATH_TYPE" != "" ] && [ "$OVS_BRIDGE_MAPPINGS" == "" ] && [ "$PHYSICAL_NETWORK" != "" ] && [ "$OVS_PHYSICAL_BRIDGE" != "" ]; then
+    # Populates OVS_BRIDGE_MAPPINGS if $PHYSICAL_NETWORK and $OVS_PHYSICAL_BRIDGE are used instead.
+    if [[ "$OVS_DATAPATH_TYPE" != "" ]] && [[ "$OVS_BRIDGE_MAPPINGS" = "" ]] && [[ "$PHYSICAL_NETWORK" != "" ]] && [[ "$OVS_PHYSICAL_BRIDGE" != "" ]]; then
         OVS_BRIDGE_MAPPINGS=$PHYSICAL_NETWORK:$OVS_PHYSICAL_BRIDGE
     fi
-    MAPPINGS=${OVS_BRIDGE_MAPPINGS//,/ }
+
+    if [[ -z "$OVS_DPDK_PORT_MAPPINGS" ]]; then
+        OVS_BRIDGES=${OVS_BRIDGE_MAPPINGS//,/ }
+        ARRAY=( $OVS_BRIDGES )
+        for net in "${ARRAY[@]}"; do
+            bridge="${net##*:}"
+            nic=${bridge/br-/}
+            if [[ -z "$OVS_DPDK_PORT_MAPPINGS" ]]; then
+                $OVS_DPDK_PORT_MAPPINGS=$nic:$bridge
+            else
+                $OVS_DPDK_PORT_MAPPINGS=$OVS_DPDK_PORT_MAPPINGS,$nic:$bridge
+            fi
+        done
+    fi
+
+    MAPPINGS=${OVS_DPDK_PORT_MAPPINGS//,/ }
+
     ARRAY=( $MAPPINGS )
     NICS=""
     for net in "${ARRAY[@]}"; do
-        KEY="${net%%:*}"
-        VALUE="${net##*:}"
-        printf "%s in %s\n" "$KEY" "$VALUE"
-        nic=${VALUE/br-/}
-        for pair in "${PAIRS[@]}"; do
+         nic="${net%%:*}"
+         bridge="${net##*:}"
+         printf "%s in %s\n" "$nic" "$bridge"
+         for pair in "${PAIRS[@]}"; do
             if [[ $nic == `echo $pair | cut -f 2 -d "#"` ]]; then
                 if [[ $NICS == "" ]]; then
                     NICS=$pair
@@ -260,9 +277,9 @@ function ovs_dpdk_write_conf {
             fi
         done
     done
-
     sudo sed "s/OVS_PCI_MAPPINGS=.*/OVS_PCI_MAPPINGS=$NICS/" -i /etc/default/ovs-dpdk
     sudo sed "s/OVS_BRIDGE_MAPPINGS=.*/OVS_BRIDGE_MAPPINGS=$OVS_BRIDGE_MAPPINGS/" -i /etc/default/ovs-dpdk
+    sudo sed "s/OVS_DPDK_PORT_MAPPINGS=.*/OVS_DPDK_PORT_MAPPINGS=$OVS_DPDK_PORT_MAPPINGS/" -i /etc/default/ovs-dpdk
 }
 
 function install_ovs_dpdk {
