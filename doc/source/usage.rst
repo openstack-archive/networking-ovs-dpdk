@@ -94,6 +94,12 @@ Default values for the below settings can be found in `settings` file in devstac
     Example:
     OVS_BRIDGE_MAPPINGS=default:br-eth1,default1:br-enp9s0f0
 
+**OVS_DPDK_PORT_MAPPINGS**
+    (nic:bridge) List of comma separated pairs of "nic:bridge name" used by DPDK/OVS.
+    "nic" must be a NIC interface present in the system; "bridge" is the linux virtual bridge created by OVS.
+    Example:
+    OVS_BRIDGE_MAPPINGS=eth1:br-01,eth2:br-01,eth3:br-02
+
 **OVS_INTERFACE_DRIVER**
     (vfio-pci/igb_uio) NIC driver to use for physical network interface(s). Note: drivers names are the ones supported by DPDK, i.e.: not the kernel names.
 
