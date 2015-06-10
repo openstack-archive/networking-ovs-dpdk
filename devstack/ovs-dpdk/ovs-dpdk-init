@@ -125,12 +125,12 @@ load_vfio_pci_module(){
 }
 
 unbind_nics(){
-    MAPPINGS=${OVS_BRIDGE_MAPPINGS//,/ }
-    ARRAY=( $MAPPINGS )
+    PCI_MAPPINGS=${OVS_PCI_MAPPINGS//,/ }
+    PCI_ARRAY=( $PCI_MAPPINGS )
 
     # unbind nics from OVS_INTERFACE_DRIVER driver
 
-    for pair in "${ARRAY[@]}"; do
+    for pair in "${PCI_ARRAY[@]}"; do
         addr=`echo $pair | cut -f 1 -d "#"`
         sudo RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py -u $addr
     done
@@ -140,7 +140,7 @@ unbind_nics(){
     while read line; do
         if [[ $line =~ ",$OVS_INTERFACE_DRIVER" || $line =~ "unused=$OVS_INTERFACE_DRIVER" ]] && [[ ! $line =~ "drv=" ]]; then
             addr=${line%% *}
-            for pair in "${ARRAY[@]}"; do
+            for pair in "${PCI_ARRAY[@]}"; do
                 if [[ "$addr" == `echo $pair | cut -f 1 -d "#"` ]]; then
                     drv=${line/*unused=/}
                     drv=${drv/,$OVS_INTERFACE_DRIVER/}
@@ -172,32 +172,43 @@ unbind_nics(){
 
 
 bind_nics(){
-    MAPPINGS=${OVS_BRIDGE_MAPPINGS//,/ }
-    ARRAY=( $MAPPINGS )
     unbind_nics
     phys_ofport=0
     #loop over network definitions, create bridges
     #extract nic name, bind it with OVS_INTERFACE_DRIVER driver, and add it to a bridge
     #dpdk sorts physical ports on pci addresses,
     #need to keep that order when adding phys ports to ovs
-    STATUS=$(RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py --status)
-    while read  line; do
-        for pair in "${ARRAY[@]}"; do
-            addr=`echo $pair | cut -f 1 -d "#"`
-            nic=`echo $pair | cut -f 2 -d "#"`
+
+    NIC_MAPPINGS=${OVS_BRIDGE_MAPPINGS//,/ }
+    NIC_ARRAY=( $NIC_MAPPINGS )
+    for pair in "${NIC_ARRAY[@]}"; do
+        local bridge=`echo $pair | cut -f 2 -d ":"`
+        sudo ovs-vsctl --no-wait -- --may-exist add-br $bridge -- set Bridge $bridge datapath_type=netdev
+    done
+
+    PCI_MAPPINGS=${OVS_PCI_MAPPINGS//,/ }
+    PCI_ARRAY=( $PCI_MAPPINGS )
+    STATUS="$(RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py --status)"
+    for pair in "${PCI_ARRAY[@]}"; do
+        local added=""
+        addr=`echo $pair | cut -f 1 -d "#"`
+        nic=`echo $pair | cut -f 2 -d "#"`
+        while read line; do
             if [[ $line =~ "$nic " ]] || [[ $line =~ "$nic," ]]; then
                 if [[ $line =~ "Active" ]]; then
                    sudo ip link $nic 0 down
                 fi
                 echo sudo RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py -b $OVS_INTERFACE_DRIVER $addr
                 sudo RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py -b $OVS_INTERFACE_DRIVER $addr
-                sudo ovs-vsctl --no-wait --may-exist add-br br-$nic -- set Bridge br-$nic datapath_type=netdev
                 sudo ovs-vsctl --no-wait --may-exist add-port br-$nic dpdk$phys_ofport -- set Interface dpdk$phys_ofport type=dpdk
                 phys_ofport=$((phys_ofport+1))
-             fi
-        done
-    done <<< "$STATUS"
-
+                added="True"
+            fi
+        done <<< "$STATUS"
+        if [[ "$added" != "True" ]]; then
+            sudo ovs-vsctl --no-wait -- --may-exist add-port br-$nic $nic
+        fi
+    done
 }
 
 free_hugepages() {
@@ -339,15 +350,17 @@ start_ovs(){
     printf -v CORE_MASK_HEX "%x" "$CORE_MASK"
     printf -v VSWITCH_CORE_HEX "%x" "$VSWITCH_CORE"
     sudo rm -f $OVS_LOG_DIR/ovs-vswitchd.log
-    MAPPINGS=${OVS_BRIDGE_MAPPINGS//,/ }
+    MAPPINGS=${OVS_PCI_MAPPINGS//,/ }
     ARRAY=( $MAPPINGS )
-    pciAdressWhitelist=''
+    pciAddressWhitelist=''
     for pair in ${ARRAY[@]} ; do
         addr=`echo $pair | cut -f 1 -d "#"`
-        if [ "$pciAdressWhitelist" == '' ]; then
-            pciAdressWhitelist="-w $addr"
-        else
-            pciAdressWhitelist="$pciAdressWhitelist -w $addr"
+        if [[ "$addr" =~ "0000:" ]]; then
+            if [ "$pciAddressWhitelist" == '' ]; then
+                pciAddressWhitelist="-w $addr"
+            else
+                pciAddressWhitelist="$pciAddressWhitelist -w $addr"
+            fi
         fi
     done
 
@@ -364,7 +377,7 @@ start_ovs(){
                 sudo mkdir $OVS_LOCK_DIR
                 if [ $? == 0 ]; then
                     echo "start ovs-vswitchd $retry_count/$max_retry_count"
-                    screen -dms ovs-vswitchd sudo su -g $qemu_group -c "umask 002; ${OVS_INSTALL_DIR}/sbin/ovs-vswitchd --dpdk -c $CORE_MASK_HEX -n $OVS_MEM_CHANNELS  --proc-type primary  --huge-dir $OVS_HUGEPAGE_MOUNT --socket-mem $OVS_SOCKET_MEM $pciAdressWhitelist  -- unix:$OVS_DB_SOCKET 2>&1 | tee ${OVS_LOG_DIR}/ovs-vswitchd.log"
+                    screen -dms ovs-vswitchd sudo su -g $qemu_group -c "umask 002; ${OVS_INSTALL_DIR}/sbin/ovs-vswitchd --dpdk -c $CORE_MASK_HEX -n $OVS_MEM_CHANNELS  --proc-type primary  --huge-dir $OVS_HUGEPAGE_MOUNT --socket-mem $OVS_SOCKET_MEM $pciAddressWhitelist  -- unix:$OVS_DB_SOCKET 2>&1 | tee ${OVS_LOG_DIR}/ovs-vswitchd.log"
                     break
                 fi
             fi
@@ -372,7 +385,7 @@ start_ovs(){
             sleep 10
         done
     else
-        screen -dms ovs-vswitchd sudo su -g $qemu_group -c "umask 002; ${OVS_INSTALL_DIR}/sbin/ovs-vswitchd --dpdk -c $CORE_MASK_HEX -n $OVS_MEM_CHANNELS  --proc-type primary  --huge-dir $OVS_HUGEPAGE_MOUNT --socket-mem $OVS_SOCKET_MEM $pciAdressWhitelist  -- unix:$OVS_DB_SOCKET 2>&1 | tee ${OVS_LOG_DIR}/ovs-vswitchd.log"
+        screen -dms ovs-vswitchd sudo su -g $qemu_group -c "umask 002; ${OVS_INSTALL_DIR}/sbin/ovs-vswitchd --dpdk -c $CORE_MASK_HEX -n $OVS_MEM_CHANNELS  --proc-type primary  --huge-dir $OVS_HUGEPAGE_MOUNT --socket-mem $OVS_SOCKET_MEM $pciAddressWhitelist -- unix:$OVS_DB_SOCKET 2>&1 | tee ${OVS_LOG_DIR}/ovs-vswitchd.log"
     fi
     sleep 1
     PID=$(pidof ovs-vswitchd)
