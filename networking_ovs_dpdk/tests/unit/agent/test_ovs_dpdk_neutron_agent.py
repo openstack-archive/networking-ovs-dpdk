@@ -19,9 +19,9 @@ import mock
 from oslo_config import cfg
 from oslo_log import log
 import oslo_messaging
+from oslo_utils import importutils
 import testtools
 
-from networking_ovs_dpdk.agent import ovs_dpdk_neutron_agent
 from networking_ovs_dpdk.common import constants
 from neutron.agent.common import ovs_lib
 from neutron.agent.common import utils
@@ -30,8 +30,7 @@ from neutron.agent.linux import ip_lib
 from neutron.common import constants as n_const
 from neutron.plugins.common import constants as p_const
 from neutron.plugins.ml2.drivers.l2pop import rpc as l2pop_rpc
-from neutron.tests.unit.plugins.openvswitch.agent import ovs_test_base
-
+from neutron.tests import base
 
 NOTIFIER = 'neutron.plugins.ml2.rpc.AgentNotifierApi'
 OVS_LINUX_KERN_VERS_WITHOUT_VXLAN = "3.12.0"
@@ -39,6 +38,36 @@ OVS_LINUX_KERN_VERS_WITHOUT_VXLAN = "3.12.0"
 FAKE_MAC = '00:11:22:33:44:55'
 FAKE_IP1 = '10.0.0.1'
 FAKE_IP2 = '10.0.0.2'
+cfg.CONF.use_stderr = False
+OVSDPDK_AGENT_MOD = "networking_ovs_dpdk.agent.ovs_dpdk_neutron_agent"
+DVR_MOD = "neutron.plugins.openvswitch.agent.ovs_dvr_neutron_agent"
+
+
+class OVSDPDKAgentConfigTestBase(base.BaseTestCase):
+    def setUp(self):
+        super(OVSDPDKAgentConfigTestBase, self).setUp()
+        self.mod_agent = importutils.import_module(OVSDPDK_AGENT_MOD)
+        self.mod_dvr_agent = importutils.import_module(DVR_MOD)
+
+
+class OVSDPDKOFCtlTestBase(OVSDPDKAgentConfigTestBase):
+    _OFCTL_MOD = 'neutron.plugins.openvswitch.agent.openflow.ovs_ofctl'
+    _BR_INT_CLASS = _OFCTL_MOD + '.br_int.OVSIntegrationBridge'
+    _BR_TUN_CLASS = _OFCTL_MOD + '.br_tun.OVSTunnelBridge'
+    _BR_PHYS_CLASS = _OFCTL_MOD + '.br_phys.OVSPhysicalBridge'
+
+    def setUp(self):
+        super(OVSDPDKOFCtlTestBase, self).setUp()
+        self.br_int_cls = importutils.import_class(self._BR_INT_CLASS)
+        self.br_phys_cls = importutils.import_class(self._BR_PHYS_CLASS)
+        self.br_tun_cls = importutils.import_class(self._BR_TUN_CLASS)
+
+    def _bridge_classes(self):
+        return {
+            'br_int': self.br_int_cls,
+            'br_phys': self.br_phys_cls,
+            'br_tun': self.br_tun_cls,
+        }
 
 
 class FakeVif(object):
@@ -54,11 +83,7 @@ class MockFixedIntervalLoopingCall(object):
         self.f()
 
 
-class CreateAgentConfigMap(ovs_test_base.OVSAgentConfigTestBase):
-
-    def setUp(self):
-        super(CreateAgentConfigMap, self).setUp()
-        self.mod_agent = ovs_dpdk_neutron_agent
+class CreateAgentConfigMap(OVSDPDKAgentConfigTestBase):
 
     def test_create_agent_config_map_succeeds(self):
         self.assertTrue(self.mod_agent.create_agent_config_map(cfg.CONF))
@@ -108,7 +133,6 @@ class TestOVSDPDKNeutronAgent(object):
 
     def setUp(self):
         super(TestOVSDPDKNeutronAgent, self).setUp()
-        self.mod_agent = ovs_dpdk_neutron_agent
         notifier_p = mock.patch(NOTIFIER)
         notifier_cls = notifier_p.start()
         self.notifier = mock.Mock()
@@ -136,7 +160,7 @@ class TestOVSDPDKNeutronAgent(object):
                     'neutron.agent.common.ovs_lib.OVSBridge.' 'get_vif_ports',
                     return_value=[]):
             self.agent = self.mod_agent.OVSDPDKNeutronAgent(
-                              self._bridge_classes(), **kwargs)
+                self._bridge_classes(), **kwargs)
             # set back to true because initial report state will succeed due
             # to mocked out RPC calls
             self.agent.use_call = True
@@ -1158,11 +1182,9 @@ class TestOVSDPDKNeutronAgent(object):
         self.assertIn('bar', self.agent.local_vlan_map)
 
 
-class TestOvsNeutronAgentOFCtl(TestOVSDPDKNeutronAgent,
-                               ovs_test_base.OVSOFCtlTestBase):
-    def setUp(self):
-        super(TestOvsNeutronAgentOFCtl, self).setUp()
-        self.mod_agent = ovs_dpdk_neutron_agent
+class TestOVSDPDKNeutronAgentOFCtl(TestOVSDPDKNeutronAgent,
+                               OVSDPDKOFCtlTestBase):
+    pass
 
 
 class AncillaryBridgesTest(object):
@@ -1225,17 +1247,14 @@ class AncillaryBridgesTest(object):
 
 
 class AncillaryBridgesTestOFCtl(AncillaryBridgesTest,
-                                ovs_test_base.OVSOFCtlTestBase):
-    def setUp(self):
-        super(AncillaryBridgesTestOFCtl, self).setUp()
-        self.mod_agent = ovs_dpdk_neutron_agent
+                                OVSDPDKOFCtlTestBase):
+    pass
 
 
-class TestOvsDvrNeutronAgent(object):
+class TestOVSDPDKDvrNeutronAgent(object):
 
     def setUp(self):
-        super(TestOvsDvrNeutronAgent, self).setUp()
-        self.mod_agent = ovs_dpdk_neutron_agent
+        super(TestOVSDPDKDvrNeutronAgent, self).setUp()
         notifier_p = mock.patch(NOTIFIER)
         notifier_cls = notifier_p.start()
         self.notifier = mock.Mock()
@@ -2042,6 +2061,6 @@ class TestOvsDvrNeutronAgent(object):
         self.assertTrue(all([x.called for x in reset_mocks]))
 
 
-class TestOvsDvrNeutronAgentOFCtl(TestOvsDvrNeutronAgent,
-                                  ovs_test_base.OVSOFCtlTestBase):
+class TestOVSDPDKDvrNeutronAgentOFCtl(TestOVSDPDKDvrNeutronAgent,
+                                  OVSDPDKOFCtlTestBase):
     pass

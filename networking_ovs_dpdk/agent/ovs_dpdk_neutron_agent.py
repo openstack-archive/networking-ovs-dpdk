@@ -27,7 +27,6 @@ import six
 from six import moves
 
 from networking_ovs_dpdk.common import constants
-from neutron.agent.common import config
 from neutron.agent.common import ovs_lib
 from neutron.agent.common import polling
 from neutron.agent.common import utils
@@ -36,6 +35,7 @@ from neutron.agent.linux import ip_lib
 from neutron.agent import rpc as agent_rpc
 from neutron.agent import securitygroups_rpc as sg_rpc
 from neutron.api.rpc.handlers import dvr_rpc
+from neutron.common import config
 from neutron.common import constants as q_const
 from neutron.common import exceptions
 from neutron.common import topics
@@ -49,7 +49,7 @@ from neutron.plugins.openvswitch.agent import ovs_dvr_neutron_agent
 
 LOG = logging.getLogger(__name__)
 cfg.CONF.import_group('AGENT', 'networking_ovs_dpdk.common.config')
-cfg.CONF.import_group('OVS', 'neutron.plugins.openvswitch.common.config')
+cfg.CONF.import_group('OVS', 'networking_ovs_dpdk.common.config')
 
 # A placeholder for dead vlans.
 DEAD_VLAN_TAG = p_const.MAX_VLAN_TAG + 1

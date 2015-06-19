@@ -13,8 +13,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from networking_ovs_dpdk.agent import ovs_dpdk_neutron_agent
+import networking_ovs_dpdk.agent.main as agent_main
 
 
 def main():
-    ovs_dpdk_neutron_agent.main()
+    agent_main.main()
