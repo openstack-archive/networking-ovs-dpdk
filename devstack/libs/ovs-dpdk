@@ -130,7 +130,7 @@ function ovs_dpdk_clean(){
 
 
 function clone_ovs_dpdk(){
-    if "$OFFLINE" != True && [ "$RECLONE" = True  ||  ! -e ${OVS_DIR}/BUILD_COMPLETE ]  ; then
+    if [[ "$OFFLINE" != True && ( "$RECLONE" = True || ! -e ${OVS_DIR}/BUILD_COMPLETE ) ]]; then
         if [ ! -d ${OVS_DIR} ] || [ "$RECLONE" = True ]; then
             if [ -d ${OVS_DIR} ]; then
                 rm -rf ${OVS_DIR}
