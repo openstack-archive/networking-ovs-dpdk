@@ -196,7 +196,7 @@ bind_nics(){
         while read line; do
             if [[ $line =~ "$nic " ]] || [[ $line =~ "$nic," ]]; then
                 if [[ $line =~ "Active" ]]; then
-                   sudo ip link $nic 0 down
+                   sudo ip link set $nic down
                 fi
                 echo sudo RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py -b $OVS_INTERFACE_DRIVER $addr
                 sudo RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py -b $OVS_INTERFACE_DRIVER $addr
