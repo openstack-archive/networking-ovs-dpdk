@@ -5,9 +5,12 @@ networking-ovs-dpdk
 A Collection of Agents and Drivers to support managing DPDK accelerated Open vSwitch with neutron
 
 * Free software: Apache license
-* Documentation: http://docs.openstack.org/developer/networking-ovs-dpdk
 * Source: http://git.openstack.org/cgit/stackforge/networking-ovs-dpdk
+* Installtion: http://git.openstack.org/cgit/stackforge/networking-ovs-dpdk/tree/doc/source/installation.rst
+* Example local.conf: http://git.openstack.org/cgit/stackforge/networking-ovs-dpdk/tree/doc/source/_downloads/local.conf_example
+* Usage: http://git.openstack.org/cgit/stackforge/networking-ovs-dpdk/tree/doc/source/usage.rst
 * Bugs: http://bugs.launchpad.net/networking-ovs-dpdk
+* Code Reviews: https://review.openstack.org/#/q/status:open+networking-ovs-dpdk,n,z
 
 Features
 --------
