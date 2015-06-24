@@ -104,6 +104,6 @@ VHOST_USER_SOCKET = 'vhostuser_socket'
 VIF_TYPE_VHOST_USER = 'vhostuser'
 
 # default location for vhostuser sockets
-VHOSTUSER_SOCKET_DIR = '/tmp'
+VHOSTUSER_SOCKET_DIR = '/var/run/openvswitch'
 # prefix for ovs port
 PORT_PREFIX = 'vhu'
