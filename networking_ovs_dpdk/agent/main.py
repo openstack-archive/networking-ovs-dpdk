@@ -30,7 +30,8 @@ cfg.CONF.import_group('OVS', 'networking_ovs_dpdk.common.config')
 
 
 _main_modules = {
-    'ovs-ofctl': 'neutron.plugins.openvswitch.agent.openflow.ovs_ofctl.main',
+    'ovs-ofctl': 'neutron.plugins.ml2.drivers.openvswitch.agent.openflow.'
+                 'ovs_ofctl.main',
     'ovsdpdk-ofctl': 'networking_ovs_dpdk.agent.openflow.ovsdpdk_ofctl.main'
 }
 
