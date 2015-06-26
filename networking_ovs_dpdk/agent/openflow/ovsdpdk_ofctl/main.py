@@ -15,9 +15,12 @@
 #    under the License.
 
 from networking_ovs_dpdk.agent import ovs_dpdk_neutron_agent
-from neutron.plugins.openvswitch.agent.openflow.ovs_ofctl import br_int
-from neutron.plugins.openvswitch.agent.openflow.ovs_ofctl import br_phys
-from neutron.plugins.openvswitch.agent.openflow.ovs_ofctl import br_tun
+from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl \
+    import br_int
+from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl \
+    import br_phys
+from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl \
+    import br_tun
 
 
 def init_config():

@@ -40,7 +40,7 @@ FAKE_IP1 = '10.0.0.1'
 FAKE_IP2 = '10.0.0.2'
 cfg.CONF.use_stderr = False
 OVSDPDK_AGENT_MOD = "networking_ovs_dpdk.agent.ovs_dpdk_neutron_agent"
-DVR_MOD = "neutron.plugins.openvswitch.agent.ovs_dvr_neutron_agent"
+DVR_MOD = "neutron.plugins.ml2.drivers.openvswitch.agent.ovs_dvr_neutron_agent"
 
 
 class OVSDPDKAgentConfigTestBase(base.BaseTestCase):
@@ -51,7 +51,9 @@ class OVSDPDKAgentConfigTestBase(base.BaseTestCase):
 
 
 class OVSDPDKOFCtlTestBase(OVSDPDKAgentConfigTestBase):
-    _OFCTL_MOD = 'neutron.plugins.openvswitch.agent.openflow.ovs_ofctl'
+    _OFCTL_MOD = (
+        'neutron.plugins.ml2.drivers.openvswitch.agent.openflow.'
+        'ovs_ofctl')
     _BR_INT_CLASS = _OFCTL_MOD + '.br_int.OVSIntegrationBridge'
     _BR_TUN_CLASS = _OFCTL_MOD + '.br_tun.OVSTunnelBridge'
     _BR_PHYS_CLASS = _OFCTL_MOD + '.br_phys.OVSPhysicalBridge'

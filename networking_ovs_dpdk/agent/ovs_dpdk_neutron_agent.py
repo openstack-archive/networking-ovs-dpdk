@@ -30,7 +30,6 @@ from networking_ovs_dpdk.common import constants
 from neutron.agent.common import ovs_lib
 from neutron.agent.common import polling
 from neutron.agent.common import utils
-from neutron.agent import l2population_rpc
 from neutron.agent.linux import ip_lib
 from neutron.agent import rpc as agent_rpc
 from neutron.agent import securitygroups_rpc as sg_rpc
@@ -44,7 +43,9 @@ from neutron import context
 from neutron.i18n import _LE, _LI, _LW
 from neutron.openstack.common import loopingcall
 from neutron.plugins.common import constants as p_const
-from neutron.plugins.openvswitch.agent import ovs_dvr_neutron_agent
+from neutron.plugins.ml2.drivers.l2pop.rpc_manager import l2population_rpc
+from neutron.plugins.ml2.drivers.openvswitch.common.agent \
+    import ovs_dvr_neutron_agent
 
 
 LOG = logging.getLogger(__name__)
