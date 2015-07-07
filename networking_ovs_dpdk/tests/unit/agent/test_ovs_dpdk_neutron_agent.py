@@ -155,8 +155,7 @@ class TestOVSDPDKNeutronAgent(object):
                            return_value='00:00:00:00:00:01'),\
                 mock.patch(
                     'neutron.agent.common.ovs_lib.BaseOVS.get_bridges'),\
-                mock.patch('neutron.openstack.common.loopingcall.'
-                           'FixedIntervalLoopingCall',
+                mock.patch('oslo_service.loopingcall.FixedIntervalLoopingCall',
                            new=MockFixedIntervalLoopingCall),\
                 mock.patch(
                     'neutron.agent.common.ovs_lib.OVSBridge.' 'get_vif_ports',
@@ -1275,8 +1274,7 @@ class TestOVSDPDKDvrNeutronAgent(object):
                            return_value='00:00:00:00:00:01'),\
                 mock.patch(
                     'neutron.agent.common.ovs_lib.BaseOVS.get_bridges'),\
-                mock.patch('neutron.openstack.common.loopingcall.'
-                           'FixedIntervalLoopingCall',
+                mock.patch('oslo_service.loopingcall.FixedIntervalLoopingCall',
                            new=MockFixedIntervalLoopingCall),\
                 mock.patch(
                     'neutron.agent.common.ovs_lib.OVSBridge.' 'get_vif_ports',
@@ -1325,12 +1323,15 @@ class TestOVSDPDKDvrNeutronAgent(object):
                                     'ip_address': '1.1.1.3'}]
 
     @staticmethod
-    def _expected_port_bound(port, lvid):
-        return [
+    def _expected_port_bound(port, lvid, is_dvr=True):
+        resp = [
             mock.call.db_get_val('Port', port.port_name, 'other_config'),
             mock.call.set_db_attribute('Port', port.port_name, 'other_config',
                                        mock.ANY),
         ]
+        if is_dvr:
+            resp = [mock.call.get_vifs_by_ids([])] + resp
+        return resp
 
     def _expected_install_dvr_process(self, lvid, port, ip_version,
                                       gateway_ip, gateway_mac):
@@ -1439,7 +1440,7 @@ class TestOVSDPDKDvrNeutronAgent(object):
                     dst_port=self._compute_port.ofport,
                     vlan_tag=segmentation_id,
                 ),
-            ] + self._expected_port_bound(self._compute_port, lvid)
+            ] + self._expected_port_bound(self._compute_port, lvid, False)
             self.assertEqual(expected_on_int_br, int_br.mock_calls)
             self.assertFalse([], tun_br.mock_calls)
             self.assertFalse([], phys_br.mock_calls)
@@ -1521,7 +1522,7 @@ class TestOVSDPDKDvrNeutronAgent(object):
                     dst_port=self._compute_port.ofport,
                     vlan_tag=lvid,
                 ),
-            ] + self._expected_port_bound(self._compute_port, lvid)
+            ] + self._expected_port_bound(self._compute_port, lvid, False)
             self.assertEqual(expected_on_int_br, int_br.mock_calls)
             self.assertEqual([], tun_br.mock_calls)
             self.assertEqual([], phys_br.mock_calls)
@@ -1592,7 +1593,7 @@ class TestOVSDPDKDvrNeutronAgent(object):
                     dst_port=self._port.ofport,
                     vlan_tag=lvid,
                 ),
-            ] + self._expected_port_bound(self._port, lvid)
+            ] + self._expected_port_bound(self._port, lvid, is_dvr=False)
             self.assertEqual(expected_on_int_br, int_br.mock_calls)
             expected_on_tun_br = [
                 mock.call.provision_local_vlan(
@@ -1754,7 +1755,7 @@ class TestOVSDPDKDvrNeutronAgent(object):
                         dst_port=self._compute_port.ofport,
                         vlan_tag=lvid,
                     ),
-                ] + self._expected_port_bound(self._compute_port, lvid),
+                ] + self._expected_port_bound(self._compute_port, lvid, False),
                 int_br.mock_calls)
             self.assertEqual([], tun_br.mock_calls)
 
@@ -1833,7 +1834,7 @@ class TestOVSDPDKDvrNeutronAgent(object):
                     dst_port=self._port.ofport,
                     vlan_tag=lvid,
                 ),
-            ] + self._expected_port_bound(self._port, lvid)
+            ] + self._expected_port_bound(self._port, lvid, is_dvr=False)
             self.assertEqual(expected_on_int_br, int_br.mock_calls)
             expected_on_tun_br = [
                 mock.call.provision_local_vlan(
