@@ -58,6 +58,7 @@ init_db(){
     sudo $OVS_INSTALL_DIR/bin/ovsdb-tool create $OVS_DB_CONF   ${OVS_INSTALL_DIR}/share/openvswitch/vswitch.ovsschema
     sudo ${OVS_INSTALL_DIR}/sbin/ovsdb-server  --detach --pidfile=$OVS_LOG_DIR/ovsdb-server.pid  --remote=punix:$OVS_DB_SOCKET --remote=db:Open_vSwitch,Open_vSwitch,manager_options
     sudo ovs-vsctl --no-wait init
+    sudo ovs-vsctl --no-wait set Open_vSwitch . other_config:pmd-cpu-mask=$OVS_PMD_CORE_MASK
 }
 
 
@@ -324,20 +325,7 @@ start_ovs(){
         ARRAY=( $MAPPINGS )
         PHYS_PORTS=${#ARRAY[@]}
     fi
-    CONFIG_OPT=""
-    PORT_MASK=0
-    CORE_MASK=3
-    for i in $(seq 0 $((PHYS_PORTS-1))); do
-        CONFIG_OPT+="($i,0,$(($i+2))),"
-        bit=$((2**i))
-        PORT_MASK=$((PORT_MASK+bit))
-        bit=$((2**(i+2)))
-        CORE_MASK=$((CORE_MASK+bit))
-    done
-    CONFIG_OPT=${CONFIG_OPT%?}
-    VSWITCH_CORE=$((CORE_MASK+1))
-    printf -v CORE_MASK_HEX "%x" "$CORE_MASK"
-    printf -v VSWITCH_CORE_HEX "%x" "$VSWITCH_CORE"
+
     sudo rm -f $OVS_LOG_DIR/ovs-vswitchd.log
     MAPPINGS=${OVS_BRIDGE_MAPPINGS//,/ }
     ARRAY=( $MAPPINGS )
@@ -364,7 +352,7 @@ start_ovs(){
                 sudo mkdir $OVS_LOCK_DIR
                 if [ $? == 0 ]; then
                     echo "start ovs-vswitchd $retry_count/$max_retry_count"
-                    screen -dms ovs-vswitchd sudo su -g $qemu_group -c "umask 002; ${OVS_INSTALL_DIR}/sbin/ovs-vswitchd --dpdk -c $CORE_MASK_HEX -n $OVS_MEM_CHANNELS  --proc-type primary  --huge-dir $OVS_HUGEPAGE_MOUNT --socket-mem $OVS_SOCKET_MEM $pciAdressWhitelist  -- unix:$OVS_DB_SOCKET 2>&1 | tee ${OVS_LOG_DIR}/ovs-vswitchd.log"
+                    screen -dms ovs-vswitchd sudo su -g $qemu_group -c "umask 002; ${OVS_INSTALL_DIR}/sbin/ovs-vswitchd --dpdk -c $OVS_CORE_MASK -n $OVS_MEM_CHANNELS  --proc-type primary  --huge-dir $OVS_HUGEPAGE_MOUNT --socket-mem $OVS_SOCKET_MEM $pciAddressWhitelist  -- unix:$OVS_DB_SOCKET 2>&1 | tee ${OVS_LOG_DIR}/ovs-vswitchd.log"
                     break
                 fi
             fi
@@ -372,7 +360,7 @@ start_ovs(){
             sleep 10
         done
     else
-        screen -dms ovs-vswitchd sudo su -g $qemu_group -c "umask 002; ${OVS_INSTALL_DIR}/sbin/ovs-vswitchd --dpdk -c $CORE_MASK_HEX -n $OVS_MEM_CHANNELS  --proc-type primary  --huge-dir $OVS_HUGEPAGE_MOUNT --socket-mem $OVS_SOCKET_MEM $pciAdressWhitelist  -- unix:$OVS_DB_SOCKET 2>&1 | tee ${OVS_LOG_DIR}/ovs-vswitchd.log"
+        screen -dms ovs-vswitchd sudo su -g $qemu_group -c "umask 002; ${OVS_INSTALL_DIR}/sbin/ovs-vswitchd --dpdk -c $OVS_CORE_MASK -n $OVS_MEM_CHANNELS  --proc-type primary  --huge-dir $OVS_HUGEPAGE_MOUNT --socket-mem $OVS_SOCKET_MEM $pciAddressWhitelist -- unix:$OVS_DB_SOCKET 2>&1 | tee ${OVS_LOG_DIR}/ovs-vswitchd.log"
     fi
     sleep 1
     PID=$(pidof ovs-vswitchd)

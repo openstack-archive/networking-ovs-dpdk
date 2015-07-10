@@ -50,6 +50,18 @@ Default values for the below settings can be found in `settings` file in devstac
 **OVS_MEM_CHANNELS**
     (Number) Number of memory channels into the processor OVS will use.
 
+**OVS_CORE_MASK**
+    cpu core mask in hexa format, according to it's value CPU cores are selected.
+    OVS_CORE_MASK is used for ovs-vswitchd process as -c option, it has default value 2.
+
+    Example:
+    OVS_CORE_MASK=3 (0x011 binary -> first two cores taken)
+
+**OVS_PMD_CORE_MASK**
+    the mask in hexa format for the PMD threads of ovs set in the db,
+    OVS_PMD_CORE_MASK value is used for other_config:pmd-cpu-mask parameter in ovsdb.
+    It has default value 4.
+
 **OVS_LOG_DIR**
     (Filesystem path) Directory containing ovs-db and ovs-vswitchd log files.
 
