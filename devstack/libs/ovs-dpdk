@@ -315,6 +315,25 @@ function ovs_dpdk_configure_l3_agent {
     fi
 }
 
+function set_vcpu_pin_set {
+    OVS_CORE_MASK=$(echo $OVS_CORE_MASK | sed 's/^0x//')
+    OVS_PMD_CORE_MASK=$(echo $OVS_PMD_CORE_MASK | sed 's/^0x//')
+    BAD_CORES=$((`echo $((16#${OVS_CORE_MASK}))` | `echo $((16#${OVS_PMD_CORE_MASK}))`))
+    TOTAL_CORES=`nproc`
+    vcpu_pin_set=""
+
+    for cpu in $(seq 0 `expr $TOTAL_CORES - 1`);do
+        tmp=`echo 2^$cpu | bc`
+        if [ $(($tmp & $BAD_CORES)) -eq 0 ]; then
+            vcpu_pin_set+=$cpu","
+        fi
+    done
+    vcpu_pin_set=${vcpu_pin_set::-1}
+
+    if is_service_enabled nova; then
+        iniset $NOVA_CONF DEFAULT vcpu_pin_set $vcpu_pin_set
+    fi
+}
 
 # Restore xtrace
 $OVSB_XTRACE
