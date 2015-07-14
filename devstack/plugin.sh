@@ -23,8 +23,7 @@ set -x
                     start_ovs_dpdk
                 ;;
                 "post-config")
-                    # no-op
-                    :
+                    set_vcpu_pin_set
                 ;;
                 "extra")
                     # no-op
