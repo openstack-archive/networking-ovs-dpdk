@@ -60,7 +60,7 @@ Default values for the below settings can be found in `settings` file in devstac
 **OVS_PMD_CORE_MASK**
     the mask in hexa format for the PMD threads of ovs set in the db,
     OVS_PMD_CORE_MASK value is used for other_config:pmd-cpu-mask parameter in ovsdb.
-    It has default value 4.
+    It has default value 4, in case of HT systems it's 4 + sibling
 
 **OVS_LOG_DIR**
     (Filesystem path) Directory containing ovs-db and ovs-vswitchd log files.
