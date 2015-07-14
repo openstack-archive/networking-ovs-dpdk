@@ -321,5 +321,48 @@ function ovs_dpdk_configure_l3_agent {
     fi
 }
 
+function update_ovs_pmd_core_mask {
+    OVS_CORE_MASK=$(echo $OVS_CORE_MASK | sed 's/^0x//')
+    OVS_PMD_CORE_MASK=$(echo $OVS_PMD_CORE_MASK | sed 's/^0x//')
+
+    if [ $OVS_PMD_CORE_MASK -eq 4 ]; then
+        #default value, check for siblings in case of hyperthreading enabled
+        SIBLINGS=""
+        RESULT=0
+        FILE="/sys/devices/system/cpu/cpu3/topology/thread_siblings_list"
+        if [ -e $FILE ]; then
+            SIBLINGS=`cat $FILE`
+        else
+            echo "warning: don't know how to check siblings"
+            SIBLINGS=3
+        fi
+
+        for SIBLING in $(echo $SIBLINGS | sed -n 1'p' | tr ',' '\n'); do
+            SIBLING_CORE=`echo "obase=10;$((1<<($SIBLING-1)))" | bc`
+            RESULT=$(($RESULT | $SIBLING_CORE))
+        done
+
+        OVS_PMD_CORE_MASK=`printf "%x" $RESULT`
+    fi
+}
+
+function set_vcpu_pin_set {
+    BAD_CORES=$((`echo $((16#${OVS_CORE_MASK}))` | `echo $((16#${OVS_PMD_CORE_MASK}))`))
+    TOTAL_CORES=`nproc`
+    vcpu_pin_set=""
+
+    for cpu in $(seq 0 `expr $TOTAL_CORES - 1`);do
+        tmp=`echo 2^$cpu | bc`
+        if [ $(($tmp & $BAD_CORES)) -eq 0 ]; then
+            vcpu_pin_set+=$cpu","
+        fi
+    done
+    vcpu_pin_set=${vcpu_pin_set::-1}
+
+    if is_service_enabled nova; then
+        iniset $NOVA_CONF DEFAULT vcpu_pin_set $vcpu_pin_set
+    fi
+}
+
 # Restore xtrace
 $OVSB_XTRACE

@@ -16,6 +16,7 @@ set -x
                 "install")
                     # Perform installation of ovs dpdk
                     echo_summary "Configuring, installing and starting OVS DPDK"
+                    update_ovs_pmd_core_mask
                     install_ovs_dpdk
                     pushd $NETWOKING_OVS_DPDK_DIR
                     sudo python setup.py install
@@ -23,8 +24,7 @@ set -x
                     start_ovs_dpdk
                 ;;
                 "post-config")
-                    # no-op
-                    :
+                    set_vcpu_pin_set
                 ;;
                 "extra")
                     # no-op
