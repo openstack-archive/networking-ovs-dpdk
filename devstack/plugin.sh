@@ -16,6 +16,7 @@ set -x
                 "install")
                     # Perform installation of ovs dpdk
                     echo_summary "Configuring, installing and starting OVS DPDK"
+                    set_vcpu_pin_set
                     install_ovs_dpdk
                     pushd $NETWOKING_OVS_DPDK_DIR
                     sudo python setup.py install
