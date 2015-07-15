@@ -58,6 +58,26 @@ init_db(){
     sudo $OVS_INSTALL_DIR/bin/ovsdb-tool create $OVS_DB_CONF   ${OVS_INSTALL_DIR}/share/openvswitch/vswitch.ovsschema
     sudo ${OVS_INSTALL_DIR}/sbin/ovsdb-server  --detach --pidfile=$OVS_LOG_DIR/ovsdb-server.pid  --remote=punix:$OVS_DB_SOCKET --remote=db:Open_vSwitch,Open_vSwitch,manager_options
     sudo ovs-vsctl --no-wait init
+
+    if [ $OVS_PMD_CORE_MASK -eq 4 ]; then
+        #default value, check for siblings in case of hyperthreading enabled
+        FILE="/sys/devices/system/cpu/cpu3/topology/thread_siblings_list"
+        SIBLINGS=""
+        RESULT=0
+        if [ -e $FILE ]; then
+            SIBLINGS=`cat /sys/devices/system/cpu/cpu3/topology/thread_siblings_list`
+        else
+            echo "warning: don't know how to check siblings"
+            SIBLINGS=3
+        fi
+
+        for SIBLING in $(echo $SIBLINGS | sed -n 1'p' | tr ',' '\n'); do
+            RESULT=$(($RESULT | $SIBLING))
+        done
+
+        OVS_PMD_CORE_MASK=`printf "%x" $RESULT`
+    fi
+
     sudo ovs-vsctl --no-wait set Open_vSwitch . other_config:pmd-cpu-mask=$OVS_PMD_CORE_MASK
 }
 
