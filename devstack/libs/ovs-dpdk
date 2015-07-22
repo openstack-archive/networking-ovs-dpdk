@@ -252,9 +252,9 @@ function ovs_dpdk_write_conf {
             bridge="${net##*:}"
             nic=${bridge/br-/}
             if [[ -z "$OVS_DPDK_PORT_MAPPINGS" ]]; then
-                $OVS_DPDK_PORT_MAPPINGS=$nic:$bridge
+                OVS_DPDK_PORT_MAPPINGS=$nic:$bridge
             else
-                $OVS_DPDK_PORT_MAPPINGS=$OVS_DPDK_PORT_MAPPINGS,$nic:$bridge
+                OVS_DPDK_PORT_MAPPINGS=$OVS_DPDK_PORT_MAPPINGS,$nic:$bridge
             fi
         done
     fi
