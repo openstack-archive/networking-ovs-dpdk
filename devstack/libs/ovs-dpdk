@@ -137,6 +137,8 @@ function ovs_dpdk_clean(){
 #
 
 function clone_ovs_dpdk(){
+    OFFLINE=$(trueorfalse False OFFLINE)
+    RECLONE=$(trueorfalse False RECLONE)
     if [[ "$OFFLINE" != True && ( "$RECLONE" == True || ! -e ${OVS_DIR}/BUILD_COMPLETE ) ]]; then
         if [ ! -d ${OVS_DIR} ] || [ "$RECLONE" == True ]; then
             if [ -d ${OVS_DIR} ]; then
@@ -188,6 +190,21 @@ function build_ovs_dpdk(){
        rm $RTE_TARGET
     fi
     ln -s -f build $RTE_TARGET
+
+    OVS_DPDK_RTE_LIBRTE_VHOST=$(trueorfalse True OVS_DPDK_RTE_LIBRTE_VHOST)
+    if [ "$OVS_DPDK_RTE_LIBRTE_VHOST" == "True" ]; then
+        OVS_DPDK_RTE_LIBRTE_VHOST='y'
+    else
+        OVS_DPDK_RTE_LIBRTE_VHOST='n'
+    fi
+
+    OVS_DPDK_VHOST_USER_DEBUG=$(trueorfalse False OVS_DPDK_VHOST_USER_DEBUG)
+    if [ "$OVS_DPDK_VHOST_USER_DEBUG" == "True" ]; then
+        OVS_DPDK_VHOST_USER_DEBUG='y'
+    else
+        OVS_DPDK_VHOST_USER_DEBUG='n'
+    fi
+
     sed "s/CONFIG_RTE_BUILD_COMBINE_LIBS=n/CONFIG_RTE_BUILD_COMBINE_LIBS=y/" -i ${OVS_DPDK_DIR}/build/.config
     sed "s/CONFIG_RTE_MAX_MEMSEG=.*$/CONFIG_RTE_MAX_MEMSEG=${OVS_DPDK_MEM_SEGMENTS}/" -i ${OVS_DPDK_DIR}/build/.config
     sed "s/CONFIG_RTE_LIBRTE_VHOST=.*$/CONFIG_RTE_LIBRTE_VHOST=${OVS_DPDK_RTE_LIBRTE_VHOST}/" -i ${OVS_DPDK_DIR}/build/.config
@@ -206,6 +223,8 @@ function build_ovs_dpdk(){
 
 function ovs_dpdk_write_conf {
     sudo cp $NETWOKING_OVS_DPDK_DIR/devstack/ovs-dpdk/ovs-dpdk-conf /etc/default/ovs-dpdk
+
+    OVS_ALLOCATE_HUGEPAGES=$(trueorfalse True OVS_ALLOCATE_HUGEPAGES)
 
     sudo sed "s#RTE_SDK=.*#RTE_SDK=$OVS_DPDK_DIR#" -i /etc/default/ovs-dpdk
     sudo sed "s#RTE_TARGET=.*#RTE_TARGET=$RTE_TARGET#" -i /etc/default/ovs-dpdk
@@ -310,6 +329,7 @@ function install_ovs_dpdk {
 }
 
 function ovs_dpdk_configure_debug_command {
+    Q_USE_PROVIDERNET_FOR_PUBLIC=$(trueorfalse False Q_USE_PROVIDERNET_FOR_PUBLIC)
     if [ "$Q_USE_PROVIDERNET_FOR_PUBLIC" == "True" ]; then
         iniset $NEUTRON_TEST_CONFIG_FILE DEFAULT external_network_bridge ""
     else
@@ -322,6 +342,8 @@ function ovs_dpdk_configure_firewall_driver {
 }
 
 function ovs_dpdk_configure_l3_agent {
+    Q_USE_PROVIDERNET_FOR_PUBLIC=$(trueorfalse False Q_USE_PROVIDERNET_FOR_PUBLIC)
+    Q_USE_PUBLIC_VETH=$(trueorfalse False Q_USE_PUBLIC_VETH)
     if [ "$Q_USE_PROVIDERNET_FOR_PUBLIC" == "True" ]; then
         iniset $Q_L3_CONF_FILE DEFAULT external_network_bridge ""
     else
