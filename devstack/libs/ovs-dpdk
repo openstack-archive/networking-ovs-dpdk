@@ -230,7 +230,7 @@ function ovs_dpdk_write_conf {
 
     sudo sed -e "s#OVS_SOCKET_MEM=.*#OVS_SOCKET_MEM=$OVS_SOCKET_MEM#g" -i /etc/default/ovs-dpdk
     # creates an array of pci addres to interface names delimeted by # e.g. <pci_address>#<interface name>
-    PAIRS=( `ls -al /sys/class/net/* | grep pci | awk '{print $NF;}' | awk '{split($0,a,"/");print a[6] "#" a[8] }'` )
+    PAIRS=( `ls -al /sys/class/net/* | grep pci | awk '{print $NF;}' | awk '{n=split($0,a,"/");print a[n-2] "#" a[n] }'` )
     # populates OVS_BRIDGE_MAPPINGS if $PHYSICAL_NETWORK and $OVS_PHYSICAL_BRIDGE are used instead.
     if [[ "$OVS_DATAPATH_TYPE" != "" ]] && [[ "$OVS_BRIDGE_MAPPINGS" = "" ]] && [[ "$PHYSICAL_NETWORK" != "" ]] && [[ "$OVS_PHYSICAL_BRIDGE" != "" ]]; then
         OVS_BRIDGE_MAPPINGS=$PHYSICAL_NETWORK:$OVS_PHYSICAL_BRIDGE
