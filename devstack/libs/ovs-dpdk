@@ -191,7 +191,7 @@ function build_ovs_dpdk(){
    cd ${OVS_DIR}
    ./boot.sh
    ./configure --with-dpdk=${OVS_DPDK_DIR}/${RTE_TARGET} --prefix=/usr
-   make -j `nproc`
+   make -j `nproc` CFLAGS='-O3 -march=native'
    touch ${OVS_DIR}/BUILD_COMPLETE
    sudo make install
 }
