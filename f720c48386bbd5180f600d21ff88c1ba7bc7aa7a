@@ -1,0 +1,8 @@
+Verified+2: Jenkins
+Code-Review+2: sean mooney <sean.k.mooney@intel.com>
+Workflow+1: sean mooney <sean.k.mooney@intel.com>
+Submitted-by: Jenkins
+Submitted-at: Tue, 11 Aug 2015 17:58:42 +0000
+Reviewed-on: https://review.openstack.org/210071
+Project: stackforge/networking-ovs-dpdk
+Branch: refs/heads/stable/kilo
