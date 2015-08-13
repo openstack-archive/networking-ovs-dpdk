@@ -10,8 +10,6 @@ To use networking-ovs-dpdk with devstack add the below to local.conf::
 
 
 Note: Virtual Machines using vhost-user need to be backed by hugepages.
-For correct operation of OpenVSwitch the total logical CPU count on the host should not exceed the number of queues available on the physical networking interfaces.
-That's a limitation that should be fixed in newer versions of OVS.
 
 
 Example::
