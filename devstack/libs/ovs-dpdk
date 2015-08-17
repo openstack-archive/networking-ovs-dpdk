@@ -185,7 +185,7 @@ function build_ovs_dpdk(){
     cd ${OVS_DPDK_DIR}
     make config T=${RTE_TARGET}
     if [ -e "${OVS_DPDK_DIR}/${RTE_TARGET}" ]; then
-       rm $RTE_TARGET
+       rm -rf $RTE_TARGET
     fi
     ln -s -f build $RTE_TARGET
     sed "s/CONFIG_RTE_BUILD_COMBINE_LIBS=n/CONFIG_RTE_BUILD_COMBINE_LIBS=y/" -i ${OVS_DPDK_DIR}/build/.config
