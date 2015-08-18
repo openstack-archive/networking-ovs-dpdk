@@ -1,0 +1,58 @@
+#Controller node configuration
+
+[[local|localrc]]
+HOST_IP_IFACE=<CONTROLLER NODE API INTERFACE>
+HOST_IP=<CONTROLLER IP>
+HOST_NAME=$(hostname)
+
+MYSQL_PASSWORD=password
+DATABASE_PASSWORD=password
+RABBIT_PASSWORD=password
+ADMIN_PASSWORD=password
+SERVICE_PASSWORD=password
+HORIZON_PASSWORD=password
+SERVICE_TOKEN=tokentoken
+
+enable_plugin networking-ovs-dpdk https://github.com/stackforge/networking-ovs-dpdk master
+
+disable_service n-net
+disable_service n-cpu
+enable_service neutron
+enable_service q-svc
+enable_service q-agt
+enable_service q-dhcp
+enable_service q-l3
+enable_service q-meta
+enable_service n-novnc
+
+DEST=/opt/stack
+SCREEN_LOGDIR=$DEST/logs/screen
+LOGFILE=${SCREEN_LOGDIR}/xstack.sh.log
+LOGDAYS=1
+
+Q_ML2_PLUGIN_MECHANISM_DRIVERS=openvswitch,ovsdpdk
+Q_ML2_PLUGIN_TYPE_DRIVERS=vlan,flat,local
+Q_ML2_TENANT_NETWORK_TYPE=vlan
+ENABLE_TENANT_VLANS=True
+ENABLE_TENANT_TUNNELS=False
+
+#Dual socket platform,3072*2048kB hugepages leaves ~4G for the system.
+OVS_NUM_HUGEPAGES=3072
+
+#Dual socket platform,14336*2048kB hugepages leaves ~6G for the system.
+#OVS_NUM_HUGEPAGES=14336
+
+OVS_DATAPATH_TYPE=netdev
+OVS_LOG_DIR=/opt/stack/logs
+OVS_BRIDGE_MAPPINGS="default:br-<CONTROLLER NODE DATA INTERFACE>
+
+ML2_VLAN_RANGES=default:<VLAN RANGES>
+MULTI_HOST=1
+
+[[post-config|$NOVA_CONF]]
+[DEFAULT]
+firewall_driver=nova.virt.firewall.NoopFirewallDriver
+novncproxy_host=0.0.0.0
+novncproxy_port=6080
+scheduler_default_filters=RamFilter,ComputeFilter,AvailabilityZoneFilter,ComputeCapabilitiesFilter,ImagePropertiesFilter,PciPassthroughFilter,NUMATopologyFilter
+
