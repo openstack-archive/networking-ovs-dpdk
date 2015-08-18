@@ -1,7 +1,11 @@
+#All in single node config
+
 [[local|localrc]]
-HOST_IP_IFACE=eth0
-HOST_IP=$(ip a show $HOST_IP_IFACE | awk '$1 == "inet" {print substr($2,0,index($2,"/") - 1) }')
+
+HOST_IP_IFACE=<SINGLE NODE API INTERFACE>
+HOST_IP=<SINGLE NODE IP>
 HOST_NAME=$(hostname)
+
 MYSQL_PASSWORD=password
 DATABASE_PASSWORD=password
 RABBIT_PASSWORD=password
@@ -32,19 +36,22 @@ Q_ML2_TENANT_NETWORK_TYPE=vlan
 ENABLE_TENANT_VLANS=True
 ENABLE_TENANT_TUNNELS=False
 
-OVS_NUM_HUGEPAGES=2048
+#Dual socket platform with 16GB RAM,3072*2048kB hugepages leaves ~4G for the system.
+OVS_NUM_HUGEPAGES=3072
+
+#Dual socket platform with 64GB RAM,14336*2048kB hugepages leaves ~6G for the system.
+#OVS_NUM_HUGEPAGES=14336
+
 OVS_DATAPATH_TYPE=netdev
-OVS_GIT_TAG=7d1ced01772de541d6692c7d5604210e274bcd37
+OVS_GIT_TAG=1e77bbe565bbf5ae7f4c47f481a4097d666d3d68
 OVS_DPDK_VHOST_USER_DEBUG=n
 OVS_LOG_DIR=/opt/stack/logs
 OVS_HUGEPAGE_MOUNT_PAGESIZE=2M
 OVS_ALLOCATE_HUGEPAGES=True
 OVS_DPDK_GIT_TAG=v2.0.0
-OVS_BRIDGE_MAPPINGS="default:br-eth1"
-OVS_DPDK_PORT_MAPPINGS="eth1:br-eth1,eth2:br-eth1"
+OVS_BRIDGE_MAPPINGS="default:br-<SINGLE NODE DATA INTERFACE>
 
-ML2_VLAN_RANGES=default:1000:1010
-MULTI_HOST=1
+ML2_VLAN_RANGES=default:<VLAN RANGES>
 
 [[post-config|$NOVA_CONF]]
 [DEFAULT]
