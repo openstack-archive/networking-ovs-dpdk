@@ -290,6 +290,9 @@ function install_ovs_dpdk {
 
     sudo chmod +x /etc/init.d/ovs-dpdk
     sudo service ovs-dpdk init
+
+    # Create integration bridge
+    ovs_dpdk_add_bridge $OVS_BRIDGE
 }
 
 function ovs_dpdk_configure_debug_command {
