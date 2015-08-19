@@ -38,8 +38,6 @@ function neutron_plugin_configure_l3_agent {
 }
 
 function neutron_plugin_configure_plugin_agent {
-    # Setup integration bridge
-    ovs_dpdk_setup_bridge $OVS_BRIDGE
     ovs_dpdk_configure_firewall_driver
 
     if [[ "$OVS_BRIDGE_MAPPINGS" != "" ]]; then

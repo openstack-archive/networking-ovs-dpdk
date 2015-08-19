@@ -13,6 +13,8 @@ set +o xtrace
 
 function start_ovs_dpdk {
     if [ -e /etc/init.d/ovs-dpdk ]; then
+        sudo service ovs-dpdk init
+        ovs_dpdk_add_bridge $OVS_BRIDGE
         sudo service ovs-dpdk start
     fi
 }
@@ -289,7 +291,6 @@ function install_ovs_dpdk {
     ovs_dpdk_create_kvm_wrapper
 
     sudo chmod +x /etc/init.d/ovs-dpdk
-    sudo service ovs-dpdk init
 }
 
 function ovs_dpdk_configure_debug_command {
