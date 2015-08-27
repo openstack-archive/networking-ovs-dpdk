@@ -26,20 +26,13 @@ from neutron.common import utils as n_utils
 
 
 LOG = logging.getLogger(__name__)
-cfg.CONF.import_group('OVS', 'networking_ovs_dpdk.common.config')
-
-
-_main_modules = {
-    'ovs-ofctl': 'neutron.plugins.ml2.drivers.openvswitch.agent.openflow.'
-                 'ovs_ofctl.main',
-    'ovsdpdk-ofctl': 'networking_ovs_dpdk.agent.openflow.ovsdpdk_ofctl.main'
-}
+cfg.CONF.import_group('OVS', 'neutron.plugins.ml2.drivers.openvswitch.agent.'
+                      'common.config')
 
 
 def main():
     common_config.init(sys.argv[1:])
-    driver_name = cfg.CONF.OVS.of_interface
-    mod_name = _main_modules[driver_name]
+    mod_name = 'networking_ovs_dpdk.agent.openflow.ovsdpdk_ofctl.main'
     mod = importutils.import_module(mod_name)
     mod.init_config()
     common_config.setup_logging()
