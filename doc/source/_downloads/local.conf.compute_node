@@ -23,6 +23,7 @@ HORIZON_PASSWORD=password
 SERVICE_TOKEN=tokentoken
 
 enable_plugin networking-ovs-dpdk https://github.com/stackforge/networking-ovs-dpdk master
+OVS_DPDK_MODE=compute
 
 disable_all_services
 enable_service n-cpu
