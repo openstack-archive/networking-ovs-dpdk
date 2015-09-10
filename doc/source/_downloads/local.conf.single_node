@@ -15,6 +15,7 @@ HORIZON_PASSWORD=password
 SERVICE_TOKEN=tokentoken
 
 enable_plugin networking-ovs-dpdk https://github.com/stackforge/networking-ovs-dpdk master
+OVS_DPDK_MODE=controller_ovs_dpdk
 
 disable_service n-net
 enable_service n-cpu
@@ -30,8 +31,6 @@ SCREEN_LOGDIR=$DEST/logs/screen
 LOGFILE=${SCREEN_LOGDIR}/xstack.sh.log
 LOGDAYS=1
 
-Q_ML2_PLUGIN_MECHANISM_DRIVERS=ovsdpdk
-Q_ML2_PLUGIN_TYPE_DRIVERS=vlan,flat,local
 Q_ML2_TENANT_NETWORK_TYPE=vlan
 ENABLE_TENANT_VLANS=True
 ENABLE_TENANT_TUNNELS=False

@@ -60,6 +60,20 @@ Default values for the below settings can be found in `settings` file in devstac
     OVS_PMD_CORE_MASK value is used for other_config:pmd-cpu-mask parameter in ovsdb.
     It has default value 4. In case of HT enabled, it's 4 + sibling.
 
+**OVS_DPDK_MODE**
+    This parameter determines the installation mode of ovs-dpdk. Supported values are 'compute', 'controller_ovs' or 'controller_ovs_dpdk'.
+    type of node devstack is used. It has no default value and when not set plugin works as usual.
+    When set this parameter alters the defaults for other devstack settings if they are not explicitly set by the user as follows:
+    "controller_ovs" mode - OVS_DPDK_INSTALL set to 'False'
+                          - OVS_AGENT_TYPE set to '$Q_AGENT'
+    "compute" mode or "controller_ovs_dpdk" mode - OVS_DPDK_INSTALL set to 'True'
+                                                 - OVS_DATAPATH_TYPE se to 'netdev'
+    For both controller* modes ovsdpdk mechanism driver is added to Q_ML2_PLUGIN_MECHANISM_DRIVERS if not declared earlier.
+
+**OVS_DPDK_INSTALL**
+    when set to 'true', ovs-dpdk will be downloaded, compiled and installed.
+    Default value depends on OVS_DPDK_MODE as stated earlier.
+
 **OVS_LOG_DIR**
     (Filesystem path) Directory containing ovs-db and ovs-vswitchd log files.
 
