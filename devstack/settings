@@ -1,6 +1,11 @@
+# Save trace setting
+XTRACE=$(set +o | grep xtrace)
+set +o xtrace
+
 NETWOKING_OVS_DPDK_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd .. && pwd )
 
 #dpdk settings
+OVS_DPDK_MODE=${OVS_DPDK_MODE:-''}
 OVS_DPDK_GIT_REPO=${OVS_DPDK_GIT_REPO:- http://dpdk.org/git/dpdk}
 OVS_DPDK_GIT_TAG=${OVS_DPDK_GIT_TAG:-v2.0.0}
 OVS_DPDK_DIR=${OVS_DPDK_DIR:-$DEST/DPDK-$OVS_DPDK_GIT_TAG}
@@ -42,6 +47,35 @@ OVS_DPDK_PORT_MAPPINGS=${OVS_DPDK_PORT_MAPPINGS:-''}
 OVS_PATCHES=${OVS_PATCHES:-''}
 OVS_DPDK_PATCHES=${OVS_DPDK_PATCHES:-''}
 
+# adjust variables based on OVS_DPDK_MODE & OVS_DPDK_INSTALL settings
+if [ "$OVS_DPDK_MODE" == "controller_ovs" ]; then
+    OVS_AGENT_TYPE=${OVS_AGENT_TYPE:-$Q_AGENT}
+    OVS_DPDK_INSTALL=${OVS_DPDK_INSTALL:-False}
+elif [[ "$OVS_DPDK_MODE" == "compute"  || "$OVS_DPDK_MODE" == "controller_ovs_dpdk" ]]; then
+    OVS_DPDK_INSTALL=${OVS_DPDK_INSTALL:-True}
+    OVS_DATAPATH_TYPE=${OVS_DATAPATH_TYPE:-netdev}
+else
+    #OVS_DPDK_MODE not configured or configured badly
+    :
+fi
+
+OVS_DPDK_INSTALL=${OVS_DPDK_INSTALL:-True}
+
+# append ovsdpdk mechanism driver if needed
+if [ "$OVS_DPDK_MODE" != "compute" ]; then
+    arr=$(echo $Q_ML2_PLUGIN_MECHANISM_DRIVERS | tr "," "\n")
+    ovsdpdk_found="False"
+    for x in $arr; do
+        if [ "$x" == "ovsdpdk" ]; then
+            ovsdpdk_found="True"
+        fi
+    done
+
+    if [ "$ovsdpdk_found" == "False" ]; then
+        Q_ML2_PLUGIN_MECHANISM_DRIVERS=$Q_ML2_PLUGIN_MECHANISM_DRIVERS,ovsdpdk
+    fi
+fi
+
 # agent settings
 Q_AGENT=${OVS_AGENT_TYPE:-ovsdpdk}
 
@@ -57,3 +91,6 @@ if [ "$Q_AGENT" == "ovsdpdk" ] ; then
     source $TOP_DIR/lib/neutron_plugins/ml2
     source $TOP_DIR/lib/neutron_plugins/${Q_AGENT}_agent
 fi
+
+# Restore xtrace
+$XTRACE
