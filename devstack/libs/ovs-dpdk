@@ -49,16 +49,21 @@ function ovs_dpdk_setup_bridge {
 }
 
 
-function ovs_dpdk_create_kvm_wrapper(){
-    install_package qemu-kvm
+function ovs_dpdk_create_kvm_wrapper {
+
+    install_qemu_kvm
+
     if [ -e /usr/bin/kvm ]; then
         KVM_CMD="/usr/bin/kvm"
     elif [ -e /usr/bin/qemu-kvm ]; then
         KVM_CMD="/usr/bin/qemu-kvm"
+    elif [ -e /usr/libexec/qemu-kvm ]; then
+        KVM_CMD="/usr/libexec/qemu-kvm"
     fi
+
     sudo mv $KVM_CMD $KVM_CMD.orig
 
-cat << 'EOF' | sudo tee $KVM_CMD
+cat << 'EOF' | sudo tee  $KVM_CMD
 #!/bin/bash -
 VIRTIO_OPTIONS="csum=off,gso=off,guest_tso4=off,guest_tso6=off,guest_ecn=off"
 VHOST_FORCE="vhostforce"
@@ -94,11 +99,16 @@ while [ $# -gt 0 ]; do
          shift ;;
     esac
 done
-echo "qemu ${args[@]}"  >> /tmp/qemu.orig
-exec /usr/bin/qemu-system-x86_64  "${args[@]}"
+echo "qemu ${args[@]}"  > /tmp/qemu.orig
+if [ -e /usr/bin/qemu-system-x86_64 ]; then
+    exec /usr/bin/qemu-system-x86_64  "${args[@]}"
+elif [ -e /usr/libexec/qemu-kvm.orig ]; then
+    exec /usr/libexec/qemu-kvm.orig  "${args[@]}"
+fi
 EOF
 
     sudo chmod +x $KVM_CMD
+
 }
 
 #
@@ -282,6 +292,113 @@ function ovs_dpdk_write_conf {
     sudo sed "s/OVS_DPDK_PORT_MAPPINGS=.*/OVS_DPDK_PORT_MAPPINGS=$OVS_DPDK_PORT_MAPPINGS/" -i /etc/default/ovs-dpdk
 }
 
+function uninstall_libvirt_CentOS {
+
+    if [ "$os_VENDOR" == CentOS ] ; then
+
+        sudo rm /usr/libexec/qemu-kvm
+        sudo rm /usr/libexec/qemu-kvm.orig
+
+        sudo yum remove -y libvirt* qemu* libcard* glusterfs*
+    fi
+}
+
+function install_qemu_kvm {
+
+    if [ "$os_VENDOR" == CentOS ] ; then
+        echo "Configuring libvirt for CentOS"
+        sudo service libvirtd stop
+
+        sudo yum remove -y libvirt* qemu* libcacard* glusterfs*
+
+        if [ ! -d /opt/stack/rpms ]; then
+            sudo mkdir -m 777 -p /opt/stack/rpms
+        fi
+
+        RPMS=/opt/stack/rpms
+
+        if [ -z "$CentOS_libvirt_repo" ] ; then
+            CentOS_libvirt_repo=(https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-1.2.11-1.el7.centos.x86_64.rpm
+                                 https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-1.2.11-1.el7.centos.x86_64.rpm
+                                 https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-client-1.2.11-1.el7.centos.x86_64.rpm
+                                 https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-driver-interface-1.2.11-1.el7.centos.x86_64.rpm
+                                 https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-driver-lxc-1.2.11-1.el7.centos.x86_64.rpm
+                                 https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-driver-network-1.2.11-1.el7.centos.x86_64.rpm
+                                 https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-driver-nodedev-1.2.11-1.el7.centos.x86_64.rpm
+                                 https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-driver-nwfilter-1.2.11-1.el7.centos.x86_64.rpm
+                                 https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-driver-qemu-1.2.11-1.el7.centos.x86_64.rpm
+                                 https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-driver-secret-1.2.11-1.el7.centos.x86_64.rpm
+                                 https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-driver-storage-1.2.11-1.el7.centos.x86_64.rpm
+                                 https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-config-network-1.2.11-1.el7.centos.x86_64.rpm
+                                 https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-config-nwfilter-1.2.11-1.el7.centos.x86_64.rpm)
+        else
+            sudo rm -f $RPMS/*
+        fi
+
+        if [ -z "$CentOS_qemu_repo" ] ; then
+            CentOS_qemu_repo=(http://cbs.centos.org/kojifiles/packages/qemu-kvm-ev/2.1.2/23.el7.1/x86_64/libcacard-devel-ev-2.1.2-23.el7.1.x86_64.rpm
+                              http://cbs.centos.org/kojifiles/packages/qemu-kvm-ev/2.1.2/23.el7.1/x86_64/libcacard-ev-2.1.2-23.el7.1.x86_64.rpm
+                              http://cbs.centos.org/kojifiles/packages/qemu-kvm-ev/2.1.2/23.el7.1/x86_64/libcacard-tools-ev-2.1.2-23.el7.1.x86_64.rpm
+                              http://cbs.centos.org/kojifiles/packages/qemu-kvm-ev/2.1.2/23.el7.1/x86_64/qemu-kvm-common-ev-2.1.2-23.el7.1.x86_64.rpm
+                              http://cbs.centos.org/kojifiles/packages/qemu-kvm-ev/2.1.2/23.el7.1/x86_64/qemu-kvm-tools-ev-2.1.2-23.el7.1.x86_64.rpm
+                              http://cbs.centos.org/kojifiles/packages/qemu-kvm-ev/2.1.2/23.el7.1/x86_64/qemu-kvm-ev-debuginfo-2.1.2-23.el7.1.x86_64.rpm
+                              http://cbs.centos.org/kojifiles/packages/qemu-kvm-ev/2.1.2/23.el7.1/x86_64/qemu-kvm-ev-2.1.2-23.el7.1.x86_64.rpm
+                              http://cbs.centos.org/kojifiles/packages/qemu-kvm-ev/2.1.2/23.el7.1/x86_64/qemu-img-ev-2.1.2-23.el7.1.x86_64.rpm
+                              http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-3.7.4-2.el7.x86_64.rpm
+                              http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-api-3.7.4-2.el7.x86_64.rpm
+                              http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-cli-3.7.4-2.el7.x86_64.rpm
+                              http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-client-xlators-3.7.4-2.el7.x86_64.rpm
+                              http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-debuginfo-3.7.4-2.el7.x86_64.rpm
+                              http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-fuse-3.7.4-2.el7.x86_64.rpm
+                              http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-geo-replication-3.7.4-2.el7.x86_64.rpm
+                              http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-libs-3.7.4-2.el7.x86_64.rpm
+                              http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-rdma-3.7.4-2.el7.x86_64.rpm
+                              http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-server-3.7.4-2.el7.x86_64.rpm)
+        else
+            sudo rm -f $RPMS/*
+        fi
+
+        echo "Starting pulling down binaries"
+
+        for file in ${CentOS_qemu_repo[@]} ; do
+            echo $file
+        done
+
+        for file in ${CentOS_libvirt_repo[@]} ; do
+            echo $file
+        done
+
+        if [ "$RECLONE" == True ] ; then
+
+            sudo rm -f $RPMS/*
+
+            for file in ${CentOS_libvirt_repo[@]} ; do
+                wget -P $RPMS $file
+            done
+
+            for file in ${CentOS_qemu_repo[@]} ; do
+                wget -P $RPMS $file
+            done
+        else
+
+            for file in ${CentOS_libvirt_repo[@]} ; do
+                wget -nc -P $RPMS $file
+            done
+
+            for file in ${CentOS_qemu_repo[@]} ; do
+                wget -nc -P $RPMS $file
+            done
+        fi
+
+        sudo yum install -y $RPMS/*
+
+        sudo service libvirtd start
+    else
+        install_package qemu-kvm
+    fi
+
+}
+
 function install_ovs_dpdk {
     # Install deps
     set +o errexit
@@ -289,7 +406,7 @@ function install_ovs_dpdk {
         stop_service openvswitch-switch
         uninstall_package openvswitch-switch openvswitch-datapath-dkms openvswitch-common
         install_package autoconf libtool libfuse-dev
-    elif is_fedora; then
+    else
         stop_service openvswitch
         uninstall_package openvswitch
         install_package pciutils autoconf libtool fuse-devel
