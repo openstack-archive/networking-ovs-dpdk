@@ -20,11 +20,10 @@ OVS_SOCKET_MEM=${OVS_SOCKET_MEM:-auto}
 OVS_MEM_CHANNELS=${OVS_MEM_CHANNELS:-4}
 OVS_CORE_MASK=${OVS_CORE_MASK:-2}
 OVS_PMD_CORE_MASK=${OVS_PMD_CORE_MASK:-4}
-OVS_DB_CONF_DIR=/usr/etc/openvswitch
-OVS_DB_SOCKET_DIR=/usr/var/run/openvswitch
-if is_fedora; then
-   OVS_DB_CONF_DIR=/etc/openvswitch
-   OVS_DB_SOCKET_DIR=/var/run/openvswitch
+OVS_DB_CONF_DIR=/etc/openvswitch
+OVS_DB_SOCKET_DIR=/var/run/openvswitch
+if [ ! -d /var/run/openvswitch ] ; then
+    sudo ln -s /usr/var/run/openvswitch /var/run/openvswitch
 fi
 OVS_DB_SOCKET=$OVS_DB_SOCKET_DIR/db.sock
 OVS_DB_CONF=$OVS_DB_CONF_DIR/conf.db
@@ -36,6 +35,43 @@ OVS_BRIDGE_MAPPINGS=${OVS_BRIDGE_MAPPINGS:-''}
 OVS_PCI_MAPPINGS=${OVS_PCI_MAPPINGS:-''}
 OVS_DPDK_PORT_MAPPINGS=${OVS_DPDK_PORT_MAPPINGS:-''}
 
+# qemu settings
+if [ -z "$CentOS_libvirt_repo" ] ; then
+    CentOS_libvirt_repo=(https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-1.2.11-1.el7.centos.x86_64.rpm
+                         https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-1.2.11-1.el7.centos.x86_64.rpm
+                         https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-client-1.2.11-1.el7.centos.x86_64.rpm
+                         https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-driver-interface-1.2.11-1.el7.centos.x86_64.rpm
+                         https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-driver-lxc-1.2.11-1.el7.centos.x86_64.rpm
+                         https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-driver-network-1.2.11-1.el7.centos.x86_64.rpm
+                         https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-driver-nodedev-1.2.11-1.el7.centos.x86_64.rpm
+                         https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-driver-nwfilter-1.2.11-1.el7.centos.x86_64.rpm
+                         https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-driver-qemu-1.2.11-1.el7.centos.x86_64.rpm
+                         https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-driver-secret-1.2.11-1.el7.centos.x86_64.rpm
+                         https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-driver-storage-1.2.11-1.el7.centos.x86_64.rpm
+                         https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-config-network-1.2.11-1.el7.centos.x86_64.rpm
+                         https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-config-nwfilter-1.2.11-1.el7.centos.x86_64.rpm)
+fi
+
+if [ -z "$CentOS_qemu_repo" ] ; then
+    CentOS_qemu_repo=(http://cbs.centos.org/kojifiles/packages/qemu-kvm-ev/2.1.2/23.el7.1/x86_64/libcacard-devel-ev-2.1.2-23.el7.1.x86_64.rpm
+                      http://cbs.centos.org/kojifiles/packages/qemu-kvm-ev/2.1.2/23.el7.1/x86_64/libcacard-ev-2.1.2-23.el7.1.x86_64.rpm
+                      http://cbs.centos.org/kojifiles/packages/qemu-kvm-ev/2.1.2/23.el7.1/x86_64/libcacard-tools-ev-2.1.2-23.el7.1.x86_64.rpm
+                      http://cbs.centos.org/kojifiles/packages/qemu-kvm-ev/2.1.2/23.el7.1/x86_64/qemu-kvm-common-ev-2.1.2-23.el7.1.x86_64.rpm
+                      http://cbs.centos.org/kojifiles/packages/qemu-kvm-ev/2.1.2/23.el7.1/x86_64/qemu-kvm-tools-ev-2.1.2-23.el7.1.x86_64.rpm
+                      http://cbs.centos.org/kojifiles/packages/qemu-kvm-ev/2.1.2/23.el7.1/x86_64/qemu-kvm-ev-debuginfo-2.1.2-23.el7.1.x86_64.rpm
+                      http://cbs.centos.org/kojifiles/packages/qemu-kvm-ev/2.1.2/23.el7.1/x86_64/qemu-kvm-ev-2.1.2-23.el7.1.x86_64.rpm
+                      http://cbs.centos.org/kojifiles/packages/qemu-kvm-ev/2.1.2/23.el7.1/x86_64/qemu-img-ev-2.1.2-23.el7.1.x86_64.rpm
+                      http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-3.7.4-2.el7.x86_64.rpm
+                      http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-api-3.7.4-2.el7.x86_64.rpm
+                      http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-cli-3.7.4-2.el7.x86_64.rpm
+                      http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-client-xlators-3.7.4-2.el7.x86_64.rpm
+                      http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-debuginfo-3.7.4-2.el7.x86_64.rpm
+                      http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-fuse-3.7.4-2.el7.x86_64.rpm
+                      http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-geo-replication-3.7.4-2.el7.x86_64.rpm
+                      http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-libs-3.7.4-2.el7.x86_64.rpm
+                      http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-rdma-3.7.4-2.el7.x86_64.rpm
+                      http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-server-3.7.4-2.el7.x86_64.rpm)
+fi
 
 #patch settings
 #do not install any patches by default.
