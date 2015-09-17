@@ -42,13 +42,13 @@ class OVSDPDKMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
 
     def __init__(self):
         vif_details = {portbindings.CAP_PORT_FILTER: False,
-                       constants.VHOST_USER_MODE:
-                       constants.VHOST_USER_MODE_CLIENT,
-                       constants.VHOST_USER_OVS_PLUG: True}
+                       portbindings.VHOST_USER_MODE:
+                       portbindings.VHOST_USER_MODE_CLIENT,
+                       portbindings.VHOST_USER_OVS_PLUG: True}
 
         super(OVSDPDKMechanismDriver, self).__init__(
             constants.AGENT_TYPE_OVS_DPDK,
-            constants.VIF_TYPE_VHOST_USER,
+            portbindings.VIF_TYPE_VHOST_USER,
             vif_details)
 
     def get_allowed_network_types(self, agent):
@@ -63,7 +63,7 @@ class OVSDPDKMechanismDriver(mech_agent.SimpleAgentMechanismDriverBase):
         if self.check_segment_for_agent(segment, agent):
             sock_name = (constants.PORT_PREFIX + context.current['id'])[:14]
             vif_details = copy.copy(self.vif_details)
-            vif_details[constants.VHOST_USER_SOCKET] = os.path.join(
+            vif_details[portbindings.VHOST_USER_SOCKET] = os.path.join(
                                         constants.VHOSTUSER_SOCKET_DIR,
                                         sock_name)
             context.set_binding(segment[api.ID],
