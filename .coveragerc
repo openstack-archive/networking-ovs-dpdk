@@ -4,4 +4,4 @@ source = networking_ovs_dpdk
 omit = networking_ovs_dpdk/tests/*,networking_ovs_dpdk/openstack/*
 
 [report]
-ignore-errors = True
+ignore_errors = True
