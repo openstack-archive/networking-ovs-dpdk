@@ -185,10 +185,6 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             """
             # ARP traffic to be delivered to an internal port.
             for fixed_ip in port['fixed_ips']:
-                # IPv6 address not supported yet.
-                if self._ip_version_from_address(fixed_ip) == constants.IPv6:
-                    continue
-
                 self._add_flow(priority=OF_T0_ARP_INT_PRIO,
                                table=OF_ZERO_TABLE,
                                proto='arp',
@@ -239,10 +235,6 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                                    % (OF_EGRESS_TABLE))
 
             for fixed_ip in port['fixed_ips']:
-                # IPv6 address not supported yet.
-                if self._ip_version_from_address(fixed_ip) == constants.IPv6:
-                    continue
-
                 # Jump to egress table per port+ip pair on know mac
                 self._add_flow(priority=OF_T0_EGRESS_PRIO,
                                table=OF_SELECT_TABLE,
@@ -551,8 +543,9 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 port['device'])
 
             for fixed_ip in port['fixed_ips']:
-                # IPv6 addresses not supported yet.
-                if self._ip_version_from_address(fixed_ip) == constants.IPv6:
+                # Check if the rule and the IP address have the same version.
+                if rule['ethertype'] != \
+                        self._ip_version_from_address(fixed_ip):
                     continue
 
                 if rule['direction'] == EGRESS_DIRECTION:
@@ -595,9 +588,6 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             rules = self._select_sg_rules_for_port(port)
             for rule in rules:
                 ethertype = rule['ethertype']
-                # IPv6 not supported yet.
-                if ethertype == constants.IPv6:
-                    continue
                 direction = rule['direction']
                 protocol = rule.get('protocol')
                 port_range_min = rule.get('port_range_min')

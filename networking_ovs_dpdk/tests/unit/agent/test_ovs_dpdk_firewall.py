@@ -36,10 +36,18 @@ SEGMENTATION_ID = "1402"
 TAG_ID = 1
 
 # List of protocols.
-PROTOCOLS = {'tcp': 'eth_type=0x0800,ip_proto=6',
-             'udp': 'eth_type=0x0800,ip_proto=17',
-             'ip': 'eth_type=0x0800',
-             'icmp': 'eth_type=0x0800,ip_proto=1'}
+PROTOCOLS = {constants.IPv4: {'tcp': 'eth_type=0x0800,ip_proto=6',
+                'udp': 'eth_type=0x0800,ip_proto=17',
+                'ip': 'eth_type=0x0800',
+                'icmp': 'eth_type=0x0800,ip_proto=1'},
+             constants.IPv6: {'tcp': 'eth_type=0x86dd,ip_proto=6',
+                'udp': 'eth_type=0x86dd,ip_proto=17',
+                'ip': 'eth_type=0x86dd',
+                'icmp': 'eth_type=0x86dd,ip_proto=1'}}
+PROTOCOLS_STR = {constants.IPv4: {'tcp': 'tcp', 'udp': 'udp',
+                                  'ip': 'ip', 'icmp': 'icmp'},
+                 constants.IPv6: {'tcp': 'tcp', 'udp': 'udp',
+                                  'ip': 'ip', 'icmp': 'ipv6,nw_proto=58'}}
 PROTOCOLS_DEFAULT_PRIO = {'tcp': 100,
                           'udp': 100,
                           'ip': 90,
@@ -173,9 +181,20 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                                port['mac_address'],
                                "br-%s" % port['device'])
 
-    def _learn_egress_actions(self, protocol, priority=None,
+    def _write_ip_src_dst(self, eth_type):
+        # Source and destination IPs.
+        if eth_type == constants.IPv4:
+            ip_dst = "NXM_OF_IP_DST[]=NXM_OF_IP_SRC[],"
+            ip_src = "NXM_OF_IP_SRC[]=NXM_OF_IP_DST[],"
+        else:
+            ip_dst = "NXM_NX_IPV6_DST[]=NXM_NX_IPV6_SRC[],"
+            ip_src = "NXM_NX_IPV6_SRC[]=NXM_NX_IPV6_DST[],"
+        return ip_src, ip_dst
+
+    def _learn_egress_actions(self, protocol, ethertype, priority=None,
                        icmp_type=None, icmp_code=None):
-        protocol_str = PROTOCOLS[protocol]
+        protocol_str = PROTOCOLS[ethertype][protocol]
+        ip_src, ip_dst = self._write_ip_src_dst(ethertype)
         if not priority:
             priority = PROTOCOLS_DEFAULT_PRIO[protocol]
         port_destination = PROTOCOLS_DEST[protocol]
@@ -193,8 +212,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                      '%(protocol)s,' \
                      'NXM_OF_ETH_SRC[]=NXM_OF_ETH_DST[],' \
                      'NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[],' \
-                     'NXM_OF_IP_SRC[]=NXM_OF_IP_DST[],' \
-                     'NXM_OF_IP_DST[]=NXM_OF_IP_SRC[],' \
+                     '%(ip_src)s' \
+                     '%(ip_dst)s' \
                      '%(port_destination)s' \
                      '%(port_source)s' \
                      '%(icmp_type)s' \
@@ -208,6 +227,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                         'idle_timeout': IDLE_TIMEOUT,
                         'hard_timeout': HARD_TIMEOUT,
                         'protocol': protocol_str,
+                        'ip_src': ip_src,
+                        'ip_dst': ip_dst,
                         'port_destination': port_destination,
                         'port_source': port_source,
                         'icmp_type': icmp_type_str,
@@ -215,9 +236,10 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                         'r_table': OF_INGRESS_TABLE}
         return output_str
 
-    def _learn_ingress_actions(self, protocol, priority=None,
+    def _learn_ingress_actions(self, protocol, ethertype, priority=None,
                        icmp_type=None, icmp_code=None, ofport=1):
-        protocol_str = PROTOCOLS[protocol]
+        protocol_str = PROTOCOLS[ethertype][protocol]
+        ip_src, ip_dst = self._write_ip_src_dst(ethertype)
         if not priority:
             priority = PROTOCOLS_DEFAULT_PRIO[protocol]
         port_destination = PROTOCOLS_DEST[protocol]
@@ -235,8 +257,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                      '%(protocol)s,' \
                      'NXM_OF_ETH_SRC[]=NXM_OF_ETH_DST[],' \
                      'NXM_OF_ETH_DST[]=NXM_OF_ETH_SRC[],' \
-                     'NXM_OF_IP_SRC[]=NXM_OF_IP_DST[],' \
-                     'NXM_OF_IP_DST[]=NXM_OF_IP_SRC[],' \
+                     '%(ip_src)s' \
+                     '%(ip_dst)s' \
                      '%(port_destination)s' \
                      '%(port_source)s' \
                      '%(icmp_type)s' \
@@ -250,6 +272,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                         'idle_timeout': IDLE_TIMEOUT,
                         'hard_timeout': HARD_TIMEOUT,
                         'protocol': protocol_str,
+                        'ip_src': ip_src,
+                        'ip_dst': ip_dst,
                         'port_destination': port_destination,
                         'port_source': port_source,
                         'icmp_type': icmp_type_str,
@@ -327,6 +351,11 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                       dl_vlan=SEGMENTATION_ID,
                       nw_dst='%s' % FAKE_IP[constants.IPv4], priority=100,
                       table=OF_ZERO_TABLE),
+            mock.call(proto='arp',
+                      actions='strip_vlan,output:%s' % port['ofport'],
+                      dl_vlan=SEGMENTATION_ID,
+                      nw_dst='%s' % FAKE_IP[constants.IPv6], priority=100,
+                      table=OF_ZERO_TABLE),
             mock.call(proto='arp', actions='normal', priority=90,
                       table=OF_ZERO_TABLE),
             mock.call(actions='mod_vlan_vid:%s,load:%s->NXM_NX_REG0[0..11],'
@@ -346,7 +375,13 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
             mock.call(proto='ip', dl_src=port['mac_address'],
                       actions='resubmit(,%s)' % OF_EGRESS_TABLE,
                       priority=100, table=OF_SELECT_TABLE, dl_vlan=TAG_ID,
-                      nw_src='10.0.0.1', in_port=port['ofport']),
+                      nw_src='%s' % FAKE_IP[constants.IPv4],
+                      in_port=port['ofport']),
+            mock.call(proto='ip', dl_src=port['mac_address'],
+                      actions='resubmit(,%s)' % OF_EGRESS_TABLE,
+                      priority=100, table=OF_SELECT_TABLE, dl_vlan=TAG_ID,
+                      nw_src='%s' % FAKE_IP[constants.IPv6],
+                      in_port=port['ofport']),
             mock.call(priority=100, table=OF_SELECT_TABLE,
                       dl_dst=port['mac_address'], dl_vlan=TAG_ID,
                       actions='resubmit(,%s)' % OF_INGRESS_TABLE),
@@ -447,147 +482,203 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
         calls_add_flows = flow_call_list
         self.mock_add_flow.assert_has_calls(calls_add_flows, any_order=False)
 
-    def test_filter_ipv4_ingress(self):
-        rule = {'ethertype': constants.IPv4,
+    def _test_filter_ingress(self, ethertype, ip):
+        rule = {'ethertype': ethertype,
                 'direction': 'ingress'}
         flow_call_list = []
         for proto in ['tcp', 'udp', 'ip']:
             priority = PROTOCOLS_DEFAULT_PRIO[proto]
             flow_call_list.append(mock.call(
-                actions=self._learn_ingress_actions(proto, priority,
-                                 ofport=self.fake_port_1['ofport']),
+                actions=self._learn_ingress_actions(proto, rule['ethertype'],
+                    priority, ofport=self.fake_port_1['ofport']),
                 dl_dst=self.fake_port_1['mac_address'],
-                nw_dst=self.fake_port_1['fixed_ips'][0],
+                nw_dst=ip,
                 priority=30,
-                proto=proto,
+                proto=PROTOCOLS_STR[ethertype][proto],
                 table=OF_INGRESS_TABLE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
-    def test_filter_ipv4_ingress_prefix(self):
+    def test_filter_ipv4_ingress(self):
+        self._test_filter_ingress(constants.IPv4,
+                                  FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_ingress(self):
+        self._test_filter_ingress(constants.IPv6,
+                                  FAKE_IP[constants.IPv6])
+
+    def _test_filter_ingress_prefix(self, ethertype, ip):
         prefix = FAKE_PREFIX[constants.IPv4]
-        rule = {'ethertype': constants.IPv4,
+        rule = {'ethertype': ethertype,
                 'direction': 'ingress',
                 'source_ip_prefix': prefix}
         flow_call_list = []
         for proto in ['tcp', 'udp', 'ip']:
             priority = PROTOCOLS_DEFAULT_PRIO[proto]
             flow_call_list.append(mock.call(
-                actions=self._learn_ingress_actions(proto, priority,
-                                 ofport=self.fake_port_1['ofport']),
+                actions=self._learn_ingress_actions(proto, rule['ethertype'],
+                    priority, ofport=self.fake_port_1['ofport']),
                 dl_dst=self.fake_port_1['mac_address'],
-                nw_dst=self.fake_port_1['fixed_ips'][0],
+                nw_dst=ip,
                 nw_src=prefix,
                 priority=30,
-                proto=proto,
+                proto=PROTOCOLS_STR[ethertype][proto],
                 table=OF_INGRESS_TABLE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
-    def test_filter_ipv4_ingress_tcp(self):
+    def test_filter_ipv4_ingress_prefix(self):
+        self._test_filter_ingress_prefix(constants.IPv4,
+                                         FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_ingress_prefix(self):
+        self._test_filter_ingress_prefix(constants.IPv6,
+                                         FAKE_IP[constants.IPv6])
+
+    def _test_filter_ingress_tcp(self, ethertype, ip):
         proto = 'tcp'
         priority = PROTOCOLS_LEARN_ACTION_PRIO[proto]
-        rule = {'ethertype': constants.IPv4,
+        rule = {'ethertype': ethertype,
                 'direction': 'ingress',
                 'protocol': proto}
         flow_call_list = [mock.call(
-            actions=self._learn_ingress_actions(proto, priority,
-                ofport=self.fake_port_1['ofport']),
+            actions=self._learn_ingress_actions(proto, rule['ethertype'],
+                priority, ofport=self.fake_port_1['ofport']),
             dl_dst=self.fake_port_1['mac_address'],
-            nw_dst=self.fake_port_1['fixed_ips'][0],
+            nw_dst=ip,
             priority=30,
-            proto=proto,
+            proto=PROTOCOLS_STR[ethertype][proto],
+            table=OF_INGRESS_TABLE)]
+        self._test_rules([rule], FAKE_SGID, flow_call_list)
+
+    def test_filter_ipv4_ingress_tcp(self):
+        self._test_filter_ingress_tcp(constants.IPv4,
+                                      FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_ingress_tcp(self):
+        self._test_filter_ingress_tcp(constants.IPv6,
+                                      FAKE_IP[constants.IPv6])
+
+    def _test_filter_ingress_tcp_prefix(self, ethertype, ip):
+        proto = 'tcp'
+        priority = PROTOCOLS_LEARN_ACTION_PRIO[proto]
+        prefix = FAKE_PREFIX[ethertype]
+        rule = {'ethertype': ethertype,
+                'direction': 'ingress',
+                'protocol': proto,
+                'source_ip_prefix': prefix}
+        flow_call_list = [mock.call(
+            actions=self._learn_ingress_actions(proto, rule['ethertype'],
+                priority, ofport=self.fake_port_1['ofport']),
+            dl_dst=self.fake_port_1['mac_address'],
+            nw_dst=ip,
+            nw_src=prefix,
+            priority=30,
+            proto=PROTOCOLS_STR[ethertype][proto],
             table=OF_INGRESS_TABLE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_ingress_tcp_prefix(self):
-        proto = 'tcp'
+        self._test_filter_ingress_tcp_prefix(constants.IPv4,
+                                             FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_ingress_tcp_prefix(self):
+        self._test_filter_ingress_tcp_prefix(constants.IPv6,
+                                             FAKE_IP[constants.IPv6])
+
+    def _test_filter_ingress_icmp(self, ethertype, ip):
+        proto = 'icmp'
         priority = PROTOCOLS_LEARN_ACTION_PRIO[proto]
-        prefix = FAKE_PREFIX[constants.IPv4]
-        rule = {'ethertype': constants.IPv4,
+        icmp_type = 10
+        icmp_code = 20
+        prefix = FAKE_PREFIX[ethertype]
+        rule = {'ethertype': ethertype,
                 'direction': 'ingress',
                 'protocol': proto,
+                'port_range_min': icmp_type,
+                'port_range_max': icmp_code,
                 'source_ip_prefix': prefix}
         flow_call_list = [mock.call(
-            actions=self._learn_ingress_actions(proto, priority,
-                ofport=self.fake_port_1['ofport']),
+            actions=self._learn_ingress_actions(proto, rule['ethertype'],
+                priority, ofport=self.fake_port_1['ofport'],
+                icmp_type=icmp_type, icmp_code=icmp_code),
             dl_dst=self.fake_port_1['mac_address'],
-            nw_dst=self.fake_port_1['fixed_ips'][0],
+            nw_dst=ip,
             nw_src=prefix,
             priority=30,
-            proto=proto,
+            proto=PROTOCOLS_STR[ethertype][proto],
             table=OF_INGRESS_TABLE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_ingress_icmp(self):
+        self._test_filter_ingress_icmp(constants.IPv4,
+                                       FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_ingress_icmp(self):
+        self._test_filter_ingress_icmp(constants.IPv6,
+                                       FAKE_IP[constants.IPv6])
+
+    def _test_filter_ingress_icmp_prefix(self, ethertype, ip):
         proto = 'icmp'
         priority = PROTOCOLS_LEARN_ACTION_PRIO[proto]
         icmp_type = 10
         icmp_code = 20
-        prefix = FAKE_PREFIX[constants.IPv4]
-        rule = {'ethertype': constants.IPv4,
+        prefix = FAKE_PREFIX[ethertype]
+        rule = {'ethertype': ethertype,
                 'direction': 'ingress',
                 'protocol': proto,
                 'port_range_min': icmp_type,
                 'port_range_max': icmp_code,
                 'source_ip_prefix': prefix}
         flow_call_list = [mock.call(
-            actions=self._learn_ingress_actions(proto, priority,
-                ofport=self.fake_port_1['ofport'], icmp_type=icmp_type,
-                icmp_code=icmp_code),
+            actions=self._learn_ingress_actions(proto, rule['ethertype'],
+                priority, ofport=self.fake_port_1['ofport'],
+                icmp_type=icmp_type, icmp_code=icmp_code),
             dl_dst=self.fake_port_1['mac_address'],
-            nw_dst=self.fake_port_1['fixed_ips'][0],
+            nw_dst=ip,
             nw_src=prefix,
             priority=30,
-            proto=proto,
+            proto=PROTOCOLS_STR[ethertype][proto],
             table=OF_INGRESS_TABLE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_ingress_icmp_prefix(self):
-        proto = 'icmp'
-        priority = PROTOCOLS_LEARN_ACTION_PRIO[proto]
-        icmp_type = 10
-        icmp_code = 20
-        prefix = FAKE_PREFIX[constants.IPv4]
-        rule = {'ethertype': constants.IPv4,
-                'direction': 'ingress',
-                'protocol': proto,
-                'port_range_min': icmp_type,
-                'port_range_max': icmp_code,
-                'source_ip_prefix': prefix}
-        flow_call_list = [mock.call(
-            actions=self._learn_ingress_actions(proto, priority,
-                ofport=self.fake_port_1['ofport'], icmp_type=icmp_type,
-                icmp_code=icmp_code),
-            dl_dst=self.fake_port_1['mac_address'],
-            nw_dst=self.fake_port_1['fixed_ips'][0],
-            nw_src=prefix,
-            priority=30,
-            proto=proto,
-            table=OF_INGRESS_TABLE)]
-        self._test_rules([rule], FAKE_SGID, flow_call_list)
+        self._test_filter_ingress_icmp_prefix(constants.IPv4,
+                                              FAKE_IP[constants.IPv4])
 
-    def test_filter_ipv4_ingress_tcp_port(self):
+    def test_filter_ipv6_ingress_icmp_prefix(self):
+        self._test_filter_ingress_icmp_prefix(constants.IPv6,
+                                              FAKE_IP[constants.IPv6])
+
+    def _test_filter_ingress_tcp_port(self, ethertype, ip):
         proto = 'tcp'
         priority = PROTOCOLS_LEARN_ACTION_PRIO[proto]
-        rule = {'ethertype': constants.IPv4,
+        rule = {'ethertype': ethertype,
                 'direction': 'ingress',
                 'protocol': proto,
                 'port_range_min': 10,
                 'port_range_max': 10}
         flow_call_list = [mock.call(
-            actions=self._learn_ingress_actions(proto, priority,
-                ofport=self.fake_port_1['ofport']),
+            actions=self._learn_ingress_actions(proto, rule['ethertype'],
+                priority, ofport=self.fake_port_1['ofport']),
             dl_dst=self.fake_port_1['mac_address'],
-            nw_dst=self.fake_port_1['fixed_ips'][0],
+            nw_dst=ip,
             tcp_dst=rule['port_range_min'],
             priority=30,
-            proto=proto,
+            proto=PROTOCOLS_STR[ethertype][proto],
             table=OF_INGRESS_TABLE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
-    def test_filter_ipv4_ingress_tcp_mport(self):
+    def test_filter_ipv4_ingress_tcp_port(self):
+        self._test_filter_ingress_tcp_port(constants.IPv4,
+                                           FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_ingress_tcp_port(self):
+        self._test_filter_ingress_tcp_port(constants.IPv6,
+                                           FAKE_IP[constants.IPv6])
+
+    def _test_filter_ingress_tcp_mport(self, ethertype, ip):
         proto = 'tcp'
         priority = PROTOCOLS_LEARN_ACTION_PRIO[proto]
-        rule = {'ethertype': constants.IPv4,
+        rule = {'ethertype': ethertype,
                 'direction': 'ingress',
                 'protocol': proto,
                 'port_range_min': 10,
@@ -598,21 +689,29 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
         flow_call_list = []
         for port in tcp_dst:
             flow_call_list.append(mock.call(
-                actions=self._learn_ingress_actions(proto, priority,
-                    ofport=self.fake_port_1['ofport']),
+                actions=self._learn_ingress_actions(proto, rule['ethertype'],
+                    priority, ofport=self.fake_port_1['ofport']),
                 dl_dst=self.fake_port_1['mac_address'],
-                nw_dst=self.fake_port_1['fixed_ips'][0],
+                nw_dst=ip,
                 tcp_dst=port,
                 priority=30,
-                proto=proto,
+                proto=PROTOCOLS_STR[ethertype][proto],
                 table=OF_INGRESS_TABLE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
-    def test_filter_ipv4_ingress_tcp_mport_prefix(self):
+    def test_filter_ipv4_ingress_tcp_mport(self):
+        self._test_filter_ingress_tcp_mport(constants.IPv4,
+                                            FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_ingress_tcp_mport(self):
+        self._test_filter_ingress_tcp_mport(constants.IPv6,
+                                            FAKE_IP[constants.IPv6])
+
+    def _test_filter_ingress_tcp_mport_prefix(self, ethertype, ip):
         proto = 'tcp'
         priority = PROTOCOLS_LEARN_ACTION_PRIO[proto]
-        prefix = FAKE_PREFIX[constants.IPv4]
-        rule = {'ethertype': constants.IPv4,
+        prefix = FAKE_PREFIX[ethertype]
+        rule = {'ethertype': ethertype,
                 'direction': 'ingress',
                 'protocol': 'tcp',
                 'port_range_min': 10,
@@ -624,75 +723,107 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
         flow_call_list = []
         for port in tcp_dst:
             flow_call_list.append(mock.call(
-                actions=self._learn_ingress_actions(proto, priority,
-                    ofport=self.fake_port_1['ofport']),
+                actions=self._learn_ingress_actions(proto, rule['ethertype'],
+                    priority, ofport=self.fake_port_1['ofport']),
                 dl_dst=self.fake_port_1['mac_address'],
-                nw_dst=self.fake_port_1['fixed_ips'][0],
+                nw_dst=ip,
                 nw_src=prefix,
                 tcp_dst=port,
                 priority=30,
-                proto=proto,
+                proto=PROTOCOLS_STR[ethertype][proto],
                 table=OF_INGRESS_TABLE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
-    def test_filter_ipv4_ingress_udp(self):
+    def test_filter_ipv4_ingress_tcp_mport_prefix(self):
+        self._test_filter_ingress_tcp_mport_prefix(constants.IPv4,
+                                                   FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_ingress_tcp_mport_prefix(self):
+        self._test_filter_ingress_tcp_mport_prefix(constants.IPv6,
+                                                   FAKE_IP[constants.IPv6])
+
+    def _test_filter_ingress_udp(self, ethertype, ip):
         proto = 'udp'
         priority = PROTOCOLS_LEARN_ACTION_PRIO[proto]
-        rule = {'ethertype': constants.IPv4,
+        rule = {'ethertype': ethertype,
                 'direction': 'ingress',
                 'protocol': proto}
         flow_call_list = [mock.call(
-            actions=self._learn_ingress_actions(proto, priority,
-                ofport=self.fake_port_1['ofport']),
+            actions=self._learn_ingress_actions(proto, rule['ethertype'],
+                priority, ofport=self.fake_port_1['ofport']),
             dl_dst=self.fake_port_1['mac_address'],
-            nw_dst=self.fake_port_1['fixed_ips'][0],
+            nw_dst=ip,
             priority=30,
-            proto=proto,
+            proto=PROTOCOLS_STR[ethertype][proto],
             table=OF_INGRESS_TABLE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
-    def test_filter_ipv4_ingress_udp_prefix(self):
+    def test_filter_ipv4_ingress_udp(self):
+        self._test_filter_ingress_udp(constants.IPv4,
+                                      FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_ingress_udp(self):
+        self._test_filter_ingress_udp(constants.IPv6,
+                                      FAKE_IP[constants.IPv6])
+
+    def _test_filter_ingress_udp_prefix(self, ethertype, ip):
         proto = 'udp'
         priority = PROTOCOLS_LEARN_ACTION_PRIO[proto]
-        prefix = FAKE_PREFIX[constants.IPv4]
-        rule = {'ethertype': constants.IPv4,
+        prefix = FAKE_PREFIX[ethertype]
+        rule = {'ethertype': ethertype,
                 'direction': 'ingress',
                 'protocol': proto,
                 'source_ip_prefix': prefix}
         flow_call_list = [mock.call(
-            actions=self._learn_ingress_actions(proto, priority,
-                ofport=self.fake_port_1['ofport']),
+            actions=self._learn_ingress_actions(proto, rule['ethertype'],
+                priority, ofport=self.fake_port_1['ofport']),
             dl_dst=self.fake_port_1['mac_address'],
-            nw_dst=self.fake_port_1['fixed_ips'][0],
+            nw_dst=ip,
             nw_src=prefix,
             priority=30,
-            proto=proto,
+            proto=PROTOCOLS_STR[ethertype][proto],
             table=OF_INGRESS_TABLE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
-    def test_filter_ipv4_ingress_udp_port(self):
+    def test_filter_ipv4_ingress_udp_prefix(self):
+        self._test_filter_ingress_udp_prefix(constants.IPv4,
+                                             FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_ingress_udp_prefix(self):
+        self._test_filter_ingress_udp_prefix(constants.IPv6,
+                                             FAKE_IP[constants.IPv6])
+
+    def _test_filter_ingress_udp_port(self, ethertype, ip):
         proto = 'udp'
         priority = PROTOCOLS_LEARN_ACTION_PRIO[proto]
-        rule = {'ethertype': constants.IPv4,
+        rule = {'ethertype': ethertype,
                 'direction': 'ingress',
                 'protocol': 'udp',
                 'port_range_min': 10,
                 'port_range_max': 10}
         flow_call_list = [mock.call(
-            actions=self._learn_ingress_actions(proto, priority,
-                ofport=self.fake_port_1['ofport']),
+            actions=self._learn_ingress_actions(proto, rule['ethertype'],
+                priority, ofport=self.fake_port_1['ofport']),
             dl_dst=self.fake_port_1['mac_address'],
-            nw_dst=self.fake_port_1['fixed_ips'][0],
+            nw_dst=ip,
             priority=30,
             udp_dst=10,
-            proto=proto,
+            proto=PROTOCOLS_STR[ethertype][proto],
             table=OF_INGRESS_TABLE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
-    def test_filter_ipv4_ingress_udp_mport(self):
+    def test_filter_ipv4_ingress_udp_port(self):
+        self._test_filter_ingress_udp_port(constants.IPv4,
+                                           FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_ingress_udp_port(self):
+        self._test_filter_ingress_udp_port(constants.IPv6,
+                                           FAKE_IP[constants.IPv6])
+
+    def _test_filter_ingress_udp_mport(self, ethertype, ip):
         proto = 'udp'
         priority = PROTOCOLS_LEARN_ACTION_PRIO[proto]
-        rule = {'ethertype': constants.IPv4,
+        rule = {'ethertype': ethertype,
                 'direction': 'ingress',
                 'protocol': 'udp',
                 'port_range_min': 10,
@@ -703,21 +834,29 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
         flow_call_list = []
         for port in udp_dst:
             flow_call_list.append(mock.call(
-                actions=self._learn_ingress_actions(proto, priority,
-                    ofport=self.fake_port_1['ofport']),
+                actions=self._learn_ingress_actions(proto, rule['ethertype'],
+                    priority, ofport=self.fake_port_1['ofport']),
                 dl_dst=self.fake_port_1['mac_address'],
-                nw_dst=self.fake_port_1['fixed_ips'][0],
+                nw_dst=ip,
                 udp_dst=port,
                 priority=30,
-                proto=proto,
+                proto=PROTOCOLS_STR[ethertype][proto],
                 table=OF_INGRESS_TABLE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
-    def test_filter_ipv4_ingress_udp_mport_prefix(self):
+    def test_filter_ipv4_ingress_udp_mport(self):
+        self._test_filter_ingress_udp_mport(constants.IPv4,
+                                            FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_ingress_udp_mport(self):
+        self._test_filter_ingress_udp_mport(constants.IPv6,
+                                            FAKE_IP[constants.IPv6])
+
+    def _test_filter_ingress_udp_mport_prefix(self, ethertype, ip):
         proto = 'udp'
         priority = PROTOCOLS_LEARN_ACTION_PRIO[proto]
-        prefix = FAKE_PREFIX[constants.IPv4]
-        rule = {'ethertype': constants.IPv4,
+        prefix = FAKE_PREFIX[ethertype]
+        rule = {'ethertype': ethertype,
                 'direction': 'ingress',
                 'protocol': 'udp',
                 'port_range_min': 10,
@@ -729,36 +868,52 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
         flow_call_list = []
         for port in udp_dst:
             flow_call_list.append(mock.call(
-                actions=self._learn_ingress_actions(proto, priority,
-                    ofport=self.fake_port_1['ofport']),
+                actions=self._learn_ingress_actions(proto, rule['ethertype'],
+                    priority, ofport=self.fake_port_1['ofport']),
                 dl_dst=self.fake_port_1['mac_address'],
-                nw_dst=self.fake_port_1['fixed_ips'][0],
+                nw_dst=ip,
                 nw_src=prefix,
                 udp_dst=port,
                 priority=30,
-                proto=proto,
+                proto=PROTOCOLS_STR[ethertype][proto],
                 table=OF_INGRESS_TABLE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
-    def test_filter_ipv4_egress(self):
-        rule = {'ethertype': constants.IPv4,
+    def test_filter_ipv4_ingress_udp_mport_prefix(self):
+        self._test_filter_ingress_udp_mport_prefix(constants.IPv4,
+                                                   FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_ingress_udp_mport_prefix(self):
+        self._test_filter_ingress_udp_mport_prefix(constants.IPv6,
+                                                   FAKE_IP[constants.IPv6])
+
+    def _test_filter_egress(self, ethertype, ip):
+        rule = {'ethertype': ethertype,
                 'direction': 'egress'}
         flow_call_list = []
         for proto in ['tcp', 'udp', 'ip']:
             priority = PROTOCOLS_DEFAULT_PRIO[proto]
             flow_call_list.append(
                 mock.call(actions=self._learn_egress_actions(proto,
-                                  priority),
+                                rule['ethertype'], priority),
                           dl_src=self.fake_port_1['mac_address'],
-                          nw_src=self.fake_port_1['fixed_ips'][0],
+                          nw_src=ip,
                           priority=30,
-                          proto=proto,
+                          proto=PROTOCOLS_STR[ethertype][proto],
                           table=OF_EGRESS_TABLE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
-    def test_filter_ipv4_egress_prefix(self):
-        prefix = FAKE_PREFIX[constants.IPv4]
-        rule = {'ethertype': constants.IPv4,
+    def test_filter_ipv4_egress(self):
+        self._test_filter_egress(constants.IPv4,
+                                 FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_egress(self):
+        self._test_filter_egress(constants.IPv6,
+                                 FAKE_IP[constants.IPv6])
+
+    def _test_filter_egress_prefix(self, ethertype, ip):
+        prefix = FAKE_PREFIX[ethertype]
+        rule = {'ethertype': ethertype,
                 'direction': 'egress',
                 'dest_ip_prefix': prefix}
         flow_call_list = []
@@ -766,115 +921,163 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
             priority = PROTOCOLS_DEFAULT_PRIO[proto]
             flow_call_list.append(
                 mock.call(actions=self._learn_egress_actions(proto,
-                                  priority),
+                                rule['ethertype'], priority),
                           dl_src=self.fake_port_1['mac_address'],
-                          nw_src=self.fake_port_1['fixed_ips'][0],
+                          nw_src=ip,
                           nw_dst=prefix,
                           priority=30,
-                          proto=proto,
+                          proto=PROTOCOLS_STR[ethertype][proto],
                           table=OF_EGRESS_TABLE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
-    def test_filter_ipv4_egress_tcp(self):
+    def test_filter_ipv4_egress_prefix(self):
+        self._test_filter_egress_prefix(constants.IPv4,
+                                        FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_egress_prefix(self):
+        self._test_filter_egress_prefix(constants.IPv6,
+                                        FAKE_IP[constants.IPv6])
+
+    def _test_filter_egress_tcp(self, ethertype, ip):
         proto = 'tcp'
         priority = PROTOCOLS_LEARN_ACTION_PRIO[proto]
-        rule = {'ethertype': constants.IPv4,
+        rule = {'ethertype': ethertype,
                 'direction': 'egress',
                 'protocol': proto}
         flow_call_list = [mock.call(actions=self._learn_egress_actions(proto,
-                                                                   priority),
+                                        rule['ethertype'], priority),
                                     dl_src=self.fake_port_1['mac_address'],
-                                    nw_src=self.fake_port_1['fixed_ips'][0],
+                                    nw_src=ip,
                                     priority=30,
-                                    proto=proto,
+                                    proto=PROTOCOLS_STR[ethertype][proto],
                                     table=OF_EGRESS_TABLE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
-    def test_filter_ipv4_egress_tcp_prefix(self):
+    def test_filter_ipv4_egress_tcp(self):
+        self._test_filter_egress_tcp(constants.IPv4,
+                                     FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_egress_tcp(self):
+        self._test_filter_egress_tcp(constants.IPv6,
+                                     FAKE_IP[constants.IPv6])
+
+    def _test_filter_egress_tcp_prefix(self, ethertype, ip):
         proto = 'tcp'
         priority = PROTOCOLS_LEARN_ACTION_PRIO[proto]
-        prefix = FAKE_PREFIX[constants.IPv4]
-        rule = {'ethertype': constants.IPv4,
+        prefix = FAKE_PREFIX[ethertype]
+        rule = {'ethertype': ethertype,
                 'direction': 'egress',
                 'protocol': proto,
                 'dest_ip_prefix': prefix}
         flow_call_list = [mock.call(actions=self._learn_egress_actions(proto,
-                                                                   priority),
+                                        rule['ethertype'], priority),
                                     dl_src=self.fake_port_1['mac_address'],
                                     nw_dst=prefix,
-                                    nw_src=self.fake_port_1['fixed_ips'][0],
+                                    nw_src=ip,
                                     priority=30,
-                                    proto=proto,
+                                    proto=PROTOCOLS_STR[ethertype][proto],
                                     table=OF_EGRESS_TABLE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
-    def test_filter_ipv4_egress_icmp(self):
+    def test_filter_ipv4_egress_tcp_prefix(self):
+        self._test_filter_egress_tcp_prefix(constants.IPv4,
+                                            FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_egress_tcp_prefix(self):
+        self._test_filter_egress_tcp_prefix(constants.IPv6,
+                                            FAKE_IP[constants.IPv6])
+
+    def _test_filter_egress_icmp(self, ethertype, ip):
         proto = 'icmp'
         priority = PROTOCOLS_LEARN_ACTION_PRIO[proto]
         icmp_type = 10
         icmp_code = 20
-        rule = {'ethertype': constants.IPv4,
+        rule = {'ethertype': ethertype,
                 'direction': 'egress',
                 'protocol': proto,
                 'port_range_min': icmp_type,
                 'port_range_max': icmp_code}
         flow_call_list = [mock.call(actions=self._learn_egress_actions(proto,
-                                                priority,
-                                                icmp_type=icmp_type,
-                                                icmp_code=icmp_code),
+                                        rule['ethertype'], priority,
+                                        icmp_type=icmp_type,
+                                        icmp_code=icmp_code),
                                     dl_src=self.fake_port_1['mac_address'],
-                                    nw_src=self.fake_port_1['fixed_ips'][0],
+                                    nw_src=ip,
                                     priority=30,
-                                    proto=proto,
+                                    proto=PROTOCOLS_STR[ethertype][proto],
                                     table=OF_EGRESS_TABLE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
-    def test_filter_ipv4_egress_icmp_prefix(self):
+    def test_filter_ipv4_egress_icmp(self):
+        self._test_filter_egress_icmp(constants.IPv4,
+                                      FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_egress_icmp(self):
+        self._test_filter_egress_icmp(constants.IPv6,
+                                      FAKE_IP[constants.IPv6])
+
+    def _test_filter_egress_icmp_prefix(self, ethertype, ip):
         proto = 'icmp'
         priority = PROTOCOLS_LEARN_ACTION_PRIO[proto]
         icmp_type = 10
         icmp_code = 20
-        prefix = FAKE_PREFIX[constants.IPv4]
-        rule = {'ethertype': constants.IPv4,
+        prefix = FAKE_PREFIX[ethertype]
+        rule = {'ethertype': ethertype,
                 'direction': 'egress',
                 'protocol': 'icmp',
                 'dest_ip_prefix': prefix,
                 'port_range_min': icmp_type,
                 'port_range_max': icmp_code}
         flow_call_list = [mock.call(actions=self._learn_egress_actions(proto,
-                                                priority,
-                                                icmp_type=icmp_type,
-                                                icmp_code=icmp_code),
+                                        rule['ethertype'], priority,
+                                        icmp_type=icmp_type,
+                                        icmp_code=icmp_code),
                                     dl_src=self.fake_port_1['mac_address'],
                                     nw_dst=prefix,
-                                    nw_src=self.fake_port_1['fixed_ips'][0],
+                                    nw_src=ip,
                                     priority=30,
-                                    proto=proto,
+                                    proto=PROTOCOLS_STR[ethertype][proto],
                                     table=OF_EGRESS_TABLE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
-    def test_filter_ipv4_egress_tcp_port(self):
+    def test_filter_ipv4_egress_icmp_prefix(self):
+        self._test_filter_egress_icmp_prefix(constants.IPv4,
+                                             FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_egress_icmp_prefix(self):
+        self._test_filter_egress_icmp_prefix(constants.IPv6,
+                                             FAKE_IP[constants.IPv6])
+
+    def _test_filter_egress_tcp_port(self, ethertype, ip):
         proto = 'tcp'
         priority = PROTOCOLS_LEARN_ACTION_PRIO[proto]
-        rule = {'ethertype': constants.IPv4,
+        rule = {'ethertype': ethertype,
                 'direction': 'egress',
                 'protocol': proto,
                 'port_range_min': 10,
                 'port_range_max': 10}
         flow_call_list = [mock.call(actions=self._learn_egress_actions(proto,
-                                                priority),
+                                        rule['ethertype'], priority),
                                     dl_src=self.fake_port_1['mac_address'],
-                                    nw_src=self.fake_port_1['fixed_ips'][0],
+                                    nw_src=ip,
                                     priority=30,
-                                    proto=proto,
+                                    proto=PROTOCOLS_STR[ethertype][proto],
                                     table=OF_EGRESS_TABLE,
                                     tcp_dst=rule['port_range_min'])]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
-    def test_filter_ipv4_egress_tcp_mport(self):
+    def test_filter_ipv4_egress_tcp_port(self):
+        self._test_filter_egress_tcp_port(constants.IPv4,
+                                          FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_egress_tcp_port(self):
+        self._test_filter_egress_tcp_port(constants.IPv6,
+                                          FAKE_IP[constants.IPv6])
+
+    def _test_filter_egress_tcp_mport(self, ethertype, ip):
         proto = 'tcp'
         priority = PROTOCOLS_LEARN_ACTION_PRIO[proto]
-        rule = {'ethertype': constants.IPv4,
+        rule = {'ethertype': ethertype,
                 'direction': 'egress',
                 'protocol': proto,
                 'port_range_min': 10,
@@ -886,20 +1089,28 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
         for port in tcp_dst:
             flow_call_list.append(
                 mock.call(actions=self._learn_egress_actions(proto,
-                                                         priority),
+                                rule['ethertype'], priority),
                           dl_src=self.fake_port_1['mac_address'],
-                          nw_src=self.fake_port_1['fixed_ips'][0],
+                          nw_src=ip,
                           priority=30,
-                          proto=proto,
+                          proto=PROTOCOLS_STR[ethertype][proto],
                           table=OF_EGRESS_TABLE,
                           tcp_dst=port))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
-    def test_filter_ipv4_egress_tcp_mport_prefix(self):
+    def test_filter_ipv4_egress_tcp_mport(self):
+        self._test_filter_egress_tcp_mport(constants.IPv4,
+                                           FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_egress_tcp_mport(self):
+        self._test_filter_egress_tcp_mport(constants.IPv6,
+                                           FAKE_IP[constants.IPv6])
+
+    def _test_filter_egress_tcp_mport_prefix(self, ethertype, ip):
         proto = 'tcp'
         priority = PROTOCOLS_LEARN_ACTION_PRIO[proto]
-        prefix = FAKE_PREFIX[constants.IPv4]
-        rule = {'ethertype': constants.IPv4,
+        prefix = FAKE_PREFIX[ethertype]
+        rule = {'ethertype': ethertype,
                 'direction': 'egress',
                 'protocol': 'tcp',
                 'port_range_min': 10,
@@ -912,71 +1123,103 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
         for port in tcp_dst:
             flow_call_list.append(
                 mock.call(actions=self._learn_egress_actions(proto,
-                                                             priority),
+                            rule['ethertype'], priority),
                           dl_src=self.fake_port_1['mac_address'],
                           nw_dst=prefix,
-                          nw_src=self.fake_port_1['fixed_ips'][0],
+                          nw_src=ip,
                           priority=30,
-                          proto=proto,
+                          proto=PROTOCOLS_STR[ethertype][proto],
                           table=OF_EGRESS_TABLE,
                           tcp_dst=port))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
-    def test_filter_ipv4_egress_udp(self):
+    def test_filter_ipv4_egress_tcp_mport_prefix(self):
+        self._test_filter_egress_tcp_mport_prefix(constants.IPv4,
+                                                  FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_egress_tcp_mport_prefix(self):
+        self._test_filter_egress_tcp_mport_prefix(constants.IPv6,
+                                                  FAKE_IP[constants.IPv6])
+
+    def _test_filter_egress_udp(self, ethertype, ip):
         proto = 'udp'
         priority = PROTOCOLS_LEARN_ACTION_PRIO[proto]
-        rule = {'ethertype': constants.IPv4,
+        rule = {'ethertype': ethertype,
                 'direction': 'egress',
                 'protocol': proto}
         flow_call_list = [mock.call(actions=self._learn_egress_actions(proto,
-                                                                   priority),
+                                        rule['ethertype'], priority),
                                     dl_src=self.fake_port_1['mac_address'],
-                                    nw_src=self.fake_port_1['fixed_ips'][0],
+                                    nw_src=ip,
                                     priority=30,
-                                    proto=proto,
+                                    proto=PROTOCOLS_STR[ethertype][proto],
                                     table=OF_EGRESS_TABLE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
-    def test_filter_ipv4_egress_udp_prefix(self):
+    def test_filter_ipv4_egress_udp(self):
+        self._test_filter_egress_udp(constants.IPv4,
+                                     FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_egress_udp(self):
+        self._test_filter_egress_udp(constants.IPv6,
+                                     FAKE_IP[constants.IPv6])
+
+    def _test_filter_egress_udp_prefix(self, ethertype, ip):
         proto = 'udp'
         priority = PROTOCOLS_LEARN_ACTION_PRIO[proto]
-        prefix = FAKE_PREFIX[constants.IPv4]
-        rule = {'ethertype': constants.IPv4,
+        prefix = FAKE_PREFIX[ethertype]
+        rule = {'ethertype': ethertype,
                 'direction': 'egress',
                 'protocol': proto,
                 'dest_ip_prefix': prefix}
         flow_call_list = [mock.call(actions=self._learn_egress_actions(proto,
-                                                                   priority),
+                                        rule['ethertype'], priority),
                                     dl_src=self.fake_port_1['mac_address'],
                                     nw_dst=prefix,
-                                    nw_src=self.fake_port_1['fixed_ips'][0],
+                                    nw_src=ip,
                                     priority=30,
-                                    proto=proto,
+                                    proto=PROTOCOLS_STR[ethertype][proto],
                                     table=OF_EGRESS_TABLE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
-    def test_filter_ipv4_egress_udp_port(self):
+    def test_filter_ipv4_egress_udp_prefix(self):
+        self._test_filter_egress_udp_prefix(constants.IPv4,
+                                            FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_egress_udp_prefix(self):
+        self._test_filter_egress_udp_prefix(constants.IPv6,
+                                            FAKE_IP[constants.IPv6])
+
+    def _test_filter_egress_udp_port(self, ethertype, ip):
         proto = 'udp'
         priority = PROTOCOLS_LEARN_ACTION_PRIO[proto]
-        rule = {'ethertype': constants.IPv4,
+        rule = {'ethertype': ethertype,
                 'direction': 'egress',
                 'protocol': proto,
                 'port_range_min': 10,
                 'port_range_max': 10}
         flow_call_list = [mock.call(actions=self._learn_egress_actions(proto,
-                                                                   priority),
+                                        rule['ethertype'], priority),
                                     dl_src=self.fake_port_1['mac_address'],
-                                    nw_src=self.fake_port_1['fixed_ips'][0],
+                                    nw_src=ip,
                                     priority=30,
-                                    proto=proto,
+                                    proto=PROTOCOLS_STR[ethertype][proto],
                                     table=OF_EGRESS_TABLE,
                                     udp_dst=rule['port_range_min'])]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
-    def test_filter_ipv4_egress_udp_mport(self):
+    def test_filter_ipv4_egress_udp_port(self):
+        self._test_filter_egress_udp_port(constants.IPv4,
+                                          FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_egress_udp_port(self):
+        self._test_filter_egress_udp_port(constants.IPv6,
+                                          FAKE_IP[constants.IPv6])
+
+    def _test_filter_egress_udp_mport(self, ethertype, ip):
         proto = 'udp'
         priority = PROTOCOLS_LEARN_ACTION_PRIO[proto]
-        rule = {'ethertype': constants.IPv4,
+        rule = {'ethertype': ethertype,
                 'direction': 'egress',
                 'protocol': proto,
                 'port_range_min': 10,
@@ -988,20 +1231,28 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
         for port in udp_dst:
             flow_call_list.append(
                 mock.call(actions=self._learn_egress_actions(proto,
-                                                             priority),
+                                rule['ethertype'], priority),
                           dl_src=self.fake_port_1['mac_address'],
-                          nw_src=self.fake_port_1['fixed_ips'][0],
+                          nw_src=ip,
                           priority=30,
-                          proto=proto,
+                          proto=PROTOCOLS_STR[ethertype][proto],
                           table=OF_EGRESS_TABLE,
                           udp_dst=port))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
-    def test_filter_ipv4_egress_udp_mport_prefix(self):
+    def test_filter_ipv4_egress_udp_mport(self):
+        self._test_filter_egress_udp_mport(constants.IPv4,
+                                           FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_egress_udp_mport(self):
+        self._test_filter_egress_udp_mport(constants.IPv6,
+                                           FAKE_IP[constants.IPv6])
+
+    def _test_filter_egress_udp_mport_prefix(self, ethertype, ip):
         proto = 'udp'
         priority = PROTOCOLS_LEARN_ACTION_PRIO[proto]
-        prefix = FAKE_PREFIX[constants.IPv4]
-        rule = {'ethertype': constants.IPv4,
+        prefix = FAKE_PREFIX[ethertype]
+        rule = {'ethertype': ethertype,
                 'direction': 'egress',
                 'protocol': proto,
                 'port_range_min': 10,
@@ -1014,12 +1265,20 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
         for port in udp_dst:
             flow_call_list.append(
                 mock.call(actions=self._learn_egress_actions(proto,
-                                                         priority),
+                                rule['ethertype'], priority),
                           dl_src=self.fake_port_1['mac_address'],
                           nw_dst=prefix,
-                          nw_src=self.fake_port_1['fixed_ips'][0],
+                          nw_src=ip,
                           priority=30,
-                          proto=proto,
+                          proto=PROTOCOLS_STR[ethertype][proto],
                           table=OF_EGRESS_TABLE,
                           udp_dst=port))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
+
+    def test_filter_ipv4_egress_udp_mport_prefix(self):
+        self._test_filter_egress_udp_mport_prefix(constants.IPv4,
+                                                  FAKE_IP[constants.IPv4])
+
+    def test_filter_ipv6_egress_udp_mport_prefix(self):
+        self._test_filter_egress_udp_mport_prefix(constants.IPv6,
+                                                  FAKE_IP[constants.IPv6])
