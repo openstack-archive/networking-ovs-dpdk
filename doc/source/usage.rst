@@ -138,3 +138,8 @@ Default values for the below settings can be found in `settings` file in devstac
 
 **OVS_DPDK_RTE_LIBRTE_VHOST**
     (True/False) Enable libvhost/vhost-cuse. If ovs commit is before vhost-cuse support was added, this should be set to 'False'. Defaults is 'True'.
+
+**OVS_TUNNEL_CIDR_MAPPING**
+    (bridge:cidr) When spcifed this option enables automatic assignment of the tunnel endpoint ip to a specific interface.
+    e.g. OVS_TUNNEL_CIDR_MAPPING=br-phy:192.168.50.1/24 asignes the ip of 192.168.50.1 with subnetmask 255.255.255.0 to the br-phy local port.
+    This is required to enabled vxlan or other tunneling protocals with ovs-dpdk and dpdk phyical ports.
