@@ -244,6 +244,7 @@ function ovs_dpdk_write_conf {
     sudo sed "s#OVS_LOG_DIR=.*#OVS_LOG_DIR=$OVS_LOG_DIR#" -i /etc/default/ovs-dpdk
     sudo sed "s#OVS_LOCK_DIR=.*#OVS_LOCK_DIR=$OVS_LOCK_DIR#" -i /etc/default/ovs-dpdk
     sudo sed "s#OVS_INTERFACE_DRIVER=.*#OVS_INTERFACE_DRIVER=$OVS_INTERFACE_DRIVER#" -i /etc/default/ovs-dpdk
+    sudo sed "s#OVS_TUNNEL_CIDR_MAPPING=.*#OVS_TUNNEL_CIDR_MAPPING=$OVS_TUNNEL_CIDR_MAPPING#" -i /etc/default/ovs-dpdk
 
     if [ "$OVS_SOCKET_MEM" == "auto" ]; then
         for d in /sys/devices/system/node/node? ; do
