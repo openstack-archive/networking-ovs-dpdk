@@ -496,6 +496,13 @@ start_ovs(){
     done
     sudo rm -rf $OVS_LOCK_DIR
 
+    if [[ ! -z "$OVS_TUNNEL_CIDR_MAPPING" ]]; then
+        bridge=`echo $OVS_TUNNEL_CIDR_MAPPING | cut -f 1 -d ":"`
+        cidr=`echo $OVS_TUNNEL_CIDR_MAPPING | cut -f 2 -d ":"`
+        sudo ifconfig $bridge $cidr up
+    fi
+
+
 }
 
 cmd_start(){
