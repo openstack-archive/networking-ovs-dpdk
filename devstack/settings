@@ -49,7 +49,6 @@ OVS_DPDK_PATCHES=${OVS_DPDK_PATCHES:-''}
 
 # adjust variables based on OVS_DPDK_MODE & OVS_DPDK_INSTALL settings
 if [ "$OVS_DPDK_MODE" == "controller_ovs" ]; then
-    OVS_AGENT_TYPE=${OVS_AGENT_TYPE:-$Q_AGENT}
     OVS_DPDK_INSTALL=$(trueorfalse False OVS_DPDK_INSTALL)
 elif [[ "$OVS_DPDK_MODE" == "compute"  || "$OVS_DPDK_MODE" == "controller_ovs_dpdk" ]]; then
     OVS_DPDK_INSTALL=$(trueorfalse True OVS_DPDK_INSTALL)
@@ -74,21 +73,6 @@ if [ "$OVS_DPDK_MODE" != "compute" ]; then
     fi
 fi
 
-# agent settings
-Q_AGENT=${OVS_AGENT_TYPE:-ovsdpdk}
-
-if [ "$Q_AGENT" == "ovsdpdk" ] ; then
-    if [ ! -e $TOP_DIR/lib/neutron_plugins/${Q_AGENT}_agent ]; then
-        ln -s $NETWOKING_OVS_DPDK_DIR/devstack/libs/agent $TOP_DIR/lib/neutron_plugins/${Q_AGENT}_agent
-    fi
-    if [ -e $TOP_DIR/lib/neutron ]; then
-        source $TOP_DIR/lib/neutron
-    elif [ -e $TOP_DIR/lib/neutron-legacy ]; then
-        source $TOP_DIR/lib/neutron-legacy
-    fi
-    source $TOP_DIR/lib/neutron_plugins/ml2
-    source $TOP_DIR/lib/neutron_plugins/${Q_AGENT}_agent
-fi
 
 # Restore xtrace
 $XTRACE

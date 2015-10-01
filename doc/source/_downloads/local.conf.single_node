@@ -52,3 +52,7 @@ ML2_VLAN_RANGES=default:<VLAN RANGES>
 [DEFAULT]
 firewall_driver=nova.virt.firewall.NoopFirewallDriver
 scheduler_default_filters=RamFilter,ComputeFilter,AvailabilityZoneFilter,ComputeCapabilitiesFilter,ImagePropertiesFilter,PciPassthroughFilter,NUMATopologyFilter
+
+[[post-config|/$Q_PLUGIN_CONF_FILE]]
+[agent]
+agent_type = 'DPDK OVS Agent'
