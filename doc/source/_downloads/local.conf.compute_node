@@ -54,4 +54,3 @@ vnc_enabled=True
 vncserver_listen=0.0.0.0
 vncserver_proxyclient_address=$HOST_IP
 scheduler_default_filters=RamFilter,ComputeFilter,AvailabilityZoneFilter,ComputeCapabilitiesFilter,ImagePropertiesFilter,PciPassthroughFilter,NUMATopologyFilter
-

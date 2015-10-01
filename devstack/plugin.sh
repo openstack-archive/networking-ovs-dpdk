@@ -37,6 +37,7 @@ set -x
                 ;;
                 "post-config")
                     set_vcpu_pin_set
+                    set_agent_type
                 ;;
                 "extra")
                     # no-op
