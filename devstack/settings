@@ -1,7 +1,3 @@
-# Save trace setting
-XTRACE=$(set +o | grep xtrace)
-set +o xtrace
-
 NETWOKING_OVS_DPDK_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd .. && pwd )
 
 #dpdk settings
@@ -72,7 +68,3 @@ if [ "$OVS_DPDK_MODE" != "compute" ]; then
         Q_ML2_PLUGIN_MECHANISM_DRIVERS=$Q_ML2_PLUGIN_MECHANISM_DRIVERS,ovsdpdk
     fi
 fi
-
-
-# Restore xtrace
-$XTRACE
