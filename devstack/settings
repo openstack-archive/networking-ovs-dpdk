@@ -1,7 +1,3 @@
-# Save trace setting
-XTRACE=$(set +o | grep xtrace)
-set +o xtrace
-
 NETWOKING_OVS_DPDK_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd .. && pwd )
 
 #dpdk settings
@@ -73,6 +69,18 @@ if [ "$OVS_DPDK_MODE" != "compute" ]; then
     fi
 fi
 
+# agent settings
+Q_AGENT=${OVS_AGENT_TYPE:-ovsdpdk}
 
-# Restore xtrace
-$XTRACE
+if [ "$Q_AGENT" == "ovsdpdk" ] ; then
+    if [ ! -e $TOP_DIR/lib/neutron_plugins/${Q_AGENT}_agent ]; then
+        ln -s $NETWOKING_OVS_DPDK_DIR/devstack/libs/agent $TOP_DIR/lib/neutron_plugins/${Q_AGENT}_agent
+    fi
+    if [ -e $TOP_DIR/lib/neutron ]; then
+        source $TOP_DIR/lib/neutron
+    elif [ -e $TOP_DIR/lib/neutron-legacy ]; then
+        source $TOP_DIR/lib/neutron-legacy
+    fi
+    source $TOP_DIR/lib/neutron_plugins/ml2
+    source $TOP_DIR/lib/neutron_plugins/${Q_AGENT}_agent
+fi
