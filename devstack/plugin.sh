@@ -1,6 +1,8 @@
-xtrace=$(set +o | grep xtrace)
-set +o xtrace
-set -x
+local xtrace=$(set +o | grep xtrace)
+if [ $VERBOSE == 'True' ]; then
+    # enabling verbosity on whole plugin - default behavior
+    set -o xtrace
+fi
 
     # Initial source of lib script
     source $NETWOKING_OVS_DPDK_DIR/devstack/libs/ovs-dpdk
@@ -58,5 +60,4 @@ set -x
         ;;
     esac
 
-set +x
 $xtrace

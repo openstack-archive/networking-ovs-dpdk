@@ -3,10 +3,6 @@
 # common functions for ovs based plugin
 # -------------------------------------
 
-# Save trace setting
-OVSB_XTRACE=$(set +o | grep xtrace)
-set +o xtrace
-
 #
 # start/stop service
 #
@@ -414,7 +410,3 @@ function update_ovs_pmd_core_mask {
         OVS_PMD_CORE_MASK=`printf "%x" $RESULT`
     fi
 }
-
-
-# Restore xtrace
-$OVSB_XTRACE

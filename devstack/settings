@@ -1,6 +1,7 @@
-# Save trace setting
-XTRACE=$(set +o | grep xtrace)
-set +o xtrace
+if [ $VERBOSE == "False" ]; then
+    # allow local debugging
+    set -o xtrace
+fi
 
 NETWOKING_OVS_DPDK_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd .. && pwd )
 
@@ -73,6 +74,8 @@ if [ "$OVS_DPDK_MODE" != "compute" ]; then
     fi
 fi
 
+if [ $VERBOSE == "False" ]; then
+    # turn off debugging again
+    set +o xtrace
+fi
 
-# Restore xtrace
-$XTRACE
