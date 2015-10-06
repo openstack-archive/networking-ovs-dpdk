@@ -201,12 +201,26 @@ bind_nics(){
             fi
             bridge=$(find_bridge $nic $OVS_DPDK_PORT_MAPPINGS)
             if [[ "$line" =~ "drv=${OVS_INTERFACE_DRIVER}" ]] && [[ "$line" =~ "$addr" ]] && [[ "$bridge" != "" ]]; then
-                # Map this physical nic interface to the logical bridge.
-                echo "sudo ovs-vsctl --no-wait --may-exist add-port $bridge dpdk$phys_ofport -- set Interface dpdk$phys_ofport type=dpdk"
-                sudo ovs-vsctl --no-wait --may-exist add-port $bridge dpdk$phys_ofport -- set Interface dpdk$phys_ofport type=dpdk
-                # Remove element from list.
-                PCI_ARRAY[$index]=''
-                phys_ofport=$((phys_ofport+1))
+                # if nic is inside bond, it should be omitted from individual adding
+                bonded_nic=False
+                for k in "${!BONDS[@]}"; do
+                    if [[ ${BONDS[$k]} =~ .*\(dpdk$phys_ofport\).* ]]; then
+                        bonded_nic=True
+                    fi
+                done
+                if [ $bonded_nic == "True" ]; then
+                    echo "interface dpdk$phys_ofport skipped from individual porting, it will be added inside bond"
+                    # Remove element from list anyway
+                    PCI_ARRAY[$index]=''
+                    phys_ofport=$((phys_ofport+1))
+                else
+                    # Map this physical nic interface to the logical bridge.
+                    echo "sudo ovs-vsctl --no-wait --may-exist add-port $bridge dpdk$phys_ofport -- set Interface dpdk$phys_ofport type=dpdk"
+                    sudo ovs-vsctl --no-wait --may-exist add-port $bridge dpdk$phys_ofport -- set Interface dpdk$phys_ofport type=dpdk
+                    # Remove element from list.
+                    PCI_ARRAY[$index]=''
+                    phys_ofport=$((phys_ofport+1))
+                fi
             fi
         done
     done <<< "$STATUS"
@@ -223,6 +237,36 @@ bind_nics(){
     done
 }
 
+add_bonds() {
+    # Add ports for bonds using agregated nic skipped from adding earlier
+    for k in "${!BONDS[@]}"; do
+        bridge=$(echo $OVS_DPDK_PORT_MAPPINGS | sed -e "s/\(.*\)$k:\([^,]*\),.*/\2/g")
+        ports=${BONDS[$k]//,/ }
+        ports_mdf=$(echo $ports | sed -e "s/(//g" | sed -e "s/)//g")
+        ports_mdf_array=( $ports_mdf )
+        args=""
+        for port in ${ports_mdf_array[@]}; do
+            args=$args" -- set Interface $port type=dpdk"
+        done
+
+        if [ ${BONDS_MODE[$k]} != "" ]; then
+            mode=${BONDS_MODE[$k]}
+            echo "sudo ovs-vsctl add-bond $bridge $k $ports_mdf bond_mode=$mode $args"
+            sudo ovs-vsctl add-bond $bridge $k $ports_mdf bond_mode=$mode $args
+        else
+            echo "sudo ovs-vsctl add-bond $bridge $k $ports_mdf $args"
+            sudo ovs-vsctl add-bond $bridge $k $ports_mdf $args
+        fi
+    done
+}
+
+remove_bonds() {
+    # remove bonds
+    for k in "${!BONDS[@]}"; do
+        echo "sudo ovs-vsctl del-port $bridge $k"
+        sudo ovs-vsctl del-port $bridge $k
+    done
+}
 
 check_nic_presence () {
     # This function will use the command "ip link" to find if the nic
@@ -422,6 +466,33 @@ start_ovs(){
         sudo ${OVS_INSTALL_DIR}/sbin/ovsdb-server  --detach --pidfile=$OVS_LOG_DIR/ovsdb-server.pid  --remote=punix:$OVS_DB_SOCKET --remote=db:Open_vSwitch,Open_vSwitch,manager_options
     fi
 
+    # bonds pre-processing
+    declare -A BONDS
+    local PORTS=${OVS_BOND_PORTS//,/ }
+    local PORTS_ARRAY=( $PORTS )
+
+    for pair in "${PORTS_ARRAY[@]}"; do
+        name="${pair%%:*}"
+        nic="${pair##*:}"
+        if [[ ${BONDS[$name]} == "" ]]; then
+            BONDS[$name]="($nic)"
+        else
+            BONDS[$name]=${BONDS[$name]},"($nic)"
+        fi
+    done
+
+    declare -A BONDS_MODE
+    local MODES=${OVS_BOND_MODE//,/ }
+    local MODES_ARRAY=( $MODES )
+
+    for pair in "${MODES_ARRAY[@]}"; do
+        name="${pair%%:*}"
+        mode="${pair##*:}"
+        if [[ ${BONDS_MODE[$name]} == "" ]]; then
+            BONDS_MODE[$name]="$mode"
+        fi
+    done
+
     bind_nics
 
     if [[ "$OVS_BRIDGE_MAPPINGS" == "" ]]; then
@@ -496,6 +567,9 @@ start_ovs(){
     done
     sudo rm -rf $OVS_LOCK_DIR
 
+    # WA: adding bonds -  it's failing to configure bonds before ovs-vswitchd startup
+    add_bonds
+
 }
 
 cmd_start(){
@@ -524,6 +598,21 @@ cmd_start(){
 }
 
 cmd_stop(){
+    #first let's remove bonds as ovs-vswitchd is still running
+    declare -A BONDS
+    PORTS=${OVS_BOND_PORTS//,/ }
+    PORTS_ARRAY=( $PORTS )
+    for pair in "${PORTS_ARRAY[@]}"; do
+        name="${pair%%:*}"
+        nic="${pair##*:}"
+        if [[ ${BONDS[$name]} == "" ]]; then
+            BONDS[$name]="($nic)"
+        else
+            BONDS[$name]=${BONDS[$name]},"($nic)"
+        fi
+    done
+    remove_bonds
+
     #if switch is stopped no op/error message
     #else
     # retrive pid of each process in $OVS_LOG_DIR/*

@@ -138,3 +138,13 @@ Default values for the below settings can be found in `settings` file in devstac
 
 **OVS_DPDK_RTE_LIBRTE_VHOST**
     (True/False) Enable libvhost/vhost-cuse. If ovs commit is before vhost-cuse support was added, this should be set to 'False'. Defaults is 'True'.
+
+**OVS_BOND_MODE**
+    (bond:bond_type) comma separated list of bond to mode mappings.
+    Example:
+    OVS_BOND_MODE=bond0:active-backup,bond1:balance-slb
+
+**OVS_BOND_PORTS**
+    (bond:dpdk_port) comma separated list of bond to dpdk port mappings.
+    Example:
+    OVS_BOND_PORTS=bond0:dpdk0,bond0:dpdk1
