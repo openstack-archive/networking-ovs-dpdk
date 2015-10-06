@@ -315,6 +315,8 @@ function ovs_dpdk_write_conf {
     sudo sed "s/OVS_PCI_MAPPINGS=.*/OVS_PCI_MAPPINGS=$NICS/" -i /etc/default/ovs-dpdk
     sudo sed "s/OVS_BRIDGE_MAPPINGS=.*/OVS_BRIDGE_MAPPINGS=$OVS_BRIDGE_MAPPINGS/" -i /etc/default/ovs-dpdk
     sudo sed "s/OVS_DPDK_PORT_MAPPINGS=.*/OVS_DPDK_PORT_MAPPINGS=$OVS_DPDK_PORT_MAPPINGS/" -i /etc/default/ovs-dpdk
+    sudo sed "s/OVS_BOND_PORTS=.*/OVS_BOND_PORTS=$OVS_BOND_PORTS/" -i /etc/default/ovs-dpdk
+    sudo sed "s/OVS_BOND_MODE=.*/OVS_BOND_MODE=$OVS_BOND_MODE/" -i /etc/default/ovs-dpdk
 }
 
 function uninstall_libvirt_CentOS {
