@@ -219,7 +219,7 @@ function build_ovs_dpdk(){
     sed "s/CONFIG_RTE_LIBRTE_KNI=.*$/CONFIG_RTE_LIBRTE_KNI=n/" -i ${OVS_DPDK_DIR}/build/.config
 
     make -j $(nproc)
-    sudo cp ${OVS_DPDK_DIR}/build/lib/libintel_dpdk.* /lib
+    sudo cp ${OVS_DPDK_DIR}/build/lib/*dpdk.* /lib
     cd ${OVS_DIR}
     ./boot.sh
     ./configure --with-dpdk=${OVS_DPDK_DIR}/${RTE_TARGET} --prefix=/usr
