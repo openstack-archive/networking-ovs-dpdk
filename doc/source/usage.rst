@@ -143,3 +143,13 @@ Default values for the below settings can be found in `settings` file in devstac
     (bridge:cidr) When spcifed this option enables automatic assignment of the tunnel endpoint ip to a specific interface.
     e.g. OVS_TUNNEL_CIDR_MAPPING=br-phy:192.168.50.1/24 asignes the ip of 192.168.50.1 with subnetmask 255.255.255.0 to the br-phy local port.
     This is required to enabled vxlan or other tunneling protocals with ovs-dpdk and dpdk phyical ports.
+
+**OVS_BOND_MODE**
+    (bond:bond_type) comma separated list of bond to mode mappings.
+    Example:
+    OVS_BOND_MODE=bond0:active-backup,bond1:balance-slb
+
+**OVS_BOND_PORTS**
+    (bond:nic) comma separated list of bond to NIC mappings. Specified NIC interfaces will be added as dpdk ports to OVS.
+    Example:
+    OVS_BOND_PORTS=bond0:enp9s0f0,bond0:enp9s0f1
