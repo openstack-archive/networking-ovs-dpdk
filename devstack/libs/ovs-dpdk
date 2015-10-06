@@ -294,6 +294,44 @@ function ovs_dpdk_write_conf {
         done
     fi
 
+    # replace bonds with nic's
+    # first collect nic's into associate array BONDS
+    declare -A BONDS
+    PORTS=${OVS_BOND_PORTS//,/ }
+    PORTS_ARRAY=( $PORTS )
+
+    for pair in "${PORTS_ARRAY[@]}"; do
+        name="${pair%%:*}"
+        nic="${pair##*:}"
+        if [[ ${BONDS[$name]} == "" ]]; then
+            BONDS[$name]="($nic)"
+        else
+            BONDS[$name]=${BONDS[$name]},"($nic)"
+        fi
+    done
+
+    # adding nics from bonds into OVS_DPDK_PORT_MAPPINGS
+    for k in "${!BONDS[@]}"; do
+        if [[ ${OVS_DPDK_PORT_MAPPINGS} =~ .*$k.* ]]; then
+            replace=""
+            bridge=$(echo $OVS_DPDK_PORT_MAPPINGS | sed -e "s/\(.*\)$k:\([^,]*\).*/\2/g")
+            ports=${BONDS[$k]//,/ }
+            ports_mdf=$(echo $ports | sed -e "s/(//g" | sed -e "s/)//g")
+            ports_mdf_array=( $ports_mdf )
+            for nic in "${ports_mdf_array[@]}"; do
+                if [ -z "$replace" ]; then 
+                    replace="$k:$bridge,$nic:$bridge"
+                else
+                    replace="$replace,$nic:$bridge"
+                fi
+            done
+            OVS_DPDK_PORT_MAPPINGS=$(echo $OVS_DPDK_PORT_MAPPINGS | sed -e "s/$k:\([^,]*\)/$replace/g")
+        else
+            # potential misconfiguration
+            echo "warning: bond $k specified but bridge not found in OVS_DPDK_PORT_MAPPINGS"
+        fi
+    done
+
     MAPPINGS=${OVS_DPDK_PORT_MAPPINGS//,/ }
 
     ARRAY=( $MAPPINGS )
@@ -315,6 +353,8 @@ function ovs_dpdk_write_conf {
     sudo sed "s/OVS_PCI_MAPPINGS=.*/OVS_PCI_MAPPINGS=$NICS/" -i /etc/default/ovs-dpdk
     sudo sed "s/OVS_BRIDGE_MAPPINGS=.*/OVS_BRIDGE_MAPPINGS=$OVS_BRIDGE_MAPPINGS/" -i /etc/default/ovs-dpdk
     sudo sed "s/OVS_DPDK_PORT_MAPPINGS=.*/OVS_DPDK_PORT_MAPPINGS=$OVS_DPDK_PORT_MAPPINGS/" -i /etc/default/ovs-dpdk
+    sudo sed "s/OVS_BOND_PORTS=.*/OVS_BOND_PORTS=$OVS_BOND_PORTS/" -i /etc/default/ovs-dpdk
+    sudo sed "s/OVS_BOND_MODE=.*/OVS_BOND_MODE=$OVS_BOND_MODE/" -i /etc/default/ovs-dpdk
 }
 
 function uninstall_libvirt_CentOS {
