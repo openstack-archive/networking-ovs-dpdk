@@ -44,16 +44,73 @@ function ovs_dpdk_setup_bridge {
     ovs_dpdk_add_bridge $bridge
 }
 
+function uninstall_libvirt_CentOS {
+
+    if [ "$os_VENDOR" == CentOS ] ; then
+
+        sudo rm /usr/libexec/qemu-kvm
+        sudo rm /usr/libexec/qemu-kvm.orig
+
+        sudo yum remove -y libvirt* qemu* libcard* glusterfs*
+    fi
+}
+
+function install_qemu_kvm {
+
+    if [ "$os_VENDOR" == CentOS ] ; then
+        echo "Configuring libvirt for CentOS"
+        sudo service libvirtd stop
+
+        sudo yum remove -y libvirt* qemu* libcacard* glusterfs*
+
+        if [ ! -d /opt/stack/rpms ]; then
+            sudo mkdir -m 777 -p /opt/stack/rpms
+        fi
+
+        RPMS=/opt/stack/rpms
+
+        wget_cmd=" wget -nc -P"
+
+        if [ "$RECLONE" == True ] ; then
+            sudo rm -f $RPMS/*
+            wget_cmd=" wget -P"
+        fi
+
+        for file in ${CentOS_libvirt_repo[@]} ; do
+            $wget_cmd $RPMS $file
+        done
+
+        for file in ${CentOS_qemu_repo[@]} ; do
+            $wget_cmd $RPMS $file
+        done
+
+        sudo yum install -y $RPMS/*
+
+        sudo service libvirtd start
+    else
+        install_package qemu-kvm
+    fi
+
+}
+
+
 
 function ovs_dpdk_create_kvm_wrapper(){
-    install_package qemu-kvm
+
+    install_qemu_kvm
+
     if [ -e /usr/bin/kvm ]; then
         KVM_CMD="/usr/bin/kvm"
     elif [ -e /usr/bin/qemu-kvm ]; then
         KVM_CMD="/usr/bin/qemu-kvm"
+    elif [ -e /usr/libexec/qemu-kvm ]; then
+        KVM_CMD="/usr/libexec/qemu-kvm"
+
     fi
+
     sudo mv $KVM_CMD $KVM_CMD.orig
-cat << 'EOF' | sudo tee  $KVM_CMD
+
+cat << 'EOF' | sudo tee $KVM_CMD
 #!/bin/bash -
 VIRTIO_OPTIONS="csum=off,gso=off,guest_tso4=off,guest_tso6=off,guest_ecn=off"
 VHOST_FORCE="vhostforce"
@@ -94,9 +151,14 @@ while [ $# -gt 0 ]; do
          shift ;;
      esac
 done
-echo "qemu ${args[@]}"  >> /tmp/qemu.orig
-exec /usr/bin/qemu-system-x86_64  "${args[@]}"
+echo "qemu ${args[@]}"  > /tmp/qemu.orig
+if [ -e /usr/bin/qemu-system-x86_64 ]; then
+    exec /usr/bin/qemu-system-x86_64  "${args[@]}"
+elif [ -e /usr/libexec/qemu-kvm.orig ]; then
+    exec /usr/libexec/qemu-kvm.orig  "${args[@]}"
+fi
 EOF
+
     sudo chmod +x $KVM_CMD
 }
 
@@ -130,7 +192,7 @@ function ovs_dpdk_clean(){
 
 
 function clone_ovs_dpdk(){
-    if "$OFFLINE" != True && [ "$RECLONE" = True  ||  ! -e ${OVS_DIR}/BUILD_COMPLETE ]  ; then
+    if "$OFFLINE" != True && [ "$RECLONE" = True  ||  ! -e ${OVS_DIR}/BUILD_COMPLETE ]; then
         if [ ! -d ${OVS_DIR} ] || [ "$RECLONE" = True ]; then
             if [ -d ${OVS_DIR} ]; then
                 rm -rf ${OVS_DIR}
@@ -265,7 +327,7 @@ function install_ovs_dpdk {
         stop_service openvswitch-switch
         uninstall_package openvswitch-switch openvswitch-datapath-dkms openvswitch-common
         install_package autoconf libtool libfuse-dev
-    elif is_fedora; then
+    else
         stop_service openvswitch
         uninstall_package openvswitch
         install_package pciutils autoconf libtool fuse-devel
