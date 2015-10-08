@@ -424,13 +424,9 @@ start_ovs(){
 
     bind_nics
 
-    if [[ "$OVS_BRIDGE_MAPPINGS" == "" ]]; then
-        PHYS_PORTS=1
-    else
-        MAPPINGS=${OVS_BRIDGE_MAPPINGS//,/ }
-        ARRAY=( $MAPPINGS )
-        PHYS_PORTS=${#ARRAY[@]}
-    fi
+    MAPPINGS=${OVS_BRIDGE_MAPPINGS//,/ }
+    ARRAY=( $MAPPINGS )
+    PHYS_PORTS=${#ARRAY[@]}
 
     sudo rm -f $OVS_LOG_DIR/ovs-vswitchd.log
     MAPPINGS=${OVS_PCI_MAPPINGS//,/ }
