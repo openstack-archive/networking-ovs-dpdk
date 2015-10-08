@@ -11,6 +11,8 @@ A Collection of Agents and Drivers to support managing DPDK accelerated Open vSw
 * Usage: http://git.openstack.org/cgit/stackforge/networking-ovs-dpdk/tree/stable/kilo/doc/source/usage.rst
 * Bugs: http://bugs.launchpad.net/networking-ovs-dpdk
 * Code Reviews: https://review.openstack.org/#/q/status:open+networking-ovs-dpdk,n,z
+* Questions: E-mail the dev mailing list with the [networking-ovs-dpdk] tag
+             mailto:openstack-dev@lists.openstack.org?subject=[networking-ovs-dpdk]
 
 Features
 --------
