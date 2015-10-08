@@ -423,13 +423,9 @@ start_ovs(){
 
     bind_nics
 
-    if [[ "$OVS_BRIDGE_MAPPINGS" == "" ]]; then
-        PHYS_PORTS=1
-    else
-        MAPPINGS=${OVS_BRIDGE_MAPPINGS//,/ }
-        ARRAY=( $MAPPINGS )
-        PHYS_PORTS=${#ARRAY[@]}
-    fi
+    MAPPINGS=${OVS_BRIDGE_MAPPINGS//,/ }
+    ARRAY=( $MAPPINGS )
+    PHYS_PORTS=${#ARRAY[@]}
 
     sudo rm -f $OVS_LOG_DIR/ovs-vswitchd.log
     MAPPINGS=${OVS_PCI_MAPPINGS//,/ }
@@ -480,7 +476,7 @@ start_ovs(){
         fi
         die $LINENO "ovs-vswitchd application failed to start $PID"
     fi
-    while [ ! $(grep "unix.*connected" ${OVS_LOG_DIR}/ovs-vswitchd.log) ]; do
+    while [ $(grep -c "unix.*connected" ${OVS_LOG_DIR}/ovs-vswitchd.log) -eq 0 ]; do
         PID=$(pidof ovs-vswitchd)
         if [ $? -eq 0 ]; then
             echo "Waiting for ovs-vswitchd to start..."
