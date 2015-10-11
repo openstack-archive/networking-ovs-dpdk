@@ -296,7 +296,7 @@ bind_nic_2_ovsdriver() {
             if [[ "$line" =~ "unused="[[:graph:]]*"${OVS_INTERFACE_DRIVER}" ]] && [[ "$line" =~ "$addr" ]]; then
                 # Check the status of the nic. If it's up, take it down.
                 if [[ $line =~ "Active" ]]; then
-                    sudo ip link set $nic 0 down
+                    sudo ip link set dev $nic down
                 fi
                 # Bind nic to OVS_INTERFACE_DRIVER.
                 echo sudo RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py -b $OVS_INTERFACE_DRIVER $addr
