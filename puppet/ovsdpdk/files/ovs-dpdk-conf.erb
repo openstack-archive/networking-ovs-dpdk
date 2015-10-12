@@ -1,0 +1,28 @@
+RTE_SDK=<%= @ovs_dpdk_dir %>
+RTE_TARGET=<%= @rte_target %>
+
+OVS_INSTALL_DIR=<%= @ovs_install_dir %>
+OVS_DB_CONF_DIR=<%= @ovs_db_conf_dir %>
+OVS_DB_SOCKET_DIR=<%= @ovs_db_socket_dir %>
+OVS_DB_CONF=<%= @ovs_db_conf_dir %>/conf.db
+OVS_DB_SOCKET=<%= @ovs_db_socket_dir %>/db.sock
+
+OVS_SOCKET_MEM=<%= @ovs_socket_mem %>
+OVS_MEM_CHANNELS=<%= @ovs_mem_channels %>
+OVS_CORE_MASK=<%= @ovs_core_mask %>
+OVS_PMD_CORE_MASK=<%= @ovs_pmd_core_mask %>
+OVS_LOG_DIR=<%= @ovs_log_dir %>
+OVS_LOCK_DIR=<%= @ovs_lock_dir %>
+OVS_DIR=<%= @ovs_dir %>
+OVS_UTILS=<%= @ovs_dir %>/utilities/
+OVS_DB_UTILS=<%= @ovs_dir %>/ovsdb/
+OVS_DPDK_DIR=<%= @ovs_dpdk_dir %>
+OVS_NUM_HUGEPAGES=<%= @ovs_num_hugepages %>
+OVS_HUGEPAGE_MOUNT=<%= @ovs_hugepage_mount %>
+OVS_HUGEPAGE_MOUNT_PAGESIZE=<%= @ovs_hugepage_mount_pagesize %>
+OVS_BRIDGE_MAPPINGS=<%= @ovs_bridge_mappings %>
+OVS_PCI_MAPPINGS=<%= @ovs_pci_mappings %>
+OVS_DPDK_PORT_MAPPINGS=<%= @ovs_dpdk_port_mappings %>
+OVS_TUNNEL_CIDR_MAPPING=<%= @ovs_tunnel_cidr_mapping %>
+OVS_ALLOCATE_HUGEPAGES=<%= @ovs_allocate_hugepages %>
+OVS_INTERFACE_DRIVER=<%= @ovs_interface_driver %>
