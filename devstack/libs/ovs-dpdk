@@ -24,8 +24,10 @@ function stop_ovs_dpdk {
 #
 
 function set_agent_type {
-    if [[ "$OVS_DPDK_MODE" == "compute"  || "$OVS_DPDK_MODE" == "controller_ovs_dpdk" ]]; then
-        iniset /$Q_PLUGIN_CONF_FILE agent agent_type = 'DPDK OVS Agent'
+    if [ "$OVS_DPDK_MODE" != "controller" ]; then
+        # for not controller modes it makes sense to specify agent_type in ml2
+        # this is valid also when one forget to fill OVS_DPDK_MODE
+        iniset /$Q_PLUGIN_CONF_FILE agent agent_type "DPDK OVS Agent"
     fi
 }
 
