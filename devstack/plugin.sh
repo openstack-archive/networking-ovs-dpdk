@@ -51,6 +51,7 @@ fi
             # Shut Down OVS-DPDK
             ovs_dpdk_db_cleanup
             stop_ovs_dpdk
+            uninstall_libvirt_CentOS
             rm -f $TOP_DIR/lib/neutron_plugins/ovsdpdk_agent
         ;;
         "clean")
