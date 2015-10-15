@@ -156,14 +156,7 @@ function clone_ovs_dpdk(){
     RECLONE=$(trueorfalse False RECLONE)
     if [[ "$OFFLINE" != True && ( "$RECLONE" == True || ! -e ${OVS_DIR}/BUILD_COMPLETE ) ]]; then
         if [ ! -d ${OVS_DIR} ] || [ "$RECLONE" == True ]; then
-            if [ -d ${OVS_DIR} ]; then
-                rm -rf ${OVS_DIR}
-            fi
-            if [ "$OVS_GIT_TAG" != "" ]; then
-                git_clone ${OVS_GIT_REPO} ${OVS_DIR} $OVS_GIT_TAG
-            else
-                git_clone ${OVS_GIT_REPO} ${OVS_DIR}
-            fi
+            git_clone ${OVS_GIT_REPO} ${OVS_DIR} $OVS_GIT_TAG
         fi
 
         if [ ! -d "${OVS_DPDK_DIR}" ] || [ "$RECLONE" == True ]; then
