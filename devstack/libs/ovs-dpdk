@@ -162,13 +162,16 @@ function clone_ovs_dpdk(){
     RECLONE=$(trueorfalse False RECLONE)
     if [[ "$OFFLINE" != True && ( "$RECLONE" == True || ! -e ${OVS_DIR}/BUILD_COMPLETE ) ]]; then
         if [ ! -d ${OVS_DIR} ] || [ "$RECLONE" == True ]; then
+            # if directory exists and should be just refreshed
+            # it's not possible to use devstack git_clone with commit's id
             if [ -d ${OVS_DIR} ]; then
-                rm -rf ${OVS_DIR}
-            fi
-            if [ "$OVS_GIT_TAG" != "" ]; then
-                git_clone ${OVS_GIT_REPO} ${OVS_DIR} $OVS_GIT_TAG
+                pushd ${OVS_DIR}
+                git checkout -f $OVS_GIT_TAG # clean modified tracked files
+                git clean -d -f # clean untracked files
+                popd
             else
-                git_clone ${OVS_GIT_REPO} ${OVS_DIR}
+                # creating dir from scratch
+                git_clone ${OVS_GIT_REPO} ${OVS_DIR} $OVS_GIT_TAG
             fi
         fi
 
