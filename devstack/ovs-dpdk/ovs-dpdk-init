@@ -498,6 +498,17 @@ start_ovs(){
     if [[ ! -z "$OVS_TUNNEL_CIDR_MAPPING" ]]; then
         bridge=`echo $OVS_TUNNEL_CIDR_MAPPING | cut -f 1 -d ":"`
         cidr=`echo $OVS_TUNNEL_CIDR_MAPPING | cut -f 2 -d ":"`
+        counter=0
+             ip link show  $bridge
+        while [ $? -ne 0 -a $counter -lt 120 ]; do
+            echo "Waiting for $bridge interface to be created...."
+            sleep 1
+            counter=$((counter+1))
+            ip link show $bridge
+        done
+        if [[ $counter -ge 120 ]]; then
+            die $LINENO "Interface $bridge not created!"
+        fi
         sudo ip addr add $cidr dev $bridge
         sudo ip link set $bridge up
     fi
