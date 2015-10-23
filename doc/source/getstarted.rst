@@ -192,14 +192,3 @@ OVS-DPDK you will need to create a flavor that requests hugepages.
 | source openrc admin demo
 | nova flavor-key <FLAVOR> set hw:mem_page_size=large
 
-
-
-
-
-
-
-
-
-
-
-
