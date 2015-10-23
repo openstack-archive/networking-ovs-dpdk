@@ -1,4 +1,4 @@
-if [ $VERBOSE == "False" ]; then
+if [ "$VERBOSE" == "False" ]; then
     # allow local debugging
     set -o xtrace
 fi
@@ -28,9 +28,6 @@ OVS_CORE_MASK=${OVS_CORE_MASK:-2}
 OVS_PMD_CORE_MASK=${OVS_PMD_CORE_MASK:-4}
 OVS_DB_CONF_DIR=/etc/openvswitch
 OVS_DB_SOCKET_DIR=/var/run/openvswitch
-if [ ! -d /var/run/openvswitch ] ; then
-    sudo ln -s /usr/var/run/openvswitch /var/run/openvswitch
-fi
 OVS_DB_SOCKET=$OVS_DB_SOCKET_DIR/db.sock
 OVS_DB_CONF=$OVS_DB_CONF_DIR/conf.db
 OVS_ALLOCATE_HUGEPAGES=${OVS_ALLOCATE_HUGEPAGES:-True}
@@ -115,7 +112,7 @@ if [ "$OVS_DPDK_MODE" != "compute" ]; then
     fi
 fi
 
-if [ $VERBOSE == "False" ]; then
+if [ "$VERBOSE" == "False" ]; then
     # turn off debugging again
     set +o xtrace
 fi

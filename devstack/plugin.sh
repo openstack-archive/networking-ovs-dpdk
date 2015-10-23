@@ -1,5 +1,5 @@
 local xtrace=$(set +o | grep xtrace)
-if [ $VERBOSE == 'True' ]; then
+if [ "$VERBOSE" == 'True' ]; then
     # enabling verbosity on whole plugin - default behavior
     set -o xtrace
 fi
