@@ -378,7 +378,11 @@ function ovs_dpdk_write_conf {
     sudo sed "s/OVS_DPDK_PORT_MAPPINGS=.*/OVS_DPDK_PORT_MAPPINGS=$OVS_DPDK_PORT_MAPPINGS/" -i /etc/default/ovs-dpdk
     sudo sed "s/OVS_BOND_PORTS=.*/OVS_BOND_PORTS=$OVS_BOND_PORTS/" -i /etc/default/ovs-dpdk
     sudo sed "s/OVS_BOND_MODE=.*/OVS_BOND_MODE=$OVS_BOND_MODE/" -i /etc/default/ovs-dpdk
+<<<<<<< HEAD
     sudo sed "s/OVS_ENABLE_SG_FIREWALL_MULTICAST=.*/OVS_ENABLE_SG_FIREWALL_MULTICAST=$OVS_ENABLE_SG_FIREWALL_MULTICAST/" -i /etc/default/ovs-dpdk
+=======
+    sudo sed "s/OVS_ENABLE_SG_FIREWALL_MULTICAST=.*/OVS_ENABLE_SG_FIREWALL_MULTICAST=OVS_ENABLE_SG_FIREWALL_MULTICAST/" -i /etc/default/ovs-dpdk
+>>>>>>> Full multicast support to the SG OVS DPDK firewall.
     sudo sed "s/OVS_MULTICAST_SNOOPING_AGING_TIME=.*/OVS_MULTICAST_SNOOPING_AGING_TIME=$OVS_MULTICAST_SNOOPING_AGING_TIME/" -i /etc/default/ovs-dpdk
 }
 
