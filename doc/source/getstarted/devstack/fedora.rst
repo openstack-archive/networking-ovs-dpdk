@@ -191,3 +191,29 @@ OVS-DPDK you will need to create a flavor that requests hugepages.
 | cd /home/<USER>/devstack
 | source openrc admin demo
 | nova flavor-key <FLAVOR> set hw:mem_page_size=large
+
+Enable the OVS firewall
+-----------------------
+To enable the OVS firewall, you will need to modify (or add) the following
+variable to local.conf:
+
+| [[post-config|/etc/neutron/plugins/ml2/ml2_conf.ini]]
+| [securitygroup]
+| firewall_driver = networking_ovs_dpdk.agent.ovs_dpdk_firewall.OVSFirewallDriver
+
+By default, the multicast support is enabled. The default aging time for the
+IGMP subscriptions in the bridges is 3600 seconds. To configure the multicast
+support both variables could be setup in local.conf:
+
+| [[local|localrc]]
+| OVS_ENABLE_SG_FIREWALL_MULTICAST=[True/False]
+| OVS_MULTICAST_SNOOPING_AGING_TIME=[15..3600]
+
+Known Issues
+------------
+OVS_PMD_CORE_MASK default value '4' doesn't work for NIC's from numa nodes other
+than 0. It's value is used for other_config:pmd-cpu-mask parameter in ovsdb and we
+are subsequently using it for vcpu_pin_set in nova.conf. Unfortunatelly if DPDK
+NIC's from numa nodes other than 0 are used, there is no PMD thread generated for
+them. If you are using host with multiple numa nodes please consider using not
+default OVS_PMD_CORE_MASK value.
