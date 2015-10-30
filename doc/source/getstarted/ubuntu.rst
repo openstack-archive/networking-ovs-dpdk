@@ -171,7 +171,6 @@ support both variables could be setup in local.conf:
 | OVS_MULTICAST_SUPPORT=[True/False]
 | OVS_MULTICAST_SNOOPING_AGING_TIME=[15..3600]
 
-
 Known Issues
 ------------
 To work around bug LP 1513367, set security_driver="none" in /etc/libvirt/qemu.conf
