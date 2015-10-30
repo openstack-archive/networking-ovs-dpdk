@@ -171,7 +171,6 @@ support both variables could be setup in local.conf:
 | OVS_ENABLE_SG_FIREWALL_MULTICAST=[True/False]
 | OVS_MULTICAST_SNOOPING_AGING_TIME=[15..3600]
 
-
 Enable overlay networks
 -----------------------
 To enable overlay networking (vxlan/gre) with the dpdk netdev datapath
