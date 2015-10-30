@@ -47,6 +47,9 @@ if [[ ! -z "$OVS_TUNNEL_CIDR_MAPPING" ]]; then
     TUNNEL_ENDPOINT_IP=`echo $OVS_TUNNEL_CIDR_MAPPING | cut -f 2 -d ":" | cut -f 1 -d "/"`
 fi
 
+OVS_ENABLE_SG_FIREWALL_MULTICAST=${OVS_ENABLE_SG_FIREWALL_MULTICAST:-False}
+OVS_MULTICAST_SNOOPING_AGING_TIME=${OVS_MULTICAST_SNOOPING_AGING_TIME:-3600}
+
 # qemu settings
 if [ -z "$CentOS_libvirt_repo" ] ; then
     CentOS_libvirt_repo=(https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-1.2.11-1.el7.centos.x86_64.rpm
