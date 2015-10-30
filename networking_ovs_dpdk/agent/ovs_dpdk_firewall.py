@@ -76,9 +76,47 @@ EGRESS_DIRECTION = 'egress'
 LEARN_IDLE_TIMEOUT = 30  # 30 seconds.
 LEARN_HARD_TIMEOUT = 1800  # 30 minutes.
 
+# OpenFlow mnemonics.
+OF_MNEMONICS = {
+    constants.IPv6: {
+        "ip_dst": "ipv6_dst",
+        "ip_src": "ipv6_src",
+        "ip_proto": "ipv6",
+        "icmp_proto": "ipv6,nw_proto=58",
+    },
+    constants.IPv4: {
+        "ip_dst": "nw_dst",
+        "ip_src": "nw_src",
+        "ip_proto": "ip",
+        "icmp_proto": "icmp",
+        "igmp_proto": "ip,nw_proto=2",
+        "arp_proto": "arp",
+    },
+}
+
 # Protocols.
-IGMP = 'ip,nw_proto=2'
-ICMPv6 = 'ipv6,nw_proto=58'
+IPV4_ROUTER_MESSAGES = [9, 10]
+# Router Solicitation (133)
+# Router Advertisement (134)
+# Neighbor Solicitation (135)
+# Neighbor Advertisement (136)
+# Redirect (137)
+ICMPV6_TYPE_RS = 133
+ICMPV6_TYPE_RA = constants.ICMPV6_TYPE_RA or 134
+ICMPv6_TYPE_NS = 135
+ICMPV6_TYPE_NA = constants.ICMPV6_TYPE_NA or 136
+ICMPV6_TYPE_RED = 137
+IPV6_ND_MESSAGES = [ICMPV6_TYPE_RS, ICMPV6_TYPE_RA, ICMPv6_TYPE_NS,
+                    ICMPV6_TYPE_NA, ICMPV6_TYPE_RED]
+# Multicast Listener Query (130)
+# Multicast Listener Report (131)
+# Multicast Listener Done (132)
+ICMPV6_TYPE_MLQ = 130
+ICMPV6_TYPE_MLR = 131
+ICMPV6_TYPE_MLD = 132
+IPV6_MLD_MESSAGES = [ICMPV6_TYPE_MLQ, ICMPV6_TYPE_MLR, ICMPV6_TYPE_MLD]
+
+IPv6_MULTICAST_PREFIX = "ff02::1:ff00:0/104"
 
 DIRECTION_IP_PREFIX = {'ingress': 'source_ip_prefix',
                        'egress': 'dest_ip_prefix'}
@@ -205,28 +243,45 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             SELECT_TABLE.
             """
         segmentation_id = port['vinfo']['segmentation_id']
-
-        # ARP traffic to be delivered to an internal port.
+        # ARP and ND.
+        # ARP and ND traffic to be delivered to an internal port.
         for fixed_ip in port['fixed_ips']:
-            # TODO(ralonsoh): arp for IPv6 is different.
-            # IPv6 it's not working now.
-            if self._ip_version_from_address(fixed_ip) != constants.IPv4:
-                continue
-            self._add_flow(priority=OF_T0_ARP_INT_PRIO,
-                           table=OF_ZERO_TABLE,
-                           proto='arp',
-                           dl_vlan=segmentation_id,
-                           nw_dst=fixed_ip,
-                           actions='strip_vlan,output:%s'
-                                   % vif_port.ofport)
+            # IPv4, ARP.
+            if self._ip_version_from_address(fixed_ip) == constants.IPv4:
+                self._add_flow(priority=OF_T0_ARP_INT_PRIO,
+                    table=OF_ZERO_TABLE,
+                    proto=OF_MNEMONICS[constants.IPv4]["arp_proto"],
+                    dl_vlan=segmentation_id,
+                    nw_dst=fixed_ip,
+                    actions='strip_vlan,output:%s'
+                        % vif_port.ofport)
 
-        # In port ARP messages to be delivered out from br-int.
-        self._add_flow(
-            priority=OF_T0_ARP_EXT_PRIO,
+            # IPv6, NS and NA.
+            if self._ip_version_from_address(fixed_ip) == constants.IPv6:
+                for icmpv6_type in IPV6_ND_MESSAGES:
+                    self._add_flow(priority=OF_T0_ARP_INT_PRIO,
+                        table=OF_ZERO_TABLE,
+                        proto=OF_MNEMONICS[constants.IPv6]["icmp_proto"],
+                        dl_vlan=segmentation_id,
+                        icmpv6_type=icmpv6_type,
+                        actions='strip_vlan,output:%s'
+                            % vif_port.ofport)
+
+        # Internal port ARP messages to be delivered out of br-int.
+        self._add_flow(priority=OF_T0_ARP_EXT_PRIO,
             table=OF_ZERO_TABLE,
             proto='arp',
             actions='normal')
 
+        # Internal port NS and NA messages to be delivered out of br-int.
+        for icmpv6_type in IPV6_ND_MESSAGES:
+            self._add_flow(priority=OF_T0_ARP_EXT_PRIO,
+                table=OF_ZERO_TABLE,
+                proto=OF_MNEMONICS[constants.IPv6]["icmp_proto"],
+                icmpv6_type=icmpv6_type,
+                actions='normal')
+
+        # Select traffic.
         # Incoming internal traffic: check mac, mod vlan.
         self._add_flow(priority=OF_T0_SELECT_TABLE_IN_PRIO,
                        table=OF_ZERO_TABLE,
@@ -253,19 +308,27 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             Allows all extenal traffic matching dst mac to ingress table.
         """
         for fixed_ip in port['fixed_ips']:
-            # TODO(ralonsoh): IPv6 it's not working now.
-            if self._ip_version_from_address(fixed_ip) != constants.IPv4:
-                continue
-            # Jump to egress table per port+ip pair on know mac
-            self._add_flow(priority=OF_SEL_EGRESS_PRIO,
-                           table=OF_SELECT_TABLE,
-                           in_port=vif_port.ofport,
-                           proto='ip',
-                           dl_vlan=port['vinfo']['tag'],
-                           dl_src=port['mac_address'],
-                           nw_src=fixed_ip,
-                           actions='resubmit(,%s)' %
-                                   (OF_EGRESS_TABLE))
+            if self._ip_version_from_address(fixed_ip) == constants.IPv4:
+                self._add_flow(priority=OF_SEL_EGRESS_PRIO,
+                    table=OF_SELECT_TABLE,
+                    in_port=vif_port.ofport,
+                    proto=OF_MNEMONICS[constants.IPv4]["ip_proto"],
+                    dl_vlan=port['vinfo']['tag'],
+                    dl_src=port['mac_address'],
+                    nw_src=fixed_ip,
+                    actions='resubmit(,%s)' %
+                        (OF_EGRESS_TABLE))
+
+            if self._ip_version_from_address(fixed_ip) == constants.IPv6:
+                self._add_flow(priority=OF_SEL_EGRESS_PRIO,
+                    table=OF_SELECT_TABLE,
+                    in_port=vif_port.ofport,
+                    proto=OF_MNEMONICS[constants.IPv6]["ip_proto"],
+                    dl_vlan=port['vinfo']['tag'],
+                    dl_src=port['mac_address'],
+                    ipv6_src=fixed_ip,
+                    actions='resubmit(,%s)' %
+                        (OF_EGRESS_TABLE))
 
         # External traffic to ingress processing table
         self._add_flow(
@@ -279,13 +342,13 @@ class OVSFirewallDriver(firewall.FirewallDriver):
     def _add_selection_table_services(self, port, vif_port):
         """Selection table services:
            Allows DHCP traffic to request an IP address
-           IGMP snooping traffic and multicast traffic.
+           IGMP snooping/MLD traffic and multicast traffic.
         """
         # Allow DHCP requests from invalid address
         self._add_flow(priority=OF_SEL_EGRESS_PRIO,
                        table=OF_SELECT_TABLE,
                        in_port=vif_port.ofport,
-                       proto='ip',
+                       proto=OF_MNEMONICS[constants.IPv4]["ip_proto"],
                        dl_vlan=port['vinfo']['tag'],
                        dl_src=port['mac_address'],
                        nw_src='0.0.0.0',
@@ -293,47 +356,73 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                                % (OF_EGRESS_TABLE))
 
         if self._enable_multicast:
-            # Add internal IGMP snooping traffic support. This traffic is
-            # sent to the bridge using the 'normal' action.
             for fixed_ip in port['fixed_ips']:
-                # TODO(ralonsoh): IPv6 it's not working now.
-                if self._ip_version_from_address(fixed_ip) != \
-                        constants.IPv4:
-                    continue
+                if self._ip_version_from_address(fixed_ip) == constants.IPv4:
+                    # Add internal IGMP snooping traffic support. This traffic
+                    # is sent to the bridge using the 'normal' action.
+                    self._add_flow(priority=OF_SEL_SERVICES_INT_IGMP_PRIO,
+                        table=OF_SELECT_TABLE,
+                        in_port=vif_port.ofport,
+                        proto=OF_MNEMONICS[constants.IPv4]["igmp_proto"],
+                        dl_vlan=port['vinfo']['tag'],
+                        dl_src=port['mac_address'],
+                        dl_dst=MULTICAST_MAC,
+                        nw_src=fixed_ip,
+                        nw_dst=str(netaddr.ip.IPV4_MULTICAST.cidr),
+                        actions='strip_vlan,normal')
 
-                self._add_flow(priority=OF_SEL_SERVICES_INT_IGMP_PRIO,
-                               table=OF_SELECT_TABLE,
-                               in_port=vif_port.ofport,
-                               proto=IGMP,
-                               dl_vlan=port['vinfo']['tag'],
-                               dl_src=port['mac_address'],
-                               dl_dst=MULTICAST_MAC,
-                               nw_src=fixed_ip,
-                               nw_dst=str(netaddr.ip.IPV4_MULTICAST.cidr),
-                               actions='strip_vlan,normal')
+                if self._ip_version_from_address(fixed_ip) == constants.IPv6:
+                    # Add internal MLD snooping traffic support.
+                    self._add_flow(priority=OF_SEL_SERVICES_INT_IGMP_PRIO,
+                        table=OF_SELECT_TABLE,
+                        in_port=vif_port.ofport,
+                        proto=OF_MNEMONICS[constants.IPv6]["icmp_proto"],
+                        dl_vlan=port['vinfo']['tag'],
+                        dl_src=port['mac_address'],
+                        dl_dst=MULTICAST_MAC,
+                        ipv6_src=fixed_ip,
+                        ipv6_dst=str(netaddr.ip.IPV6_MULTICAST.cidr),
+                        actions='strip_vlan,normal')
 
-            # Add external and internal IGMP snooping traffic support.
+            # Add external IGMP snooping traffic support.
             self._add_flow(priority=OF_SEL_SERVICES_EXT_IGMP_PRIO,
-                           table=OF_SELECT_TABLE,
-                           proto=IGMP,
-                           dl_vlan=port['vinfo']['tag'],
-                           dl_dst=MULTICAST_MAC,
-                           nw_dst=str(netaddr.ip.IPV4_MULTICAST.cidr),
-                           actions='normal')
+                table=OF_SELECT_TABLE,
+                proto=OF_MNEMONICS[constants.IPv4]["igmp_proto"],
+                dl_vlan=port['vinfo']['tag'],
+                dl_dst=MULTICAST_MAC,
+                nw_dst=str(netaddr.ip.IPV4_MULTICAST.cidr),
+                actions='normal')
 
-            # Allow external multicast traffic skip the internal MAC filter
+            # Add external MLD snooping traffic support.
+            self._add_flow(priority=OF_SEL_SERVICES_EXT_IGMP_PRIO,
+                table=OF_SELECT_TABLE,
+                proto=OF_MNEMONICS[constants.IPv6]["icmp_proto"],
+                dl_vlan=port['vinfo']['tag'],
+                dl_dst=MULTICAST_MAC,
+                ipv6_dst=str(netaddr.ip.IPV6_MULTICAST.cidr),
+                actions='normal')
+
+            # Allow external multicast traffic to skip the internal MAC filter.
             # This traffic is sent to the ingress table. Only TCP and UDP.
             # REG0 in external traffic must match the internal VLAN tag.
             for proto in [constants.PROTO_NAME_TCP,
                           constants.PROTO_NAME_UDP]:
                 self._add_flow(priority=OF_SEL_SERVICES_EXT_MULTICAST_PRIO,
-                               table=OF_SELECT_TABLE,
-                               reg0="%s" % port['vinfo']['tag'],
-                               proto=proto,
-                               dl_vlan=port['vinfo']['tag'],
-                               dl_dst=MULTICAST_MAC,
-                               nw_dst=str(netaddr.ip.IPV4_MULTICAST.cidr),
-                               actions='resubmit(,%s)' % OF_INGRESS_TABLE)
+                    table=OF_SELECT_TABLE,
+                    reg0="%s" % port['vinfo']['tag'],
+                    proto=proto,
+                    dl_vlan=port['vinfo']['tag'],
+                    dl_dst=MULTICAST_MAC,
+                    nw_dst=str(netaddr.ip.IPV4_MULTICAST.cidr),
+                    actions='resubmit(,%s)' % OF_INGRESS_TABLE)
+                self._add_flow(priority=OF_SEL_SERVICES_EXT_MULTICAST_PRIO,
+                    table=OF_SELECT_TABLE,
+                    reg0="%s" % port['vinfo']['tag'],
+                    proto=proto,
+                    dl_vlan=port['vinfo']['tag'],
+                    dl_dst=MULTICAST_MAC,
+                    ipv6_dst=str(netaddr.ip.IPV6_MULTICAST.cidr),
+                    actions='resubmit(,%s)' % OF_INGRESS_TABLE)
 
     def _add_selection_table_port_block(self, port):
         """Block rest of the traffic.
@@ -342,7 +431,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         self._add_flow(
             priority=OF_DROP_TRAFFIC_PRIO,
             table=OF_SELECT_TABLE,
-            proto='ip',
+            proto=OF_MNEMONICS[constants.IPv4]["ip_proto"],
             dl_vlan=port['vinfo']['tag'],
             actions='drop')
 
@@ -355,7 +444,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         self._add_flow(priority=OF_EGRESS_ANTISPOOF_PRIO,
                        table=OF_EGRESS_TABLE,
                        in_port=vif_port.ofport,
-                       proto='udp',
+                       proto=constants.PROTO_NAME_UDP,
                        dl_vlan=port['vinfo']['tag'],
                        udp_src=67,
                        udp_dst=68,
@@ -365,7 +454,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         self._add_flow(priority=OF_EGRESS_ANTISPOOF_PRIO,
                        table=OF_EGRESS_TABLE,
                        in_port=vif_port.ofport,
-                       proto='udp',
+                       proto=constants.PROTO_NAME_UDP,
                        dl_vlan=port['vinfo']['tag'],
                        udp_src=547,
                        udp_dst=546,
@@ -373,7 +462,8 @@ class OVSFirewallDriver(firewall.FirewallDriver):
 
     def _add_egress_services(self, port, vif_port):
         """Add service rules.
-            Allows traffic to DHCPv4/v6 servers; allows icmp traffic.
+            Allows traffic to DHCPv4/v6 servers.
+            Allows icmp traffic.
             """
         # DHCP & DHCPv6.
         for udp_src, udp_dst in [(68, 67), (546, 547)]:
@@ -383,32 +473,32 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 dl_vlan=port['vinfo']['tag'],
                 dl_src=port['mac_address'],
                 in_port=vif_port.ofport,
-                proto='udp',
+                proto=constants.PROTO_NAME_UDP,
                 udp_src=udp_src,
                 udp_dst=udp_dst,
                 actions='resubmit(,%s)' % OF_INGRESS_TABLE)
 
-        # Allows ICMP router solicitation/etc.
-        for type in [9, 10]:
+        # Allows ICMP router advertisement / router selection.
+        for type in IPV4_ROUTER_MESSAGES:
             self._add_flow(
                 table=OF_EGRESS_TABLE,
                 priority=OF_EGRESS_SERVICES_PRIO,
                 dl_vlan=port['vinfo']['tag'],
                 dl_src=port['mac_address'],
+                proto=OF_MNEMONICS[constants.IPv4]["icmp_proto"],
                 icmp_type=type,
-                proto='icmp',
                 actions='resubmit(,%s)' % OF_INGRESS_TABLE)
 
-        # Allows ICMPv6 router solicitation/etc.
-        for icmpv6_type in constants.ICMPV6_ALLOWED_TYPES:
+        # Allows IPv6 MLD messages.
+        for icmpv6_type in IPV6_MLD_MESSAGES:
             self._add_flow(
                 table=OF_EGRESS_TABLE,
                 priority=OF_EGRESS_SERVICES_PRIO,
                 dl_vlan=port['vinfo']['tag'],
                 dl_src=port['mac_address'],
                 in_port=vif_port.ofport,
-                proto=ICMPv6,
-                icmp_type=icmpv6_type,
+                proto=OF_MNEMONICS[constants.IPv6]["icmp_proto"],
+                icmpv6_type=icmpv6_type,
                 actions='resubmit(,%s)' % OF_INGRESS_TABLE)
 
     def _add_ingress_allow_outbound_traffic(self, port):
@@ -460,7 +550,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             self._add_flow(
                 table=OF_INGRESS_TABLE,
                 priority=OF_INGRESS_SERVICES_PRIO,
-                proto='udp',
+                proto=constants.PROTO_NAME_UDP,
                 dl_vlan=port['vinfo']['tag'],
                 dl_dst=port['mac_address'],
                 udp_src=udp_src,
@@ -472,21 +562,21 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             self._add_flow(
                 table=OF_INGRESS_TABLE,
                 priority=OF_INGRESS_SERVICES_PRIO,
-                proto='icmp',
+                proto=OF_MNEMONICS[constants.IPv4]["icmp_proto"],
                 dl_vlan=port['vinfo']['tag'],
                 dl_dst=port['mac_address'],
                 icmp_type=type,
                 actions=self._get_ingress_actions(vif_port))
 
-        # ICMP6 RA messages.
-        for icmpv6_type in constants.ICMPV6_ALLOWED_TYPES:
+        # ICMP6 MLD messages.
+        for icmpv6_type in IPV6_MLD_MESSAGES:
             self._add_flow(
                 table=OF_INGRESS_TABLE,
                 priority=OF_INGRESS_SERVICES_PRIO,
-                proto=ICMPv6,
+                proto=OF_MNEMONICS[constants.IPv6]["icmp_proto"],
                 dl_vlan=port['vinfo']['tag'],
                 dl_dst=port['mac_address'],
-                icmp_type=icmpv6_type,
+                icmpv6_type=icmpv6_type,
                 actions=self._get_ingress_actions(vif_port))
 
         if self._enable_multicast:
@@ -513,7 +603,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 in_port=self.known_in_port_for_device.pop(port['device']))
 
     def _write_multicast_flow(self, flow, direction, port, vif_port,
-                              port_match, priority):
+                              port_match, priority, ip_version):
         """Write a flow for the manual rule, allowing multicast traffic.
             """
         # Multicast ingress traffic.
@@ -524,7 +614,10 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 and flow['proto'] in [constants.PROTO_NAME_TCP,
                                       constants.PROTO_NAME_UDP]:
             hp_flow = dict.copy(flow)
-            hp_flow['nw_dst'] = str(netaddr.ip.IPV4_MULTICAST.cidr)
+            ip_dst = str(netaddr.ip.IPV4_MULTICAST.cidr) \
+                if ip_version == constants.IPv6 \
+                else str(netaddr.ip.IPV4_MULTICAST.cidr)
+            hp_flow[OF_MNEMONICS[ip_version]['ip_dst']] = ip_dst
             hp_flow['dl_vlan'] = port['vinfo']['tag']
             hp_flow['priority'] = priority
             hp_flow['dl_dst'] = MULTICAST_MAC
@@ -675,14 +768,14 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 continue
 
             if rule['direction'] == EGRESS_DIRECTION:
-                flow['nw_src'] = fixed_ip
+                flow[OF_MNEMONICS[rule['ethertype']]['ip_src']] = fixed_ip
             elif rule['direction'] == INGRESS_DIRECTION:
-                flow['nw_dst'] = fixed_ip
+                flow[OF_MNEMONICS[rule['ethertype']]['ip_dst']] = fixed_ip
 
             # Write learn actions.
             # Default protocol: "ip". Create high priority rules
             # for TCP and UDP protocols.
-            if flow['proto'] == 'ip':
+            if flow['proto'] in ['ip', 'ipv6']:
                 for proto in [constants.PROTO_NAME_TCP,
                               constants.PROTO_NAME_UDP]:
                     hp_flow = dict.copy(flow)
@@ -710,16 +803,13 @@ class OVSFirewallDriver(firewall.FirewallDriver):
 
         # Write multicast rule.
         self._write_multicast_flow(flow, rule['direction'], port,
-                                   vif_port, port_match,
-                                   OF_LEARNED_LOW_PRIO)
+                                   vif_port, port_match, OF_LEARNED_LOW_PRIO,
+                                   rule['ethertype'])
 
     def _add_rules_flows(self, port):
         rules = self._select_sg_rules_for_port(port)
         for rule in rules:
             ethertype = rule['ethertype']
-            # TODO(ralonso): disable IPv6, it's failing.
-            if ethertype == constants.IPv6:
-                continue
             direction = rule['direction']
             protocol = rule.get('protocol')
             port_range_min = rule.get('port_range_min')
@@ -743,12 +833,12 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             if protocol:
                 if protocol == constants.PROTO_NAME_ICMP and \
                                 ethertype == constants.IPv6:
-                    flow["proto"] = ICMPv6
+                    flow["proto"] = OF_MNEMONICS[constants.IPv6]["icmp_proto"]
                 else:
                     flow["proto"] = protocol
             else:
-                # Default protocol: 'ip'
-                flow['proto'] = 'ip'
+                # Default protocol: 'ip'/'ipv6'
+                flow['proto'] = OF_MNEMONICS[ethertype]["ip_proto"]
 
             # Port range.
             port_match = ""
@@ -765,10 +855,10 @@ class OVSFirewallDriver(firewall.FirewallDriver):
 
             # Destination and source address.
             if dest_ip_prefix and dest_ip_prefix != "0.0.0.0/0":
-                flow["nw_dst"] = dest_ip_prefix
+                flow[OF_MNEMONICS[ethertype]["ip_dst"]] = dest_ip_prefix
 
             if source_ip_prefix and source_ip_prefix != "0.0.0.0/0":
-                flow["nw_src"] = source_ip_prefix
+                flow[OF_MNEMONICS[ethertype]["ip_src"]] = source_ip_prefix
 
             # Write flow.
             self._write_flows_per_ip(flow, rule, port, port_match)
