@@ -157,3 +157,8 @@ Default values for the below settings can be found in `settings` file in devstac
     Example:
     OVS_BOND_PORTS=bond0:enp9s0f0,bond0:enp9s0f1
     OVS_DPDK_PORT_MAPPINGS=bond0:br-fast
+
+**OVS_ENABLE_EXTERNAL_MULTICAST**
+    (ovs:enable_external_multicast)(True/False) When enabled, this option allows external (N/S) multicast traffic to get into the OVS and be delivered to the tenants.
+    The traffic, anyway, must match the manual rules defined by the administrator.
+

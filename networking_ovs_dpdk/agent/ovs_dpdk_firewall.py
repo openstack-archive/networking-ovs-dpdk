@@ -84,6 +84,14 @@ IP_PROTOCOL_TABLE = {constants.PROTO_NAME_TCP: constants.PROTO_NUM_TCP,
     constants.PROTO_NAME_ICMP_V6: constants.PROTO_NUM_ICMP_V6,
     constants.PROTO_NAME_UDP: constants.PROTO_NUM_UDP}
 
+MULTICAST_MAC = "01:00:5e:00:00:00/01:00:5e:00:00:00"
+
+ovs_opts = [
+    cfg.IntOpt('enable_external_multicast', default=True,
+               help=_("Allows external multicast traffic coming into OVS.")),
+]
+cfg.CONF.register_opts(ovs_opts, "OVS")
+
 
 class OVSFirewallDriver(firewall.FirewallDriver):
         """Driver which enforces security groups through
@@ -95,6 +103,8 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             self._int_br = ovs_lib.OVSBridge(cfg.CONF.OVS.integration_bridge)
             self._int_br_not_deferred = self._int_br
             self._deferred = False
+            self._enable_external_multicast = \
+                cfg.CONF.OVS.enable_external_multicast
 
             # List of security group rules for ports residing on this host
             self.sg_rules = {}
@@ -229,6 +239,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             Allows DHCP traffic to request an IP address
             Allows all internal traffic matching mac/ip to egress table.
             Allows all extenal traffic matching dst mac to ingress table.
+            Allows (if enabled) external multicast traffic to ingress table.
             """
             # Allow DHCP requests from invalid address
             self._add_flow(priority=OF_T0_EGRESS_PRIO,
@@ -264,6 +275,17 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 dl_dst=port['mac_address'],
                 actions='resubmit(,%d)'
                         % (OF_INGRESS_TABLE))
+
+            # External multicas traffic to ingress processing table,
+            # multicast mac address.
+            if self._enable_external_multicast:
+                self._add_flow(
+                    priority=OF_T0_INGRESS_PRIO,
+                    table=OF_SELECT_TABLE,
+                    dl_vlan=port['vinfo']['tag'],
+                    dl_dst=MULTICAST_MAC,
+                    actions='resubmit(,%d)'
+                            % (OF_INGRESS_TABLE))
 
         def _add_port_egress_antispoof(self, port, vif_port):
             """Set antispoof rules.
@@ -364,7 +386,6 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             """Add service rules.dl_vlan=port['vinfo']['tag'],
             Allows traffic to DHCPv4/v6 servers
             Allows specific icmp traffic (RA messages).
-            Allows
             """
             # DHCP & DHCPv6.
             for udp_src, udp_dst in [(67, 68), (547, 546)]:
@@ -423,6 +444,24 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             else:
                 self._int_br.delete_flows(
                     in_port=self.known_in_port_for_device.pop(port['device']))
+
+        def _write_flow_multicast(self, flow, direction, port, vif_port,
+                                  port_match):
+            """Write a flow for the manual rule, allowing multicast traffic.
+            """
+            # Check if multicast is enabled.
+            if self._enable_external_multicast \
+                    and direction == INGRESS_DIRECTION:
+                # Check the traffic protocol: only tcp or udp.
+                if flow['proto'] in [constants.PROTO_NAME_TCP,
+                                     constants.PROTO_NAME_UDP]:
+                    hp_flow = dict.copy(flow)
+                    hp_flow['nw_dst'] = str(netaddr.ip.IPV4_MULTICAST.cidr)
+                    hp_flow['dl_vlan'] = port['vinfo']['tag']
+                    hp_flow['dl_dst'] = MULTICAST_MAC
+                    hp_flow['actions'] = "strip_vlan,output:%(ofport)s" % \
+                        {'ofport': vif_port.ofport}
+                    self._write_flows_per_port_match(hp_flow, port_match)
 
         def _get_learn_action_rule(self, direction, priority,
                                 port_range_min, port_range_max,
@@ -594,6 +633,10 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                     rule.get('protocol'),
                     vif_port)
                 self._write_flows_per_port_match(flow, port_match)
+
+            # Write multicast rule.
+            self._write_flow_multicast(flow, rule['direction'], port,
+                                       vif_port, port_match)
 
         def _add_rules_flows(self, port):
             rules = self._select_sg_rules_for_port(port)
