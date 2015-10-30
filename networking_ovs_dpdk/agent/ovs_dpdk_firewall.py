@@ -92,7 +92,6 @@ class OVSFirewallDriver(firewall.FirewallDriver):
 
         def __init__(self):
             self._filtered_ports = {}
-            self._filtered_ports_vinfo = {}
             self._int_br = ovs_lib.OVSBridge(cfg.CONF.OVS.integration_bridge)
             self._int_br_not_deferred = self._int_br
             self._deferred = False
@@ -167,31 +166,38 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             pass
 
         def _add_flow(self, *args, **kwargs):
+            LOG.debug("OFW add rule: %s", kwargs)
             self._int_br.add_flow(*args, **kwargs)
 
-        def _add_base_flows(self, port, vif_port, segmentation_id):
+        def _add_base_flows(self, port, vif_port):
             """Set base flows for every port."""
-            self._add_zero_table(port, vif_port, segmentation_id)
+            self._add_zero_table(port, vif_port)
+            self._add_selection_table(port, vif_port)
             self._add_port_block_traffic_default(port)
-            self._add_port_egress(port, vif_port)
             self._add_port_egress_antispoof(port, vif_port)
             self._add_port_egress_services(port, vif_port)
             self._add_port_ingress_allow_outbound_traffic(port)
             self._add_port_ingress_services(port, vif_port)
 
-        def _add_zero_table(self, port, vif_port, segmentation_id):
+        def _add_zero_table(self, port, vif_port):
             """Set arp flows. The rest of the traffic is sent to
             SELECT_TABLE.
             """
+            segmentation_id = port['vinfo']['segmentation_id']
+
             # ARP traffic to be delivered to an internal port.
             for fixed_ip in port['fixed_ips']:
+                # TODO(ralonsoh): arp for IPv6 is different.
+                # IPv6 it's not working now.
+                if self._ip_version_from_address(fixed_ip) != constants.IPv4:
+                    continue
                 self._add_flow(priority=OF_T0_ARP_INT_PRIO,
-                               table=OF_ZERO_TABLE,
-                               proto='arp',
-                               dl_vlan=segmentation_id,
-                               nw_dst=fixed_ip,
-                               actions='strip_vlan,output:%s'
-                                       % vif_port.ofport)
+                    table=OF_ZERO_TABLE,
+                    proto='arp',
+                    dl_vlan=segmentation_id,
+                    nw_dst=fixed_ip,
+                    actions='strip_vlan,output:%s'
+                        % vif_port.ofport)
 
             # In port ARP messages to be delivered out from br-int.
             self._add_flow(
@@ -200,47 +206,51 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 proto='arp',
                 actions='normal')
 
-            # Incoming internal traffic.
+            # Incoming internal traffic: check mac, mod vlan.
             self._add_flow(priority=OF_T0_SELECT_TABLE_IN_PRIO,
-                        table=OF_ZERO_TABLE,
-                        dl_src=port['mac_address'],
-                        actions="mod_vlan_vid:%s,"
-                                "load:0->NXM_NX_REG0[0..11],"
-                                "resubmit(,%s)"
-                                % (port['zone_id'], OF_SELECT_TABLE))
+                           table=OF_ZERO_TABLE,
+                           dl_src=port['mac_address'],
+                           actions="mod_vlan_vid:%s,"
+                                   "load:0->NXM_NX_REG0[0..11],"
+                                   "resubmit(,%s)"
+                                   % (port['vinfo']['tag'], OF_SELECT_TABLE))
 
-            # Incoming external traffic.
+            # Incoming external traffic: check external vlan tag, mod vlan.
             self._add_flow(priority=OF_T0_SELECT_TABLE_EXT_PRIO,
                            table=OF_ZERO_TABLE,
                            dl_vlan=segmentation_id,
                            actions="mod_vlan_vid:%s,"
                                    "load:1->NXM_NX_REG0[0..11],"
                                    "resubmit(,%s)"
-                                   % (port['zone_id'], OF_SELECT_TABLE))
+                                   % (port['vinfo']['tag'], OF_SELECT_TABLE))
 
-        def _add_port_egress(self, port, vif_port):
-            """Set egress basic rules.
-            Allow DHCP traffic to request an IP address, send all
-            traffic matching mac/ip to egress table and allow arp.
+        def _add_selection_table(self, port, vif_port):
+            """Set traffic selection basic rules.
+            Allows DHCP traffic to request an IP address
+            Allows all internal traffic matching mac/ip to egress table.
+            Allows all extenal traffic matching dst mac to ingress table.
             """
             # Allow DHCP requests from invalid address
             self._add_flow(priority=OF_T0_EGRESS_PRIO,
                            table=OF_SELECT_TABLE,
                            in_port=vif_port.ofport,
                            proto='ip',
-                           dl_vlan=port['zone_id'],
+                           dl_vlan=port['vinfo']['tag'],
                            dl_src=port['mac_address'],
                            nw_src='0.0.0.0',
                            actions="resubmit(,%s)"
                                    % (OF_EGRESS_TABLE))
 
             for fixed_ip in port['fixed_ips']:
+                # TODO(ralonsoh): IPv6 it's not working now.
+                if self._ip_version_from_address(fixed_ip) != constants.IPv4:
+                    continue
                 # Jump to egress table per port+ip pair on know mac
                 self._add_flow(priority=OF_T0_EGRESS_PRIO,
                                table=OF_SELECT_TABLE,
                                in_port=vif_port.ofport,
                                proto='ip',
-                               dl_vlan=port['zone_id'],
+                               dl_vlan=port['vinfo']['tag'],
                                dl_src=port['mac_address'],
                                nw_src=fixed_ip,
                                actions='resubmit(,%s)' %
@@ -250,7 +260,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             self._add_flow(
                 priority=OF_T0_INGRESS_PRIO,
                 table=OF_SELECT_TABLE,
-                dl_vlan=port['zone_id'],
+                dl_vlan=port['vinfo']['tag'],
                 dl_dst=port['mac_address'],
                 actions='resubmit(,%d)'
                         % (OF_INGRESS_TABLE))
@@ -265,7 +275,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                            table=OF_EGRESS_TABLE,
                            in_port=vif_port.ofport,
                            proto='udp',
-                           dl_vlan=port['zone_id'],
+                           dl_vlan=port['vinfo']['tag'],
                            udp_src=67,
                            udp_dst=68,
                            actions='drop')
@@ -275,7 +285,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                            table=OF_EGRESS_TABLE,
                            in_port=vif_port.ofport,
                            proto='udp',
-                           dl_vlan=port['zone_id'],
+                           dl_vlan=port['vinfo']['tag'],
                            udp_src=547,
                            udp_dst=546,
                            actions='drop')
@@ -289,7 +299,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 self._add_flow(
                     table=OF_EGRESS_TABLE,
                     priority=OF_EGRESS_SERVICES_PRIO,
-                    dl_vlan=port['zone_id'],
+                    dl_vlan=port['vinfo']['tag'],
                     dl_src=port['mac_address'],
                     in_port=vif_port.ofport,
                     proto='udp',
@@ -297,23 +307,23 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                     udp_dst=udp_dst,
                     actions='resubmit(,%s)' % OF_INGRESS_TABLE)
 
-            # Allow ICMP router solicitation/etc.
+            # Allows ICMP router solicitation/etc.
             for type in [9, 10]:
                 self._add_flow(
                     table=OF_EGRESS_TABLE,
                     priority=OF_EGRESS_SERVICES_PRIO,
-                    dl_vlan=port['zone_id'],
+                    dl_vlan=port['vinfo']['tag'],
                     dl_src=port['mac_address'],
                     icmp_type=type,
                     proto='icmp',
                     actions='resubmit(,%s)' % OF_INGRESS_TABLE)
 
-            # Allow ICMPv6 router solicitation/etc.
+            # Allows ICMPv6 router solicitation/etc.
             for icmpv6_type in constants.ICMPV6_ALLOWED_TYPES:
                 self._add_flow(
                     table=OF_EGRESS_TABLE,
                     priority=OF_EGRESS_SERVICES_PRIO,
-                    dl_vlan=port['zone_id'],
+                    dl_vlan=port['vinfo']['tag'],
                     dl_src=port['mac_address'],
                     in_port=vif_port.ofport,
                     proto=ICMPv6,
@@ -321,7 +331,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                     actions='resubmit(,%s)' % OF_INGRESS_TABLE)
 
         def _add_port_ingress_allow_outbound_traffic(self, port):
-            """Allow ingress outbound traffic.
+            """Allows ingress outbound traffic.
             By default, all ingress traffic not matching any internal port
             in the bridge is sent to the external ports.
             """
@@ -330,15 +340,15 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             self._add_flow(
                 table=OF_INGRESS_TABLE,
                 priority=OF_INGRESS_OUTBOUND_PRIO,
-                dl_vlan=port['zone_id'],
+                dl_vlan=port['vinfo']['tag'],
                 actions='resubmit(,%s)' % OF_INGRESS_EXT_TABLE)
 
-            # Block all traffic in this table if it's for an internal
+            # Blocks all traffic in this table if it's for an internal
             # port (mac address).
             self._add_flow(
                 table=OF_INGRESS_EXT_TABLE,
                 priority=OF_INGRESS_EXT_BLOCK_INT_MAC_PRIO,
-                dl_vlan=port['zone_id'],
+                dl_vlan=port['vinfo']['tag'],
                 dl_dst=port['mac_address'],
                 actions='drop')
 
@@ -347,12 +357,14 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             self._add_flow(
                 table=OF_INGRESS_EXT_TABLE,
                 priority=OF_INGRESS_EXT_ALLOW_EXT_TRAFFIC_PRIO,
-                dl_vlan=port['zone_id'],
+                dl_vlan=port['vinfo']['tag'],
                 actions='strip_vlan,normal')
 
         def _add_port_ingress_services(self, port, vif_port):
-            """Add service rules.dl_vlan=port['zone_id'],
-            Allows traffic to DHCPv4/v6 servers; allows icmp traffic.
+            """Add service rules.dl_vlan=port['vinfo']['tag'],
+            Allows traffic to DHCPv4/v6 servers
+            Allows specific icmp traffic (RA messages).
+            Allows
             """
             # DHCP & DHCPv6.
             for udp_src, udp_dst in [(67, 68), (547, 546)]:
@@ -360,7 +372,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                     table=OF_INGRESS_TABLE,
                     priority=OF_INGRESS_SERVICES_PRIO,
                     proto='udp',
-                    dl_vlan=port['zone_id'],
+                    dl_vlan=port['vinfo']['tag'],
                     dl_dst=port['mac_address'],
                     udp_src=udp_src,
                     udp_dst=udp_dst,
@@ -372,7 +384,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                     table=OF_INGRESS_TABLE,
                     priority=OF_INGRESS_SERVICES_PRIO,
                     proto='icmp',
-                    dl_vlan=port['zone_id'],
+                    dl_vlan=port['vinfo']['tag'],
                     dl_dst=port['mac_address'],
                     icmp_type=type,
                     actions=self._get_ingress_actions(vif_port))
@@ -383,7 +395,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                     table=OF_INGRESS_TABLE,
                     priority=OF_INGRESS_SERVICES_PRIO,
                     proto=ICMPv6,
-                    dl_vlan=port['zone_id'],
+                    dl_vlan=port['vinfo']['tag'],
                     dl_dst=port['mac_address'],
                     icmp_type=icmpv6_type,
                     actions=self._get_ingress_actions(vif_port))
@@ -396,7 +408,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 priority=OF_DROP_TRAFFIC_PRIO,
                 table=OF_SELECT_TABLE,
                 proto='ip',
-                dl_vlan=port['zone_id'],
+                dl_vlan=port['vinfo']['tag'],
                 actions='drop')
 
         def _get_ingress_actions(self, vif_port):
@@ -542,6 +554,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             vif_port = self._int_br_not_deferred.get_vif_port_by_id(
                 port['device'])
 
+            # Write a rule(s) per ip.
             for fixed_ip in port['fixed_ips']:
                 # Check if the rule and the IP address have the same version.
                 if rule['ethertype'] != \
@@ -569,7 +582,6 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                             rule['ethertype'],
                             proto,
                             vif_port)
-                        LOG.debug("OFW rule %s flow %s", rule, hp_flow)
                         self._write_flows_per_port_match(hp_flow, port_match)
 
                 # Write normal "learn action" for every flow.
@@ -581,13 +593,15 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                     rule['ethertype'],
                     rule.get('protocol'),
                     vif_port)
-                LOG.debug("OFW rule %s flow %s", rule, flow)
                 self._write_flows_per_port_match(flow, port_match)
 
         def _add_rules_flows(self, port):
             rules = self._select_sg_rules_for_port(port)
             for rule in rules:
                 ethertype = rule['ethertype']
+                # TODO(ralonso): disable IPv6, it's failing.
+                if ethertype == constants.IPv6:
+                    continue
                 direction = rule['direction']
                 protocol = rule.get('protocol')
                 port_range_min = rule.get('port_range_min')
@@ -649,13 +663,10 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                       port)
             vif_port = self._int_br_not_deferred.get_vif_port_by_id(
                 port['device'])
+            port['vinfo'] = self._vif_port_info(vif_port.port_name)
             self._filtered_ports[port['device']] = port
-            self._filtered_ports_vinfo[port['device']] = \
-                self._vif_port_info(vif_port.port_name)
-            segmentation_id = \
-                self._filtered_ports_vinfo[port['device']]['segmentation_id']
             self._remove_flows(port, vif_port)
-            self._add_base_flows(port, vif_port, segmentation_id)
+            self._add_base_flows(port, vif_port)
             self.known_in_port_for_device[port['device']] = vif_port.ofport
 
         def update_port_filter(self, port):
@@ -669,13 +680,10 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             old_port = self._filtered_ports[port['device']]
             vif_port = self._int_br_not_deferred.get_vif_port_by_id(
                 port['device'])
+            port['vinfo'] = self._vif_port_info(vif_port.port_name)
             self._filtered_ports[port['device']] = port
-            self._filtered_ports_vinfo[port['device']] = \
-                self._vif_port_info(vif_port.port_name)
-            segmentation_id = \
-                self._filtered_ports_vinfo[port['device']]['segmentation_id']
             self._remove_flows(old_port, vif_port)
-            self._add_base_flows(port, vif_port, segmentation_id)
+            self._add_base_flows(port, vif_port)
             self.known_in_port_for_device[port['device']] = vif_port.ofport
 
         def remove_port_filter(self, port):
@@ -689,7 +697,6 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 port['device'])
             self._remove_flows(port, vif_port)
             self._filtered_ports.pop(port['device'])
-            self._filtered_ports_vinfo.pop(port['device'])
 
         def filter_defer_apply_on(self):
             LOG.debug("OFW defer_apply_on")
@@ -701,14 +708,14 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         def filter_defer_apply_off(self):
             LOG.debug("OFW defer_apply_off")
             if self._deferred:
+                for port in self.ports.values():
+                    self._add_rules_flows(port)
                 for table in [OF_ZERO_TABLE,
                               OF_SELECT_TABLE,
                               OF_EGRESS_TABLE,
                               OF_INGRESS_TABLE,
                               OF_INGRESS_EXT_TABLE]:
-                    self._int_br_not_deferred.dump_flows_for_table(table)
-                for port in self.ports.values():
-                    self._add_rules_flows(port)
+                    self._int_br_not_deferred.delete_flows(table=table)
                 self._apply_flows()
                 self._deferred = False
 
