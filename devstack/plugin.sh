@@ -40,9 +40,15 @@ fi
                 "post-config")
                     set_vcpu_pin_set
                     set_agent_type
+                    if [ $OVS_DPDK_INSTALL == 'True' ]; then
+                        iniset /$Q_PLUGIN_CONF_FILE ovs vhostuser_socket_dir $OVS_DB_SOCKET_DIR
+                    fi
+                    ovs_dpdk_configure_firewall_driver
                 ;;
                 "extra")
                     # no-op
+                    # Multicast support.
+                    configure_multicast
                     :
                 ;;
             esac
