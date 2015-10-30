@@ -383,6 +383,10 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
             mock.call(priority=100, table=OF_SELECT_TABLE,
                       dl_dst=port['mac_address'], dl_vlan=TAG_ID,
                       actions='resubmit(,%s)' % OF_INGRESS_TABLE),
+            mock.call(priority=100, table=OF_SELECT_TABLE,
+                      dl_dst='01:00:5e:00:00:00/01:00:5e:00:00:00',
+                      dl_vlan=TAG_ID, actions='resubmit(,%s)'
+                      % OF_INGRESS_TABLE),
             mock.call(priority=50, table=OF_SELECT_TABLE,
                       dl_vlan=TAG_ID, actions='drop', proto='ip'),
             mock.call(actions='drop', in_port=port['ofport'], priority=40,

@@ -144,16 +144,7 @@ Default values for the below settings can be found in `settings` file in devstac
     e.g. OVS_TUNNEL_CIDR_MAPPING=br-phy:192.168.50.1/24 asignes the ip of 192.168.50.1 with subnetmask 255.255.255.0 to the br-phy local port.
     This is required to enabled vxlan or other tunneling protocals with ovs-dpdk and dpdk phyical ports.
 
-**OVS_BOND_MODE**
-    (bond:bond_type) comma separated list of bond to mode mappings. Should be used together with OVS_BOND_PORTS.
-    bond_mode is optional, one of active-backup, balance-tcp or balance-slb.
-    Defaults to active-backup if unset.
-    Example:
-    OVS_BOND_MODE=bond0:active-backup,bond1:balance-slb
+**OVS_ENABLE_EXTERNAL_MULTICAST** 147 
+    (ovs:enable_external_multicast)(True/False) When enabled, this option allows external (N/S) multicast traffic to get into the OVS and be delivered to the tenants.
+    The traffic, anyway, must match the manual rules defined by the administrator.
 
-**OVS_BOND_PORTS**
-    (bond:nic) comma separated list of bond to NIC mappings. Specified NIC interfaces will be added as dpdk ports to OVS.
-    it's also required that user specify bridge for particular bonds in OVS_DPDK_PORT_MAPPINGS, relevant nic's will be added automatically
-    Example:
-    OVS_BOND_PORTS=bond0:enp9s0f0,bond0:enp9s0f1
-    OVS_DPDK_PORT_MAPPINGS=bond0:br-fast
