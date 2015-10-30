@@ -143,3 +143,7 @@ Default values for the below settings can be found in `settings` file in devstac
     (bridge:cidr) When spcifed this option enables automatic assignment of the tunnel endpoint ip to a specific interface.
     e.g. OVS_TUNNEL_CIDR_MAPPING=br-phy:192.168.50.1/24 asignes the ip of 192.168.50.1 with subnetmask 255.255.255.0 to the br-phy local port.
     This is required to enabled vxlan or other tunneling protocals with ovs-dpdk and dpdk phyical ports.
+
+**OVS_ENABLE_EXTERNAL_MULTICAST**
+       (ovs:enable_external_multicast)(True/False) When enabled, this option allows external (N/S) multicast traffic to get into the OVS and be delivered to the tenants.
+       The traffic, anyway, must match the manual rules defined by the administrator.
