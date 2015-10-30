@@ -186,3 +186,17 @@ Default values for the below settings can be found in `settings` file in devstac
     (array) List of port name:PCI address mappings. By default this is unset and the value is determined by OVS_DPDK_PORT_MAPPINGS.
 
     Example: OVS_PCI_MAPPINGS=0000:02:00.0#ens785f0
+    e.g. OVS_TUNNEL_CIDR_MAPPING=br-phy:192.168.50.1/24 asignes the ip of 192.168.50.1 with subnetmask 255.255.255.0 to the br-phy local port.
+    This is required to enabled vxlan or other tunneling protocals with ovs-dpdk and dpdk phyical ports.
+
+**OVS_ENABLE_SG_FIREWALL_MULTICAST**
+    (ovs:enable_sg_firewall_multicast)(True/False) When enabled, using the OVS Security Group firewall, this option allows multicast traffic to get into the OVS and be delivered to the tenants.
+    The traffic, anyway, must match the manual rules defined by the administrator.
+
+    Default: True
+
+**OVS_MULTICAST_SNOOPING_AGING_TIME**
+    (number) Defines the maximun time a multicast subscription will be alive in the multicast table os a OVS bridge.
+    The count starts when a IGMP subscription packet from a port is read by a bridge. During this time, all multicast packets to this multicast group will be delivered to this port. If the count finish or a leave group packet is sent, the register for this port in the multicast table will be deleted.
+
+    Default: 3600
