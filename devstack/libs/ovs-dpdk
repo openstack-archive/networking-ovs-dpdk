@@ -407,6 +407,9 @@ function ovs_dpdk_configure_debug_command {
 
 function ovs_dpdk_configure_firewall_driver {
     iniset /$Q_PLUGIN_CONF_FILE securitygroup firewall_driver neutron.agent.firewall.NoopFirewallDriver
+    if [[ -z "$OVS_ENABLE_EXTERNAL_MULTICAST" ]]; then
+        iniset /$Q_PLUGIN_CONF_FILE ovs enable_external_multicast $OVS_ENABLE_EXTERNAL_MULTICAST
+    fi
 }
 
 function ovs_dpdk_configure_l3_agent {
