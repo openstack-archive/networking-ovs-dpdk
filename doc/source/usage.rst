@@ -157,3 +157,35 @@ Default values for the below settings can be found in `settings` file in devstac
     Example:
     OVS_BOND_PORTS=bond0:enp9s0f0,bond0:enp9s0f1
     OVS_DPDK_PORT_MAPPINGS=bond0:br-fast
+
+**RTE_TARGET**
+    (directory) Points to the DPDK target environment directory in the OVS_DPDK_DIR.
+
+    Default: x86_64-native-linuxapp-gcc
+
+**OVS_DPDK_MEM_SEGMENTS**
+    (number) Defines the maximum number of memory segments that DPDK can use while requesting hugepages.
+
+    Default: 256
+
+**OVS_PCI_MAPPINGS**
+    (array) List of port name:PCI address mappings. By default this is unset and the value is determined by OVS_DPDK_PORT_MAPPINGS.
+
+    Example: OVS_PCI_MAPPINGS=0000:02:00.0#ens785f0
+
+**OVS_DPDK_SERVICE_DEBUG_OUTPUT**
+    (True|False) Defines if OVS-DPDK service should be executed with debug output.
+
+    Default: False
+
+**OVS_ENABLE_SG_FIREWALL_MULTICAST**
+    (ovs:enable_sg_firewall_multicast)(True/False) When enabled, using the OVS Security Group firewall, this option allows multicast traffic to get into the OVS and be delivered to the tenants.
+    The traffic, anyway, must match the manual rules defined by the administrator.
+
+    Default: False
+
+**OVS_MULTICAST_SNOOPING_AGING_TIME**
+    (number) Defines the maximun time (in seconds) a multicast subscription will be alive in the multicast table os a OVS bridge.
+    The count starts when a IGMP subscription packet from a port is read by a bridge. During this time, all multicast packets to this multicast group will be delivered to this port. If the count finish or a leave group packet is sent, the register for this port in the multicast table will be deleted.
+
+    Default: 3600
