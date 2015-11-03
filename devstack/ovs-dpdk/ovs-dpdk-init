@@ -58,7 +58,7 @@ init_db(){
     sudo $OVS_INSTALL_DIR/bin/ovsdb-tool create ${OVS_DB_CONF}   ${OVS_INSTALL_DIR}/share/openvswitch/vswitch.ovsschema
     sudo ${OVS_INSTALL_DIR}/sbin/ovsdb-server ${OVS_DB_CONF} --detach --pidfile=$OVS_LOG_DIR/ovsdb-server.pid  --remote=punix:$OVS_DB_SOCKET --remote=db:Open_vSwitch,Open_vSwitch,manager_options
     sudo ovs-vsctl --db=unix:$OVS_DB_SOCKET --no-wait init
-    sudo ovs-vsctl --no-wait set Open_vSwitch . other_config:pmd-cpu-mask=$OVS_PMD_CORE_MASK
+    sudo ovs-vsctl --db=unix:$OVS_DB_SOCKET --no-wait set Open_vSwitch . other_config:pmd-cpu-mask=$OVS_PMD_CORE_MASK
 }
 
 
