@@ -131,6 +131,12 @@ while [ $# -gt 0 ]; do
                 shift
 
         fi
+        if [[ $1 == virtio-net-pci* ]]; then
+                args[i]=${1},${VIRTIO_OPTIONS}
+                (( i++))
+                shift
+
+        fi
         ;;
     -object)
         args[i]="$1"
