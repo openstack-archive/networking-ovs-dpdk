@@ -13,30 +13,18 @@ is_ubuntu(){
     fi
 }
 
-# Prints line number and "message" in error format
-# err $LINENO "message"
-err() {
-    local exitcode=$?
+# Print line number and "message" then exits with return value from $1
+# die "error_code" $LINENO "message"
+die() {
+    local exitcode=$1
     errXTRACE=$(set +o | grep xtrace)
     set +o xtrace
-    local msg="[ERROR] ${BASH_SOURCE[2]}:$1 $2"
+    local msg="[ERROR] ${BASH_SOURCE[2]}:$2 $3"
     echo $msg 1>&2;
     if [[ -n ${SCREEN_LOGDIR} ]]; then
         echo $msg >> "${SCREEN_LOGDIR}/error.log"
     fi
     $errXTRACE
-    return $exitcode
-}
-
-# Prints line number and "message" then exits
-# die $LINENO "message"
-die() {
-    local exitcode=$?
-    set +o xtrace
-    local line=$1; shift
-     err $line "$*"
-    # Give buffers a second to flush
-    sleep 1
     exit $exitcode
 }
 
@@ -101,8 +89,7 @@ load_igb_uio_module(){
     echo "Loading DPDK UIO module"
     sudo insmod $RTE_SDK/$RTE_TARGET/kmod/igb_uio.ko
     if [ $? -ne 0 ] ; then
-        echo "## ERROR: Could not load kmod/igb_uio.ko."
-        exit 1
+        die 1 $LINENO "## ERROR: Could not load kmod/igb_uio.ko."
     fi
 }
 
@@ -274,14 +261,14 @@ check_nic_presence () {
     if [[ "$interfaces" =~ ": $nic: " ]]; then
         return 0
     fi
-    die "The nic interface $nic is not present in the system"
+    die 2 $LINENO "The nic interface $nic is not present in the system"
 }
 
 
 find_bridge() {
     # Check argument is supplied.
     if [[ -z "$1" ]]; then
-        die 'No argument supplied, nic expected'
+        die 3 $LINENO "No argument supplied, nic expected"
     fi
     if [[ -z "$2" ]]; then
         # OVS_DPDK_PORT_MAPPINGS not present, use the nic interface name
@@ -308,7 +295,7 @@ find_bridge() {
 add_bridges() {
     # Check argument is supplied.
     if [[ -z "$1" ]]; then
-        die 'No argument supplied, OVS_BRIDGE_MAPPINGS expected'
+        die 4 $LINENO "No argument supplied, OVS_BRIDGE_MAPPINGS expected"
     fi
 
     # Adds the OVS bridge, given the mapping list OVS_BRIDGE_MAPPINGS.
@@ -324,7 +311,7 @@ add_bridges() {
 bind_nic_2_ovsdriver() {
     # Check argument is supplied.
     if [[ -z "$1" ]]; then
-        die 'No argument supplied, PCI_ARRAY[@] expected'
+        die 5 $LINENO "No argument supplied, PCI_ARRAY[@] expected"
     fi
 
     list=("$@")
@@ -385,7 +372,7 @@ alloc_hugepages() {
     sudo mkdir -p $OVS_HUGEPAGE_MOUNT
 
     if [ $OVS_NUM_HUGEPAGES -eq 0 ]; then
-        die $LINENO "OVS_NUM_HUGEPAGES not set"
+        die 6 $LINENO "OVS_NUM_HUGEPAGES not set"
     fi
     grep -ws $OVS_HUGEPAGE_MOUNT /proc/mounts > /dev/null
 
@@ -548,7 +535,7 @@ start_ovs(){
         if [ -n "$OVS_LOCK_DIR" ]; then
             sudo rm -rf $OVS_LOCK_DIR
         fi
-        die $LINENO "ovs-vswitchd application failed to start $PID"
+        die 7 $LINENO "ovs-vswitchd application failed to start $PID"
     fi
     while [ ! $(grep "unix.*connected" ${OVS_LOG_DIR}/ovs-vswitchd.log) ]; do
         PID=$(pidof ovs-vswitchd)
@@ -560,7 +547,7 @@ start_ovs(){
             if [ -n "$OVS_LOCK_DIR" ]; then
                 sudo rm -rf $OVS_LOCK_DIR
             fi
-            die $LINENO "ovs-vswitchd application failed to start $PID"
+            die 8 $LINENO "ovs-vswitchd application failed to start $PID"
         fi
     done
     sudo rm -rf $OVS_LOCK_DIR
@@ -577,7 +564,7 @@ start_ovs(){
             ip link show $bridge
         done
         if [[ $counter -ge 120 ]]; then
-            die $LINENO "Interface $bridge not created!"
+            die 9 $LINENO "Interface $bridge not created!"
         fi
         sudo ip addr add $cidr dev $bridge
         sudo ip link set $bridge up
