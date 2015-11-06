@@ -5,7 +5,7 @@ if [ "$VERBOSE" == 'True' ]; then
 fi
 
     # Initial source of lib script
-    source $NETWOKING_OVS_DPDK_DIR/devstack/libs/ovs-dpdk
+    source $NETWORKING_OVS_DPDK_DIR/devstack/libs/ovs-dpdk
 
     case $1 in
         "stack")
@@ -25,14 +25,14 @@ fi
                         echo_summary "Configuring, installing and starting OVS DPDK"
                         update_ovs_pmd_core_mask
                         install_ovs_dpdk
-                        pushd $NETWOKING_OVS_DPDK_DIR
+                        pushd $NETWORKING_OVS_DPDK_DIR
                         sudo python setup.py install
                         popd
                         start_ovs_dpdk
                     else
                         echo_summary "OVS_DPDK_INSTALL configured for not to install OVS DPDK"
                         echo_summary "Agent & ovsdpdk mechanism driver has to be built anyway"
-                        pushd $NETWOKING_OVS_DPDK_DIR
+                        pushd $NETWORKING_OVS_DPDK_DIR
                         sudo python setup.py install
                         popd
                     fi
