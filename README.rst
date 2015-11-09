@@ -6,7 +6,7 @@ A Collection of Agents and Drivers to support managing DPDK accelerated Open vSw
 
 * Free software: Apache license
 * Source: http://git.openstack.org/cgit/stackforge/networking-ovs-dpdk
-* Installtion: http://git.openstack.org/cgit/stackforge/networking-ovs-dpdk/tree/stable/kilo/doc/source/installation.rst
+* Installtion: http://git.openstack.org/cgit/stackforge/networking-ovs-dpdk/tree/stable/kilo/doc/source/getstarted/
 * Example local.conf: http://git.openstack.org/cgit/stackforge/networking-ovs-dpdk/tree/stable/kilo/doc/source/_downloads/local.conf_example
 * Usage: http://git.openstack.org/cgit/stackforge/networking-ovs-dpdk/tree/stable/kilo/doc/source/usage.rst
 * Bugs: http://bugs.launchpad.net/networking-ovs-dpdk
