@@ -21,12 +21,12 @@ Hardware
 
 Software
 ========
-- Fedora 21 server
-- Kernel version 3.19.7-200.fc21.x86_64
+- CentOS-7-x86_64-Minimal-1503-01
+- Kernel version 3.10.0-229.14.1.el7.x86_64
 
 Pre-requisites
 ==============
-- Fedora 21 server fresh installation
+- CentOS 7 minimal fresh installation
 - A non root user
 - VT-d enabled in BIOS
 - VT-x enabled in BIOS
@@ -64,30 +64,14 @@ privileges for this.
 | sudo cat /etc/sudoers
 | <USER> ALL=(ALL) NOPASSWD: ALL
 
-Relax SELINUX control
-=====================
-| sudo cat /etc/selinux/config
-| SELINUX=permissive
-
 Downgrade kernel
 ================
-DPDK currently supports kernel versions up to 3.19. This guide details
-downgrading the kernel to version version 3.19.7-200.fc21.x86_64.
-
-Download and install required kernel packages
-
-| sudo yum install -y https://kojipkgs.fedoraproject.org//packages/kernel/3.19.7/200.fc21/x86_64/kernel-core-3.19.7-200.fc21.x86_64.rpm
-| sudo yum install -y https://kojipkgs.fedoraproject.org//packages/kernel/3.19.7/200.fc21/x86_64/kernel-modules-3.19.7-200.fc21.x86_64.rpm
-| sudo yum install -y https://kojipkgs.fedoraproject.org//packages/kernel/3.19.7/200.fc21/x86_64/kernel-3.19.7-200.fc21.x86_64.rpm
-| sudo yum install -y https://kojipkgs.fedoraproject.org//packages/kernel/3.19.7/200.fc21/x86_64/kernel-modules-extra-3.19.7-200.fc21.x86_64.rpm
-| sudo yum install -y https://kojipkgs.fedoraproject.org//packages/kernel/3.19.7/200.fc21/x86_64/kernel-headers-3.19.7-200.fc21.x86_64.rpm
-| sudo yum install -y https://kojipkgs.fedoraproject.org//packages/kernel/3.19.7/200.fc21/x86_64/kernel-devel-3.19.7-200.fc21.x86_64.rpm
-
-Modify grub to boot into the required kernel version and reboot.
+DPDK 2.1 has issues with kernel versions later than 3.19 due to changes in
+kernel synchronization mechanisms.
 
 Internal proxy config
 =====================
-If you are working behind a proxy, you will need complete the following steps
+If you are working behind a proxy, you will need to complete the following steps
 to provide git and yum with access to the outside world.
 
 Configure yum proxy:
@@ -126,35 +110,20 @@ Export these variables
 Install required packages
 -------------------------
 Devstack will pull down the required packages, but for the initial clone we need
-git and socat.
+git, socat, kernel-devel and redhat-lsb-core and update all packages for yum.
 
-| sudo yum install -y git socat
+| sudo yum install -y kernel-devel git socat redhat-lsb-core
+| sudo yum update
+
+The system will need to be rebooted for the changes to take effect.
+| sudo reboot
 
 Libvirt configuration
 ---------------------
-Some libvirt configurations are required for DPDK support, but first we need
-to install libvirt.
-
-| sudo yum install -y libvirt
-
-Modify your libvirt config file to include the following:
-
-| sudo cat /etc/libvirt/qemu.conf
-
-| cgroup_controllers = [ "cpu", "devices", "memory", "blkio", "cpuset", "cpuacct" ]
-| cgroup_device_acl = [
-|  "/dev/null", "/dev/full", "/dev/zero",
-|  "/dev/random", "/dev/urandom",
-|  "/dev/ptmx", "/dev/kvm", "/dev/kqemu",
-|  "/dev/rtc", "/dev/hpet","/dev/net/tun",
-|  "/mnt/huge", "/dev/vhost-net","/dev/vfio/vfio"
-| ]
-
-| hugetlbfs_mount = "/mnt/huge"
-
-Restart libvirtd
-
-| sudo service libvirtd restart
+Libvirt and qemu on CentOS 7 are out of date for networking-ovs-dpdk.
+As a result libvirt will be uninstalled and reinstalled from binaries
+which are downloaded from repos.fedorapeople.org and cbs.centos.org.
+the binaries are downloaded if they are not present or while RECLONE is true.
 
 Devstack configuration
 ----------------------
@@ -163,7 +132,7 @@ Clone the devstack repo.
 | cd ~
 | git clone https://github.com/openstack-dev/devstack.git
 
-When you have cloned devstack, the next step is to configure you controller
+When you have cloned devstack, the next step is to configure your controller
 and compute nodes.
 
 Here are some local.conf examples based on the topology described above.
@@ -191,15 +160,3 @@ OVS-DPDK you will need to create a flavor that requests hugepages.
 | cd /home/<USER>/devstack
 | source openrc admin demo
 | nova flavor-key <FLAVOR> set hw:mem_page_size=large
-
-
-
-
-
-
-
-
-
-
-
-
