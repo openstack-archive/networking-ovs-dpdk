@@ -6,7 +6,7 @@ This document describes how to use OVS-DPDK with devstack as well as configurati
 
 To use networking-ovs-dpdk with devstack add the below to local.conf::
 
-    enable_plugin networking-ovs-dpdk https://github.com/stackforge/networking-ovs-dpdk master
+    enable_plugin networking-ovs-dpdk https://github.com/openstack/networking-ovs-dpdk master
 
 
 Note: Virtual Machines using vhost-user need to be backed by hugepages.
