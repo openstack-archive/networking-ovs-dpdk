@@ -3,7 +3,7 @@ if [ "$VERBOSE" == "False" ]; then
     set -o xtrace
 fi
 
-NETWOKING_OVS_DPDK_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd .. && pwd )
+NETWORKING_OVS_DPDK_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd .. && pwd )
 
 #dpdk settings
 OVS_DPDK_MODE=${OVS_DPDK_MODE:-''}

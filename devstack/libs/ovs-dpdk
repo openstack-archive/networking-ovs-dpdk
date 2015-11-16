@@ -243,7 +243,7 @@ function build_ovs_dpdk(){
 }
 
 function ovs_dpdk_write_conf {
-    sudo cp $NETWOKING_OVS_DPDK_DIR/devstack/ovs-dpdk/ovs-dpdk-conf /etc/default/ovs-dpdk
+    sudo cp $NETWORKING_OVS_DPDK_DIR/devstack/ovs-dpdk/ovs-dpdk-conf /etc/default/ovs-dpdk
 
     OVS_ALLOCATE_HUGEPAGES=$(trueorfalse True OVS_ALLOCATE_HUGEPAGES)
 
@@ -431,7 +431,7 @@ function install_ovs_dpdk {
 
     build_ovs_dpdk
 
-    sudo cp $NETWOKING_OVS_DPDK_DIR/devstack/ovs-dpdk/ovs-dpdk-init /etc/init.d/ovs-dpdk
+    sudo cp $NETWORKING_OVS_DPDK_DIR/devstack/ovs-dpdk/ovs-dpdk-init /etc/init.d/ovs-dpdk
     ovs_dpdk_write_conf
     ovs_dpdk_create_kvm_wrapper
 
