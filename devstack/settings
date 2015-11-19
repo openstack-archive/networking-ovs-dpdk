@@ -101,18 +101,18 @@ else
     OVS_DPDK_INSTALL=$(trueorfalse True OVS_DPDK_INSTALL)
 fi
 
-# append ovsdpdk mechanism driver if needed
+# append ovs mechanism driver if needed
 if [ "$OVS_DPDK_MODE" != "compute" ]; then
     arr=$(echo $Q_ML2_PLUGIN_MECHANISM_DRIVERS | tr "," "\n")
-    ovsdpdk_found="False"
+    ovs_found="False"
     for x in $arr; do
-        if [ "$x" == "ovsdpdk" ]; then
-            ovsdpdk_found="True"
+        if [ "$x" == "openvswitch" ]; then
+            ovs_found="True"
         fi
     done
 
-    if [ "$ovsdpdk_found" == "False" ]; then
-        Q_ML2_PLUGIN_MECHANISM_DRIVERS=$Q_ML2_PLUGIN_MECHANISM_DRIVERS,ovsdpdk
+    if [ "$ovs_found" == "False" ]; then
+        Q_ML2_PLUGIN_MECHANISM_DRIVERS=$Q_ML2_PLUGIN_MECHANISM_DRIVERS,openvswitch
     fi
 fi
 

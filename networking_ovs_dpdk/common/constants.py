@@ -19,7 +19,6 @@ from neutron.plugins.common import constants as p_const
 # Special vlan_id value in ovs_vlan_allocations table indicating flat network
 FLAT_VLAN_ID = -1
 
-AGENT_TYPE_OVS_DPDK = 'DPDK OVS Agent'
 # Topic for tunnel notifications between the plugin and agent
 TUNNEL = 'tunnel'
 
@@ -89,8 +88,3 @@ ARP_RESPONDER_ACTIONS = ('move:NXM_OF_ETH_SRC[]->NXM_OF_ETH_DST[],'
 OVS_RESTARTED = 0
 OVS_NORMAL = 1
 OVS_DEAD = 2
-
-# default location for vhostuser sockets
-VHOSTUSER_SOCKET_DIR = '/var/run/openvswitch'
-# prefix for ovs port
-PORT_PREFIX = 'vhu'

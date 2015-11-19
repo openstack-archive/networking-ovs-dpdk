@@ -23,15 +23,6 @@ function stop_ovs_dpdk {
 # ovs initialisation
 #
 
-function set_agent_type {
-    if [ "$OVS_DPDK_MODE" != "controller_ovs" ]; then
-        # for not controller modes it makes sense to specify agent_type in ml2
-        # this is valid also when one forget to fill OVS_DPDK_MODE
-        iniset /$Q_PLUGIN_CONF_FILE agent agent_type "DPDK OVS Agent"
-    fi
-}
-
-
 function ovs_dpdk_configure_bridge_datapath {
     local bridge=$1
     if [ "$OVS_DATAPATH_TYPE" != "" ]; then
