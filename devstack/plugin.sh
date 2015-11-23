@@ -39,7 +39,9 @@ fi
                 ;;
                 "post-config")
                     set_vcpu_pin_set
-                    set_agent_type
+                    if [ $OVS_DPDK_INSTALL == 'True' ]; then
+                        iniset /$Q_PLUGIN_CONF_FILE ovs vhostuser_socket_dir $OVS_DB_SOCKET_DIR
+                    fi
                 ;;
                 "extra")
                     # no-op
@@ -52,7 +54,6 @@ fi
             ovs_dpdk_db_cleanup
             stop_ovs_dpdk
             uninstall_libvirt_CentOS
-            rm -f $TOP_DIR/lib/neutron_plugins/ovsdpdk_agent
         ;;
         "clean")
             # Remove state and transient data

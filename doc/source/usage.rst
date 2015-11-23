@@ -63,7 +63,7 @@ Default values for the below settings can be found in `settings` file in devstac
                           - OVS_AGENT_TYPE set to '$Q_AGENT'
     "compute" mode or "controller_ovs_dpdk" mode - OVS_DPDK_INSTALL set to 'True'
                                                  - OVS_DATAPATH_TYPE set to 'netdev'
-    For both controller* modes ovsdpdk mechanism driver is added to Q_ML2_PLUGIN_MECHANISM_DRIVERS, if not declared earlier.
+    For both controller* modes the openvswitch mechanism driver is added to Q_ML2_PLUGIN_MECHANISM_DRIVERS, if not declared earlier.
 
 **OVS_LOG_DIR**
     (Filesystem path) Directory containing ovs-db and ovs-vswitchd log files.
