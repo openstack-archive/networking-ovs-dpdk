@@ -153,3 +153,10 @@ OVS-DPDK you will need to create a flavor that requests hugepages.
 | cd /home/<USER>/devstack
 | source openrc admin demo
 | nova flavor-key <FLAVOR> set hw:mem_page_size=large
+
+Known Issue
+-----------
+To work around bug LP 1513367, set security_driver="none" in /etc/libvirt/qemu.conf
+then restart service libvirt-bin, or remove apparmor or placed all Libvirt apparmor
+profies into complain mode, otherwise you can't spawn vms successfully and will get
+the error "Permission denied".
