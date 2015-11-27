@@ -115,7 +115,7 @@ git, socat, linux-headers-3.19.0-26-generic, fdutils and libxtst6.
 | sudo apt-get install linux-headers-'uname -r' fdutils git socat libxtst6
 
 We will also need the Ubuntu basic server package and add a repository.
-| taskel install server
+| sudo tasksel install server
 | sudo add-apt-repository cloud-archive:kilo
 
 Devstack configuration
