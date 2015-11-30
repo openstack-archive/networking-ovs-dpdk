@@ -6,7 +6,7 @@
 #
 # [*rte_target*]
 #   rte_target to compile OVS DPDK
-#   Defaults to 'x86_64-ivshmem-linuxapp-gcc'
+#   Defaults to 'x86_64-native-linuxapp-gcc'
 #
 # [*ovs_dpdk_mem_segments*]
 #   another parameter for OVS DPDK build
@@ -98,7 +98,7 @@
 #   *todo*
 #
 class ovsdpdk (
-  $rte_target                  = 'x86_64-ivshmem-linuxapp-gcc',
+  $rte_target                  = 'x86_64-native-linuxapp-gcc',
   $ovs_dpdk_mem_segments       = '256',
   $ovs_dpdk_rte_librte_vhost   = 'y',
   $ovs_dpdk_vhost_user_debug   = 'n',

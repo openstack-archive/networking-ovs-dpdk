@@ -175,7 +175,7 @@ Default values for the below settings can be found in `settings` file in devstac
 **RTE_TARGET**
     (directory) Points to the DPDK target environment directory in the OVS_DPDK_DIR.
 
-    Default: x86_64-ivshmem-linuxapp-gcc
+    Default: x86_64-native-linuxapp-gcc
 
 **OVS_DPDK_MEM_SEGMENTS**
     (number) Defines the maximum number of memory segments that DPDK can use while requesting hugepages.
