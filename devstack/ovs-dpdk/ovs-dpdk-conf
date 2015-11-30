@@ -1,5 +1,5 @@
 RTE_SDK=${RTE_SDK:-/opt/stack/DPDK}
-RTE_TARGET=${RTE_TARGET:-x86_64-ivshmem-linuxapp-gcc}
+RTE_TARGET=${RTE_TARGET:-x86_64-native-linuxapp-gcc}
 
 OVS_INSTALL_DIR=/usr
 OVS_DB_CONF_DIR=/etc/openvswitch
