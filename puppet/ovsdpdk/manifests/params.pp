@@ -19,11 +19,11 @@ class ovsdpdk::params {
   $ovs_install_dir          = '/usr'
   $ovs_git_repo             = 'https://github.com/openvswitch/ovs.git'
   $ovs_dir                  = "${dest}/ovs"
-  $ovs_git_tag              = '1e77bbe565bbf5ae7f4c47f481a4097d666d3d68'
+  $ovs_git_tag              = '88058f19ed9aadb1b22d26d93e46b3fd5eb1ad32'
 
   # DPDK config
   $ovs_dpdk_git_repo        = 'http://dpdk.org/git/dpdk'
-  $ovs_dpdk_git_tag         = 'v2.0.0'
+  $ovs_dpdk_git_tag         = 'v2.1.0'
   $ovs_dpdk_dir             = "${dest}/DPDK-${ovs_dpdk_git_tag}"
 
   # PLUGIN config
