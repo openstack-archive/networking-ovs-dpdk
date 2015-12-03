@@ -148,24 +148,48 @@ function ovs_dpdk_clean(){
 # ovs installation
 #
 
+#
+# git_update_repo
+# Due to missing support in devstack, this local function can handle
+# updating / refreshing repos based on commit id
+# it's taking following arguments
+# $1 .. path to repo, $2 .. commit/tag for update of existing repo
+#
+function git_update_repo {
+    pushd $1
+    local git_tag=$2
+    git fetch
+    git checkout -f $git_tag # clean modified tracked files
+    git clean -d -f # clean untracked files
+    popd
+}
+
 function clone_ovs_dpdk(){
     OFFLINE=$(trueorfalse False OFFLINE)
     RECLONE=$(trueorfalse False RECLONE)
     if [[ "$OFFLINE" != True && ( "$RECLONE" == True || ! -e ${OVS_DIR}/BUILD_COMPLETE ) ]]; then
         if [ ! -d ${OVS_DIR} ] || [ "$RECLONE" == True ]; then
+            # if directory exists and should be just refreshed
+            # it's not possible to use devstack git_clone with commit's id
             if [ -d ${OVS_DIR} ]; then
-                rm -rf ${OVS_DIR}
-            fi
-            if [ "$OVS_GIT_TAG" != "" ]; then
-                git_clone ${OVS_GIT_REPO} ${OVS_DIR} $OVS_GIT_TAG
+                git_update_repo ${OVS_DIR} ${OVS_GIT_TAG}
             else
-                git_clone ${OVS_GIT_REPO} ${OVS_DIR}
+                # creating dir from scratch
+                git_clone ${OVS_GIT_REPO} ${OVS_DIR} ${OVS_GIT_TAG}
             fi
         fi
 
         if [ ! -d "${OVS_DPDK_DIR}" ] || [ "$RECLONE" == True ]; then
-            git_clone ${OVS_DPDK_GIT_REPO} ${OVS_DPDK_DIR} ${OVS_DPDK_GIT_TAG}
+            # if directory exists and should be just refreshed
+            # it's not possible to use devstack git_clone with commit's id
+            if [ -d ${OVS_DPDK_DIR} ]; then
+                git_update_repo ${OVS_DPDK_DIR} ${OVS_DPDK_GIT_TAG}
+            else
+                # creating dir from scratch
+                git_clone ${OVS_DPDK_GIT_REPO} ${OVS_DPDK_DIR} ${OVS_DPDK_GIT_TAG}
+            fi
         fi
+
         if [ "$OVS_PATCHES" != "" ]; then
             local patches=( $OVS_PATCHES )
             pushd  ${OVS_DIR}
