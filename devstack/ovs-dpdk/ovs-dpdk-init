@@ -4,6 +4,11 @@
 echo "sourcing config"
 source /etc/default/ovs-dpdk
 
+errXTRACE=$(set +o | grep xtrace)
+if [[ "${OVS_DPDK_SERVICE_DEBUG_OUTPUT}" == "True" ]]; then
+    set -o xtrace
+fi
+
 is_ubuntu(){
     vendor=$(lsb_release -i -s 2> /dev/null)
     if [ "$vendor" == "Ubuntu" ]; then
@@ -668,6 +673,8 @@ case "$1" in
 
     *)
         echo "Usage: $0 {start|stop|restart|status|init}"
+        $errXTRACE
         exit 1
 esac
 
+$errXTRACE
