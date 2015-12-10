@@ -261,6 +261,7 @@ function ovs_dpdk_write_conf {
     sudo cp $NETWORKING_OVS_DPDK_DIR/devstack/ovs-dpdk/ovs-dpdk-conf /etc/default/ovs-dpdk
 
     OVS_ALLOCATE_HUGEPAGES=$(trueorfalse True OVS_ALLOCATE_HUGEPAGES)
+    OVS_DPDK_SERVICE_DEBUG_OUTPUT=$(trueorfalse False OVS_DPDK_SERVICE_DEBUG_OUTPUT)
 
     sudo sed "s#RTE_SDK=.*#RTE_SDK=$OVS_DPDK_DIR#" -i /etc/default/ovs-dpdk
     sudo sed "s#RTE_TARGET=.*#RTE_TARGET=$RTE_TARGET#" -i /etc/default/ovs-dpdk
@@ -281,6 +282,7 @@ function ovs_dpdk_write_conf {
     sudo sed "s#OVS_LOCK_DIR=.*#OVS_LOCK_DIR=$OVS_LOCK_DIR#" -i /etc/default/ovs-dpdk
     sudo sed "s#OVS_INTERFACE_DRIVER=.*#OVS_INTERFACE_DRIVER=$OVS_INTERFACE_DRIVER#" -i /etc/default/ovs-dpdk
     sudo sed "s#OVS_TUNNEL_CIDR_MAPPING=.*#OVS_TUNNEL_CIDR_MAPPING=$OVS_TUNNEL_CIDR_MAPPING#" -i /etc/default/ovs-dpdk
+    sudo sed "s#OVS_DPDK_SERVICE_DEBUG_OUTPUT=.*#OVS_DPDK_SERVICE_DEBUG_OUTPUT=$OVS_DPDK_SERVICE_DEBUG_OUTPUT#" -i /etc/default/ovs-dpdk
 
     if [ "$OVS_SOCKET_MEM" == "auto" ]; then
         for d in /sys/devices/system/node/node? ; do
