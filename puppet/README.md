@@ -15,32 +15,45 @@ Overview
 --------
 
 The ovsdpdk module is responsible for installation of openvswitch with DPDK support.
-It removes the original OVS firsts and subsequently it builds a new one with DPDK.
+As of now we are not providing package distributions, therefore we can't remove vanilla ovs 
+mainly due to package dependencies. Current procedure is to replace vanilla ovs binaries with 
+dpdk tuned binaries and hack original ovs service to user our control script.
+control file.
 
 
 Installation
 ------------
 
-#### Installing networking-ovs-dpdk
+#### Installing ovsdpdk puppet module
 
+        Step1) Get freshly installed OS from supported platforms below
+
+        Step2) Openstack installation based on puppet modules
+        We are using puppet-openstack-integration for the same, instructions are under following link:
+        https://wiki.openstack.org/wiki/Puppet/Deploy
+
+        Original system/kernel based ovs configuration will be replaced during ovs-dpdk init.
+        So it's recommended to perform ovsdpdk installation on freshly installed openstack w/o any VM running.
+
+        Step3) Customize own environment based on ovsdpdk parameters
         Parameters for DPDK build are described in ./ovsdpdk/manifests/init.pp
-        Environment settings is possible via ./ovsdpdk/manifests/param.pp
-        One of installation examples with very low RAM usage intended for small VMs is below:
-        puppet apply /etc/puppet/modules/ovsdpdk/examples/install_small.pp --certname ovs-dpdk-install
-
+        Environment variables are in ./ovsdpdk/manifests/param.pp and not supposed to be changed frequently
+        One of installation examples with very low RAM usage intended for small VMs is in ./examples/install_small.pp
+        Instructions how to use it are in this file, but you will most likely need to customize it differently.
         You're supposed to declare ovsdpdk class with your settings similarly to example file.
-        Configurable params are described in manifests/init.pp.
-        Environment related params are declared in manifests/params.pp
-
+        Configurable params are described in ./ovsdpdk/manifests/init.pp.
+        Environment related params are declared in ./ovsdpdk/manifests/params.pp
 
 #### Preconditions
 
-        1. vcsrepo puppet module - required for manipulating with git repos.
-        it can be installed it via following command if it's missing:
-        sudo puppet module install puppetlabs-vcsrepo
+        1. It's usefull to check whether openstack is in good shape before ovsdpdk deployment
+        (e.g. via system info in openstack dashboard)
 
-        2. virtualization packages - qemu-kvm, libvirt (libvirt-bin in ubuntu)
-        "Usually come with OpenStack, but can be checked before installation"
+        2. Any OVS settings (e.g each vm will probably own port on br-int bridge) will get lost during deployment
+        It's recommended to deploy ovsdpdk on fresh openstack installation.
+
+        3. It's good habit to check openstack services also after ovsdpdk deployment, some might got distracted.
+        like nova-compute when qemu-kvm is replaced. Let's start crashed services first.
 
 
 
@@ -48,13 +61,14 @@ Uninstallation
 --------------
 
         Small bash script ./ovsdpdk/files/clean.sh was written for cleaning ovsdpdk installation
-
+        [ToDo - need to rework, by this script we are not installing original package]
 
 
 Support
 -------
 
-Supported platforms:
-* Fedora 21
-* Ubuntu 14.04
+Supported platforms: 
+(same as for puppet-openstack-integration)
+* Centos 7
+* Ubuntu 14.04 LTS
 
