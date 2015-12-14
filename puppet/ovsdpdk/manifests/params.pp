@@ -14,6 +14,8 @@ class ovsdpdk::params {
   $dest                     = '/opt/code'
   $nova_conf_dir            = '/etc/nova'
   $nova_conf                = "${nova_conf_dir}/nova.conf"
+  $ml2_ovs_conf             = '/etc/neutron/plugins/ml2/openvswitch_agent.ini'
+  $neutron_l3_conf          = '/etc/neutron/l3_agent.ini'
 
   # OVS config
   $ovs_install_dir          = '/usr'
@@ -29,5 +31,18 @@ class ovsdpdk::params {
   # PLUGIN config
   $networking_ovs_dpdk_dir  = "${dest}/networking-ovs-dpdk"
   $ovs_plugin_git_tag       = 'master'
+
+  case $::operatingsystem {
+    'Ubuntu': {
+      $qemu_kvm = '/usr/bin/kvm'
+    }
+    'CentOS': {
+      $qemu_kvm = '/usr/libexec/qemu-kvm'
+    }
+    default: {
+      $qemu_kvm = '/usr/bin/qemu-kvm'
+    }
+  }
+
 }
 
