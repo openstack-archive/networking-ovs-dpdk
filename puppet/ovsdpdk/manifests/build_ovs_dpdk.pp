@@ -7,14 +7,15 @@ class ovsdpdk::build_ovs_dpdk (
 ) inherits ovsdpdk {
   require ovsdpdk::uninstall_ovs
 
-  file {"$plugin_dir/files/build_ovs_dpdk.sh":
-      content => template("$plugin_dir/files/build_ovs_dpdk.erb"),
+  file {"${plugin_dir}/files/build_ovs_dpdk.sh":
+      content => template("${plugin_dir}/files/build_ovs_dpdk.erb"),
       mode    => '0775',
   }
 
-  exec {"$plugin_dir/files/build_ovs_dpdk.sh":
-      require => File["$plugin_dir/files/build_ovs_dpdk.sh"],
-      timeout => 0,
+  exec {"${plugin_dir}/files/build_ovs_dpdk.sh":
+      require   => File["${plugin_dir}/files/build_ovs_dpdk.sh"],
+      timeout   => 0,
+      logoutput => true,
   }
 }
 

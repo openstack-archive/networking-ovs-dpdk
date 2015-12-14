@@ -44,8 +44,8 @@
 #
 # [*ovs_hugepage_mount_pagesize*]
 #   preffered hugepage size (2M/1G)
-#   Defaults to OS defaults if not set. If '1G' value is used hugepages should be
-#   allocated before starting ovs (e.g. kernel boot command line)
+#   Defaults to OS defaults if not set. If '1G' value is used hugepages
+#   should be allocated before starting ovs (e.g. kernel boot command line)
 #
 # [*ovs_num_hugepages*]
 #   amount of hugepages to mount if ovs_allocate_hugepages is True
@@ -97,6 +97,9 @@
 # [*ovs_dpdk_patches*]
 #   *todo*
 #
+# [*openrc_file*]
+#    openrc file contains shell variables needed to invoke openstack api
+#
 class ovsdpdk (
   $rte_target                  = 'x86_64-native-linuxapp-gcc',
   $ovs_dpdk_mem_segments       = '256',
@@ -119,6 +122,7 @@ class ovsdpdk (
   $ovs_interface_driver        = 'igb_uio',
   $ovs_patches                 = '',
   $ovs_dpdk_patches            = '',
+  $openrc_file                 = '',
 ) inherits ::ovsdpdk::params {
 
   include '::ovsdpdk::clone'
