@@ -43,3 +43,4 @@ EOF
 
 # remove git repos
 echo "[warning] git repos were not automatically removed, you can remove it once you're finished with them"
+echo "[warning] please install original version of openvswitch package and ensure that all openstack neutron services are running"

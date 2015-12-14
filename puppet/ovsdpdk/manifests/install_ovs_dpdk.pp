@@ -25,34 +25,38 @@ class ovsdpdk::install_ovs_dpdk (
     require => File['/etc/default/ovs-dpdk'],
   }
 
-  package {'qemu-kvm': ensure => installed }
-
-  exec {'replace kvm binary':
-    command => "cp ${plugin_dir}/files/kvm-wrapper.sh /usr/bin/kvm;chmod +x /usr/bin/kvm",
+  exec { "cp ${plugin_dir}/files/openvswitch.service /usr/lib/systemd/system/openvswitch.service":
     path    => ['/usr/bin','/bin'],
     user    => root,
-    onlyif  => 'test -f /usr/bin/kvm',
+    onlyif  => 'test -f /usr/lib/systemd/system/openvswitch.service',
+  }
+
+  exec { 'systemctl daemon-reload': 
+    path    => ['/usr/bin','/bin','/usr/sbin'],
+    user    => root,
+    require => Exec["cp ${plugin_dir}/files/openvswitch.service /usr/lib/systemd/system/openvswitch.service"],
+  }
+
+  package {'qemu-kvm': ensure => installed }
+
+  exec { "cp $qemu_kvm $qemu_kvm.orig":
+    path    => ['/usr/bin','/bin'],
+    user    => root,
+    onlyif  => "test -f $qemu_kvm",
     require => Package['qemu-kvm'],
   }
 
-  exec {'replace qemu-kvm binary':
-    command => "cp ${plugin_dir}/files/kvm-wrapper.sh /usr/bin/qemu-kvm;chmod +x /usr/bin/qemu-kvm",
+  exec { "cp $plugin_dir/files/kvm-wrapper.sh $qemu_kvm;chmod +x $qemu_kvm":
     path    => ['/usr/bin','/bin'],
     user    => root,
-    onlyif  => 'test -f /usr/bin/qemu-kvm',
-    require => Package['qemu-kvm'],
+    onlyif  => "test -f $qemu_kvm",
+    require => [ Exec["cp $qemu_kvm $qemu_kvm.orig"], Package['qemu-kvm'] ],
   }
 
   exec {'init ovs-dpdk':
     command => '/etc/init.d/ovs-dpdk init',
     user    => root,
     require => [ Exec['create_ovs_dpdk'], File['/etc/default/ovs-dpdk'] ],
-  }
-
-  service {'ovs-dpdk':
-    ensure    => 'running',
-    hasstatus => true,
-    require   => Exec['init ovs-dpdk'],
   }
 
   # install mech driver

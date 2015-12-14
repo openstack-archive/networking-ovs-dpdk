@@ -21,10 +21,28 @@ class ovsdpdk::uninstall_ovs () inherits ovsdpdk {
     }
   }
 
-  package { $remove_packages: ensure => 'purged' }
+  #Due to dependencies to other packages, we won't purge vanilla OVS  
+  #package { $remove_packages: ensure => 'purged' }
+
+  exec { '/usr/sbin/service openvswitch stop':
+    user => root,
+  }
+
+  exec { '/usr/sbin/service neutron-openvswitch-agent stop':
+    user => root,
+  }
+
+  exec { '/usr/sbin/service neutron-server stop':
+    user => root,
+  }
 
   package { $install_packages: ensure => 'installed' }
 
-  exec { '/sbin/modprobe -r openvswitch': onlyif => "/bin/grep -q '^openvswitch' '/proc/modules'" }
+  exec { '/sbin/modprobe -r openvswitch': 
+    onlyif  => "/bin/grep -q '^openvswitch' '/proc/modules'",
+    user    => root,
+    require => Exec['/usr/sbin/service openvswitch stop'],
+  }
+
 }
 
