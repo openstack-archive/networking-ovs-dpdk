@@ -4,6 +4,32 @@
 #
 class ovsdpdk::params {
 
+  case $::operatingsystem {
+    'Ubuntu': {
+      $qemu_kvm = '/usr/bin/kvm'
+      # we are not removing packages as of now
+      #$remove_packages = [ 'openvswitch-switch', 'openvswitch-datapath-dkms', 'openvswitch-common' ]
+      $install_packages = [ 'autoconf', 'libtool', 'screen' ]
+      $openvswitch_service_name = 'openvswitch-switch'
+      $openvswitch_service_file = 'openvswitch-switch.conf'
+      $openvswitch_service_path = '/etc/init'
+      $openvswitch_agent = 'neutron-plugin-openvswitch-agent'
+    }
+    'CentOS': {
+      $qemu_kvm = '/usr/libexec/qemu-kvm'
+      # we are not removing packages as of now
+      $remove_packages = [ 'openvswitch' ]
+      $install_packages = [ 'pciutils', 'autoconf', 'libtool', 'screen' ]
+      $openvswitch_service_name = 'openvswitch'
+      $openvswitch_service_file = 'openvswitch.service'
+      $openvswitch_service_path = '/usr/lib/systemd/system'
+      $openvswitch_agent = 'neutron-openvswitch-agent'
+    }
+    default: {
+      fail("Unsupported os ${::operatingsystem}")
+    }
+  }
+
   $ovs_db_conf_dir          = '/etc/openvswitch'
   $ovs_db_socket_dir        = '/var/run/openvswitch'
   $ovs_db_socket            = "${ovs_db_socket_dir}/db.sock"
@@ -14,6 +40,8 @@ class ovsdpdk::params {
   $dest                     = '/opt/code'
   $nova_conf_dir            = '/etc/nova'
   $nova_conf                = "${nova_conf_dir}/nova.conf"
+  $ml2_ovs_conf             = '/etc/neutron/plugins/ml2/openvswitch_agent.ini'
+  $neutron_l3_conf          = '/etc/neutron/l3_agent.ini'
 
   # OVS config
   $ovs_install_dir          = '/usr'
@@ -29,5 +57,5 @@ class ovsdpdk::params {
   # PLUGIN config
   $networking_ovs_dpdk_dir  = "${dest}/networking-ovs-dpdk"
   $ovs_plugin_git_tag       = 'master'
-}
 
+}
