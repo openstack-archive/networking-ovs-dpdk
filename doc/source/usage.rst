@@ -186,3 +186,8 @@ Default values for the below settings can be found in `settings` file in devstac
     (array) List of port name:PCI address mappings. By default this is unset and the value is determined by OVS_DPDK_PORT_MAPPINGS.
 
     Example: OVS_PCI_MAPPINGS=0000:02:00.0#ens785f0
+
+**OVS_DPDK_SERVICE_DEBUG_OUTPUT**
+    (True|False) Defines if OVS-DPDK service should be executed with debug output.
+
+    Default: False
