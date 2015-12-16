@@ -527,9 +527,22 @@ start_ovs(){
     else
         screen -dms ovs-vswitchd sudo sg $qemu_group -c "umask 002; ${OVS_INSTALL_DIR}/sbin/ovs-vswitchd --dpdk -vhost_sock_dir $OVS_DB_SOCKET_DIR -c $OVS_CORE_MASK -n $OVS_MEM_CHANNELS  --proc-type primary  --huge-dir $OVS_HUGEPAGE_MOUNT --socket-mem $OVS_SOCKET_MEM $pciAddressWhitelist -- unix:$OVS_DB_SOCKET 2>&1 | tee ${OVS_LOG_DIR}/ovs-vswitchd.log"
     fi
-    sleep 1
-    PID=$(pidof ovs-vswitchd)
-    if [ $? -eq 0 ]; then
+
+    retry_count=1
+    max_retry_count=60
+    while [ "$retry_count" -le "$max_retry_count" ]; do
+        PID=$(pidof ovs-vswitchd)
+        ret=$?
+        if [[ ${ret} -ne 0 ]]; then
+            echo "Waiting for PID of ovs-vswitchd $retry_count/$max_retry_count"
+        else
+            echo "PID obtained ${PID}"
+            break
+        fi
+        let retry_count="$retry_count+1"
+        sleep 1
+    done
+    if [ ${ret} -eq 0 ]; then
         echo $PID > $OVS_LOG_DIR/ovs-vswitchd.pid
     else
         free_hugepages
