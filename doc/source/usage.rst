@@ -87,11 +87,13 @@ Default values for the below settings can be found in `settings` file in devstac
 
 **OVS_DPDK_GIT_REPO**
     (url) Location of git repo to clone DPDK from.
+    It respects devstack's GIT_BASE.
 
     Default: http://dpdk.org/git/dpdk
 
 **OVS_GIT_REPO**
     (url) Location of git repo to clone Open vSwitch from.
+    It respects devstack's GIT_BASE.
 
     Default: https://github.com/openvswitch/ovs.git
 
