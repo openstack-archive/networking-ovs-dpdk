@@ -154,9 +154,16 @@ OVS-DPDK you will need to create a flavor that requests hugepages.
 | source openrc admin demo
 | nova flavor-key <FLAVOR> set hw:mem_page_size=large
 
-Known Issue
------------
+Known Issues
+------------
 To work around bug LP 1513367, set security_driver="none" in /etc/libvirt/qemu.conf
 then restart service libvirt-bin, or remove apparmor or placed all Libvirt apparmor
 profies into complain mode, otherwise you can't spawn vms successfully and will get
 the error "Permission denied".
+
+OVS_PMD_CORE_MASK default value '4' doesn't work for NIC's from numa nodes other
+than 0. It's value is used for other_config:pmd-cpu-mask parameter in ovsdb and we
+are subsequently using it for vcpu_pin_set in nova.conf. Unfortunatelly if DPDK
+NIC's from numa nodes other than 0 are used, there is no PMD thread generated for
+them. If you are using host with multiple numa nodes please consider using not
+default OVS_PMD_CORE_MASK value.
