@@ -191,3 +191,12 @@ OVS-DPDK you will need to create a flavor that requests hugepages.
 | cd /home/<USER>/devstack
 | source openrc admin demo
 | nova flavor-key <FLAVOR> set hw:mem_page_size=large
+
+Known Issues
+------------
+OVS_PMD_CORE_MASK default value '4' doesn't work for NIC's from other numa nodes.
+It's value is used for other_config:pmd-cpu-mask parameter in ovsdb and we are
+subsequently using it for vcpu_pin_set in nova.conf. Unfortunatelly if DPDK NIC's
+from other numa nodes are used, there is no PMD thread generated for them.
+If you are using host with multiple numa nodes please consider using not default
+OVS_PMD_CORE_MASK value.
