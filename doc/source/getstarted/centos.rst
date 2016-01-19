@@ -58,7 +58,7 @@ Linux configuration
 
 Add user to sudoers file
 ========================
-To elevate user privileges, add them to the suoders file, you will need admin
+To elevate user privileges, add them to the sudoers file, you will need admin
 privileges for this.
 
 | sudo cat /etc/sudoers
