@@ -34,6 +34,9 @@ SCREEN_LOGDIR=$DEST/logs/screen
 LOGFILE=${SCREEN_LOGDIR}/xstack.sh.log
 LOGDAYS=1
 
+# uncomment when using tunneled networks (vxlan/gre)
+#OVS_TUNNEL_CIDR_MAPPING=br-<COMPUTE NODE DATA INTERFACE>:<tunnel CIDR>
+
 #Dual socket platform with 16GB RAM,3072*2048kB hugepages leaves ~4G for the system.
 OVS_NUM_HUGEPAGES=3072
 

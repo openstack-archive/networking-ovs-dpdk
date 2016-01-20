@@ -31,9 +31,30 @@ SCREEN_LOGDIR=$DEST/logs/screen
 LOGFILE=${SCREEN_LOGDIR}/xstack.sh.log
 LOGDAYS=1
 
+# vlan tenant networks only
 Q_ML2_TENANT_NETWORK_TYPE=vlan
 ENABLE_TENANT_VLANS=True
 ENABLE_TENANT_TUNNELS=False
+ML2_VLAN_RANGES=default:<VLAN RANGES>
+
+
+# vxlan tenant networks only
+#Q_ML2_TENANT_NETWORK_TYPE=vxlan
+#ENABLE_TENANT_VLANS=False
+#ENABLE_TENANT_TUNNELS=True
+#OVS_TUNNEL_CIDR_MAPPING=br-<SINGLE NODE DATA INTERFACE>:<tunnel CIDR>
+#Q_ML2_PLUGIN_GRE_TYPE_OPTIONS=(tunnel_id_ranges=400:500)
+
+# gre tenant networks only
+#Q_ML2_TENANT_NETWORK_TYPE=gre
+#ENABLE_TENANT_VLANS=False
+#ENABLE_TENANT_TUNNELS=True
+#OVS_TUNNEL_CIDR_MAPPING=br-<SINGLE NODE DATA INTERFACE>:<tunnel CIDR>
+#Q_ML2_PLUGIN_VXLAN_TYPE_OPTIONS=(vni_ranges=400:500)
+
+# Note: vlan,vxlan and gre networking can be enabled concurrently by
+# combining the examples above.
+
 
 #Dual socket platform with 16GB RAM,3072*2048kB hugepages leaves ~4G for the system.
 OVS_NUM_HUGEPAGES=3072
@@ -44,8 +65,6 @@ OVS_NUM_HUGEPAGES=3072
 OVS_DATAPATH_TYPE=netdev
 OVS_LOG_DIR=/opt/stack/logs
 OVS_BRIDGE_MAPPINGS="default:br-<SINGLE NODE DATA INTERFACE>"
-
-ML2_VLAN_RANGES=default:<VLAN RANGES>
 
 [[post-config|$NOVA_CONF]]
 [DEFAULT]

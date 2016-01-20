@@ -178,6 +178,14 @@ support both variables could be setup in local.conf:
 | OVS_ENABLE_SG_FIREWALL_MULTICAST=[True/False]
 | OVS_MULTICAST_SNOOPING_AGING_TIME=[15..3600]
 
+Enable overlay networks
+-----------------------
+To enable overlay networking (vxlan/gre) with the dpdk netdev datapath
+the tunnel enpoint ip must be assigned to a phyical bridge(a bridge with
+a dpdk phyical port). This can be done by setting the OVS_TUNNEL_CIDR_MAPPING
+variable in the local.conf. e.g. OVS_TUNNEL_CIDR_MAPPING=br-phy:192.168.50.1/24
+assigns the ip of 192.168.50.1 with subnetmask 255.255.255.0 to the br-phy local port.
+
 Known Issues
 ------------
 OVS_PMD_CORE_MASK default value '4' doesn't work for NIC's from numa nodes other
