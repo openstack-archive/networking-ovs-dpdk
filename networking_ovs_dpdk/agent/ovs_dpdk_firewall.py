@@ -132,7 +132,7 @@ IP_PROTOCOL_TABLE = {constants.PROTO_NAME_TCP: constants.PROTO_NUM_TCP,
 MULTICAST_MAC = "01:00:5e:00:00:00/01:00:5e:00:00:00"
 
 ovs_opts = [
-    cfg.BoolOpt('enable_sg_firewall_multicast', default=True,
+    cfg.BoolOpt('enable_sg_firewall_multicast', default=False,
                help=_("Allows multicast traffic coming into and going"
                       "outside OVS.")),
 ]
