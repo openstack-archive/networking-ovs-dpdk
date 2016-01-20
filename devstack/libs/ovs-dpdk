@@ -469,7 +469,7 @@ function ovs_dpdk_configure_debug_command {
 }
 
 function ovs_dpdk_configure_firewall_driver {
-    if [[ ! -z "$OVS_ENABLE_SG_FIREWALL_MULTICAST" ]]; then
+    if [[ ! -z "$OVS_ENABLE_SG_FIREWALL_MULTICAST" && "$OVS_ENABLE_SG_FIREWALL_MULTICAST" == "True" ]]; then
         iniset /$Q_PLUGIN_CONF_FILE ovs enable_sg_firewall_multicast $OVS_ENABLE_SG_FIREWALL_MULTICAST
     fi
 }
