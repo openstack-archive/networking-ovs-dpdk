@@ -333,6 +333,7 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
             constants.IPv4: ['10.0.0.1', '10.0.0.2'],
             constants.IPv6: ['fe80::1']}}
         self.firewall.pre_sg_members = {}
+        self.firewall._enable_multicast = True
         port = self.fake_port_1
         self.mock_db_get_val.side_effect = [
             '1',

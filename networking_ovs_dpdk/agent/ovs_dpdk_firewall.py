@@ -125,14 +125,14 @@ ETH_PROTOCOL_TABLE = {constants.IPv4: "0x0800",
                       constants.IPv6: "0x86dd"}
 
 IP_PROTOCOL_TABLE = {constants.PROTO_NAME_TCP: constants.PROTO_NUM_TCP,
-                     constants.PROTO_NAME_ICMP: constants.PROTO_NUM_ICMP,
-                     constants.PROTO_NAME_ICMP_V6: constants.PROTO_NUM_ICMP_V6,
-                     constants.PROTO_NAME_UDP: constants.PROTO_NUM_UDP}
+    constants.PROTO_NAME_ICMP: constants.PROTO_NUM_ICMP,
+    constants.PROTO_NAME_IPV6_ICMP: constants.PROTO_NUM_IPV6_ICMP,
+    constants.PROTO_NAME_UDP: constants.PROTO_NUM_UDP}
 
 MULTICAST_MAC = "01:00:5e:00:00:00/01:00:5e:00:00:00"
 
 ovs_opts = [
-    cfg.BoolOpt('enable_sg_firewall_multicast', default=True,
+    cfg.BoolOpt('enable_sg_firewall_multicast', default=False,
                help=_("Allows multicast traffic coming into and going"
                       "outside OVS.")),
 ]
@@ -669,7 +669,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
 
             if port_range_max:
                 icmp_code = "icmp_code=%s," % port_range_max
-        elif ip_proto == constants.PROTO_NAME_ICMP_V6:
+        elif ip_proto == constants.PROTO_NAME_IPV6_ICMP:
             if port_range_min:
                 icmp_type = "icmpv6_type=%s," % port_range_min
             if port_range_max:
