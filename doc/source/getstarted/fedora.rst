@@ -135,7 +135,7 @@ Libvirt configuration
 Some libvirt configurations are required for DPDK support, but first we need
 to install libvirt.
 
-| sudo yum install -y libvirt
+| sudo yum install -y libvirt libvirt-python
 
 Modify your libvirt config file to include the following:
 
