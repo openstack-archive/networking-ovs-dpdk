@@ -25,16 +25,21 @@ function stop_ovs_dpdk {
 
 function ovs_dpdk_configure_bridge_datapath {
     local bridge=$1
-    if [ "$OVS_DATAPATH_TYPE" != "" ]; then
+    if [ "$bridge" != "" ] && [ "$OVS_DATAPATH_TYPE" != "" ]; then
         sudo ovs-vsctl --no-wait set Bridge $bridge datapath_type=${OVS_DATAPATH_TYPE}
     fi
 }
 
 function ovs_dpdk_add_bridge {
     local bridge=$1
-    sudo ovs-vsctl --no-wait -- --may-exist add-br $bridge
-    ovs_dpdk_configure_bridge_datapath $bridge
-    sudo ovs-vsctl --no-wait br-set-external-id $bridge bridge-id $bridge
+    if [ -n $bridge ];then
+        sudo ovs-vsctl --no-wait -- --may-exist add-br $bridge
+        ovs_dpdk_configure_bridge_datapath $bridge
+        sudo ovs-vsctl --no-wait br-set-external-id $bridge bridge-id $bridge
+    else
+        # bridge is NULL
+        echo "error:bridge is NUll, ovs_dpdk can not add bridge"
+    fi
 }
 
 
@@ -241,11 +246,13 @@ function build_ovs_dpdk(){
         OVS_DPDK_VHOST_USER_DEBUG='n'
     fi
 
-    sed "s/CONFIG_RTE_BUILD_COMBINE_LIBS=n/CONFIG_RTE_BUILD_COMBINE_LIBS=y/" -i ${OVS_DPDK_DIR}/build/.config
-    sed "s/CONFIG_RTE_MAX_MEMSEG=.*$/CONFIG_RTE_MAX_MEMSEG=${OVS_DPDK_MEM_SEGMENTS}/" -i ${OVS_DPDK_DIR}/build/.config
-    sed "s/CONFIG_RTE_LIBRTE_VHOST=.*$/CONFIG_RTE_LIBRTE_VHOST=${OVS_DPDK_RTE_LIBRTE_VHOST}/" -i ${OVS_DPDK_DIR}/build/.config
-    sed "s/CONFIG_RTE_LIBRTE_VHOST_DEBUG=.*$/CONFIG_RTE_LIBRTE_VHOST_DEBUG=${OVS_DPDK_VHOST_USER_DEBUG}/" -i ${OVS_DPDK_DIR}/build/.config
-    sed "s/CONFIG_RTE_LIBRTE_KNI=.*$/CONFIG_RTE_LIBRTE_KNI=n/" -i ${OVS_DPDK_DIR}/build/.config
+    if [ -e ${OVS_DPDK_DIR}/build/.config ];then
+        sed "s/CONFIG_RTE_BUILD_COMBINE_LIBS=n/CONFIG_RTE_BUILD_COMBINE_LIBS=y/" -i ${OVS_DPDK_DIR}/build/.config
+        sed "s/CONFIG_RTE_MAX_MEMSEG=.*$/CONFIG_RTE_MAX_MEMSEG=${OVS_DPDK_MEM_SEGMENTS}/" -i ${OVS_DPDK_DIR}/build/.config
+        sed "s/CONFIG_RTE_LIBRTE_VHOST=.*$/CONFIG_RTE_LIBRTE_VHOST=${OVS_DPDK_RTE_LIBRTE_VHOST}/" -i ${OVS_DPDK_DIR}/build/.config
+        sed "s/CONFIG_RTE_LIBRTE_VHOST_DEBUG=.*$/CONFIG_RTE_LIBRTE_VHOST_DEBUG=${OVS_DPDK_VHOST_USER_DEBUG}/" -i ${OVS_DPDK_DIR}/build/.config
+        sed "s/CONFIG_RTE_LIBRTE_KNI=.*$/CONFIG_RTE_LIBRTE_KNI=n/" -i ${OVS_DPDK_DIR}/build/.config
+    fi
 
     make -j $(nproc)
     sudo cp ${OVS_DPDK_DIR}/build/lib/*dpdk.* /lib
@@ -387,7 +394,10 @@ function uninstall_libvirt_CentOS {
         sudo rm /usr/libexec/qemu-kvm
         sudo rm /usr/libexec/qemu-kvm.orig
 
-        sudo yum remove -y libvirt* qemu* libcard* glusterfs*
+        local libvirt_pag=$(rpm -qa libvirt)
+        if [ -n $libvirt_pag ];then
+            sudo yum remove -y libvirt* qemu* libcard* glusterfs*
+        fi
     fi
 }
 
@@ -395,9 +405,15 @@ function install_qemu_kvm {
 
     if [ "$os_VENDOR" == CentOS ] ; then
         echo "Configuring libvirt for CentOS"
-        sudo service libvirtd stop
+        local libvirt_pag=$(rpm -qa | grep libvirt)
+        local qemu_pag=$(rpm -qa | grep qemu)
+        local libcacard_pag=$(rpm -qa | grep libcacard)
+        local glusterfs_pag=$(rpm -qa | grep glusterfs)
+        if [ -n $libvirt_pag ] && [ -n $qemu_pag ] && [ -n $libcacard_pag ] && [ -n $glusterfs_pag ] ;then
+            sudo service libvirtd stop
 
-        sudo yum remove -y libvirt* qemu* libcacard* glusterfs*
+            sudo yum remove -y libvirt* qemu* libcacard* glusterfs*
+        fi
 
         if [ ! -d /opt/stack/rpms ]; then
             sudo mkdir -m 777 -p /opt/stack/rpms
@@ -422,7 +438,13 @@ function install_qemu_kvm {
 
         sudo yum install -y $RPMS/*
 
-        sudo service libvirtd start
+        if [ $? -eq 0 ];then
+            sudo service libvirtd start
+        else
+            # Install libvirt failed
+            sudo yum install -y $RPMS/*
+            echo "warning: Install libvirt failed"
+        fi
     else
         install_package qemu-kvm
     fi
@@ -448,15 +470,22 @@ function install_ovs_dpdk {
 
     build_ovs_dpdk
 
-    sudo cp $NETWORKING_OVS_DPDK_DIR/devstack/ovs-dpdk/ovs-dpdk-init /etc/init.d/ovs-dpdk
-    ovs_dpdk_write_conf
-    ovs_dpdk_create_kvm_wrapper
+    if [ -e /etc/init.d/ovs-dpdk ];then
+        sudo cp $NETWORKING_OVS_DPDK_DIR/devstack/ovs-dpdk/ovs-dpdk-init /etc/init.d/ovs-dpdk
+        if [ -e /etc/default/ovs-dpdk ];then
+            ovs_dpdk_write_conf
+        fi
+        ovs_dpdk_create_kvm_wrapper
 
-    sudo chmod +x /etc/init.d/ovs-dpdk
-    sudo service ovs-dpdk init
+        sudo chmod +x /etc/init.d/ovs-dpdk
+        sudo service ovs-dpdk init
 
-    # Create integration bridge
-    ovs_dpdk_add_bridge $OVS_BRIDGE
+        # Create integration bridge
+        ovs_dpdk_add_bridge $OVS_BRIDGE
+    else
+        # ovs_dpdk install failed
+        echo "warning: ovs_dpdk install failed"
+    fi
 }
 
 function ovs_dpdk_configure_debug_command {

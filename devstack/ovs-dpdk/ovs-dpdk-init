@@ -111,6 +111,7 @@ remove_vfio_pci_module(){
 # Loads new igb_uio.ko (and uio module if needed).
 #
 load_vfio_pci_module(){
+    echo "Loading vfio_pci module"
     lsmod | grep -ws vfio_pci > /dev/null
     if [ ! $? -eq 0 ] ; then
         sudo modprobe vfio_pci
