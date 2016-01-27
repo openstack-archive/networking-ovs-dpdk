@@ -16,7 +16,7 @@ Hardware
 ========
 - 2 * Intel grizzly pass server boards
 - CPU: 2 * Intel Xeon CPU E5-2680 v2 @ 2.80GHz
-- RAM: Minimum 16GB, recommened 64GB
+- RAM: Minimum 16GB, recommended 64GB
 - 2 * physical networks
 
 Software
@@ -69,10 +69,10 @@ Relax SELINUX control
 | sudo cat /etc/selinux/config
 | SELINUX=permissive
 
-Downgrade kernel
+Check kernel versions
 ================
-DPDK currently supports kernel versions up to 3.19. This guide details
-downgrading the kernel to version version 3.19.7-200.fc21.x86_64.
+DPDK 2.2 currently supports kernel versions up to 3.19. This guide details
+downgrading the kernel to version 3.19.7-200.fc21.x86_64.
 
 Download and install required kernel packages
 

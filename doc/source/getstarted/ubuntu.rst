@@ -16,7 +16,7 @@ Hardware
 ========
 - 2 * Intel grizzly pass server boards
 - CPU: 2 * Intel Xeon CPU E5-2680 v2 @ 2.80GHz
-- RAM: Minimum 16GB, recommened 64GB
+- RAM: Minimum 16GB, recommended 64GB
 - 2 * physical networks
 
 Software
@@ -64,9 +64,9 @@ privileges for this.
 | sudo cat /etc/sudoers
 | <USER> ALL=(ALL) NOPASSWD: ALL
 
-Downgrade kernel
+Check kernel versions
 ================
-DPDK 2.1 has issues with kernel versions later than 3.19 due to changes in
+DPDK 2.2 has issues with kernel versions later than 3.19 due to changes in
 kernel synchronization mechanisms.
 
 Internal proxy config

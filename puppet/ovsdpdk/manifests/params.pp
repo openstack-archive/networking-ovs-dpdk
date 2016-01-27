@@ -23,7 +23,7 @@ class ovsdpdk::params {
 
   # DPDK config
   $ovs_dpdk_git_repo        = 'http://dpdk.org/git/dpdk'
-  $ovs_dpdk_git_tag         = 'v2.1.0'
+  $ovs_dpdk_git_tag         = 'v2.2.0'
   $ovs_dpdk_dir             = "${dest}/DPDK-${ovs_dpdk_git_tag}"
 
   # PLUGIN config
