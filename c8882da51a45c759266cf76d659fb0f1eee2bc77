@@ -1,0 +1,9 @@
+Code-Review+2: Przemyslaw Czesnowicz <przemyslaw.czesnowicz@intel.com>
+Code-Review+2: sean mooney <sean.k.mooney@intel.com>
+Workflow+1: sean mooney <sean.k.mooney@intel.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 05 Feb 2016 09:20:00 +0000
+Reviewed-on: https://review.openstack.org/270425
+Project: openstack/networking-ovs-dpdk
+Branch: refs/heads/master
