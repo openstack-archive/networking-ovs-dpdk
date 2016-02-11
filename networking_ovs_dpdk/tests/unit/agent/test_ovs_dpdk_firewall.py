@@ -336,12 +336,13 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
         self.firewall._enable_multicast = True
         port = self.fake_port_1
         self.mock_db_get_val.side_effect = [
-            '1',
-            'interface',
             {'net_uuid': "e00e6a6a-c88a-4724-80a7-6368a94241d9",
              'network_type': 'vlan',
              'physical_network': 'default',
-             'segmentation_id': SEGMENTATION_ID}]
+             'segmentation_id': SEGMENTATION_ID,
+             'tag': '1'},
+            'interface',
+            ]
         self.firewall.prepare_port_filter(port)
 
         calls_del_flows = [mock.call(dl_src=port['mac_address']),
