@@ -24,7 +24,7 @@ from oslo_log import log as logging
 from neutron.agent.common import ovs_lib
 from neutron.agent import firewall
 from neutron.common import constants
-from neutron.i18n import _, _LW
+from neutron.i18n import _, _LW, _LE
 
 LOG = logging.getLogger(__name__)
 
@@ -174,20 +174,25 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             network.
             """
         port_info = {'name': port_name}
-        port_info['tag'] = self._int_br_not_deferred.db_get_val('Port',
-                                                                port_name,
-                                                                'tag')
-        port_info['interfaces'] = \
-            self._int_br_not_deferred.db_get_val('Port',
-                                                 port_name, 'interfaces')
+        other_config = self._int_br_not_deferred.db_get_val('Port', port_name,
+                                                            'other_config')
+
+        if other_config is None or other_config.get('tag') is None:
+            LOG.error(_LE("Port %(port_name)s tag info is not present. SG "
+                          "rules can't be applied on this port."),
+                      {'port_id': port_name})
+            port_info['tag'] = None
+        else:
+            port_info['tag'] = other_config['tag']
         # Default fields (also other fields could be present):
         #   net_uuid="e00e6a6a-c88a-4724-80a7-6368a94241d9"
         #   network_type=vlan
         #   physical_network=default
         #   segmentation_id="1402"
-        port_info.update(self._int_br_not_deferred.db_get_val('Port',
-                                                              port_name,
-                                                              'other_config'))
+        port_info.update(other_config)
+        port_info['interfaces'] = \
+            self._int_br_not_deferred.db_get_val('Port',
+                                                 port_name, 'interfaces')
         return port_info
 
     def update_security_group_rules(self, sg_id, sg_rules):
