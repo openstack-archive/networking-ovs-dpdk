@@ -174,9 +174,15 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             network.
             """
         port_info = {'name': port_name}
-        port_info['tag'] = self._int_br_not_deferred.db_get_val('Port',
-                                                                port_name,
-                                                                'tag')
+        other_config = self._int_br_not_deferred.db_get_val('Port', port_name,
+                                                            'other_config')
+
+        if other_config is None or other_config.get('tag') is None:
+            LOG.info(_LW("Port %(port_name)s tag info is not present"),
+                     {'port_id': port_name})
+            port_info['tag'] = None
+        else:
+            port_info['tag'] = other_config['tag']
         port_info['interfaces'] = \
             self._int_br_not_deferred.db_get_val('Port',
                                                  port_name, 'interfaces')
@@ -185,6 +191,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         #   network_type=vlan
         #   physical_network=default
         #   segmentation_id="1402"
+        #   tag="1"
         port_info.update(self._int_br_not_deferred.db_get_val('Port',
                                                               port_name,
                                                               'other_config'))
