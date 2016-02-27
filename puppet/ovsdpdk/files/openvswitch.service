@@ -1,0 +1,11 @@
+[Unit]
+Description=Open vSwitch with DPDK
+
+[Service]
+Type=oneshot
+ExecStart=/etc/init.d/ovs-dpdk start
+ExecStop=/etc/init.d/ovs-dpdk stop
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
