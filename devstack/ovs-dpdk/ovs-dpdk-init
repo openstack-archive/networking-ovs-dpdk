@@ -42,6 +42,26 @@ die() {
     exit $exitcode
 }
 
+generate_pciwhitelist(){
+    local _output=$1
+    local MAPPINGS=${OVS_PCI_MAPPINGS//,/ }
+    local ARRAY=( $MAPPINGS )
+    local _Whitelist=''
+    for pair in ${ARRAY[@]} ; do
+        local addr=`echo $pair | cut -f 1 -d "#"`
+        if [[ "$addr" =~ "0000:" ]]; then
+            if [ "$_Whitelist" == '' ]; then
+                _Whitelist="-w $addr"
+            else
+                _Whitelist="$_Whitelist -w $addr"
+            fi
+        fi
+    done
+    eval "$_output=\$_Whitelist"
+}
+
+
+
 init_db(){
     if [ ! -d $OVS_DB_CONF_DIR ]; then
         sudo mkdir -m 777 -p $OVS_DB_CONF_DIR
@@ -61,8 +81,16 @@ init_db(){
     sudo ${OVS_INSTALL_DIR}/sbin/ovsdb-server  --detach --pidfile=${OVS_DB_SOCKET_DIR}/ovsdb-server.pid  --remote=punix:$OVS_DB_SOCKET --remote=db:Open_vSwitch,Open_vSwitch,manager_options
     sudo ovs-vsctl --db=unix:$OVS_DB_SOCKET --no-wait init
     sudo ovs-vsctl --no-wait set Open_vSwitch . other_config:pmd-cpu-mask=$OVS_PMD_CORE_MASK
-}
 
+    if [ "$OVS_INIT_POLICY" == "db" ]; then
+        local pciAddressWhitelist
+        generate_pciwhitelist pciAddressWhitelist
+        sudo ovs-vsctl --no-wait set Open_vSwitch . other_config:pmd-cpu-mask=$OVS_PMD_CORE_MASK other_config:dpdk-init=True other_config:dpdk-lcore-mask=$OVS_CORE_MASK \
+        other_config:dpdk-mem-channels=4 other_config:dpdk-socket-mem=$OVS_SOCKET_MEM other_config:dpdk-hugepage-dir=$OVS_HUGEPAGE_MOUNT other_config:vhost-sock-dir=$OVS_DB_SOCKET_DIR  \
+        other_config:dpdk-extra=" --proc-type primary $pciAddressWhitelist "
+    fi
+
+}
 
 
 restart_service(){
@@ -497,24 +525,19 @@ start_ovs(){
     PHYS_PORTS=${#ARRAY[@]}
 
     sudo rm -f $OVS_LOG_DIR/ovs-vswitchd.log
-    MAPPINGS=${OVS_PCI_MAPPINGS//,/ }
-    ARRAY=( $MAPPINGS )
-    pciAddressWhitelist=''
-    for pair in ${ARRAY[@]} ; do
-        addr=`echo $pair | cut -f 1 -d "#"`
-        if [[ "$addr" =~ "0000:" ]]; then
-            if [ "$pciAddressWhitelist" == '' ]; then
-                pciAddressWhitelist="-w $addr"
-            else
-                pciAddressWhitelist="$pciAddressWhitelist -w $addr"
-            fi
-        fi
-    done
 
     qemu_group="qemu"
     if is_ubuntu; then
         qemu_group="kvm"
     fi
+
+    start_cmd="screen -dms ovs-vswitchd sudo sg $qemu_group -c \"umask 002; ${OVS_INSTALL_DIR}/sbin/ovs-vswitchd -- unix:$OVS_DB_SOCKET 2>&1 | tee ${OVS_LOG_DIR}/ovs-vswitchd.log\""
+    if [ "$OVS_INIT_POLICY" == "cmd" ]; then
+        local pciAddressWhitelist
+        generate_pciwhitelist pciAddressWhitelist
+        start_cmd="screen -dms ovs-vswitchd sudo sg $qemu_group -c \"umask 002; ${OVS_INSTALL_DIR}/sbin/ovs-vswitchd --dpdk -vhost_sock_dir $OVS_DB_SOCKET_DIR -c $OVS_CORE_MASK -n $OVS_MEM_CHANNELS  --proc-type primary  --huge-dir $OVS_HUGEPAGE_MOUNT --socket-mem $OVS_SOCKET_MEM $pciAddressWhitelist -- unix:$OVS_DB_SOCKET --pidfile=${OVS_DB_SOCKET_DIR}/ovs-vswitchd.pid 2>&1 | tee ${OVS_LOG_DIR}/ovs-vswitchd.log\""
+    fi
+
 
     if [ -n "$OVS_LOCK_DIR" ]; then
         retry_count=1
@@ -524,7 +547,7 @@ start_ovs(){
                 sudo mkdir $OVS_LOCK_DIR
                 if [ $? == 0 ]; then
                     echo "start ovs-vswitchd $retry_count/$max_retry_count"
-                    screen -dms ovs-vswitchd sudo sg $qemu_group -c "umask 002; ${OVS_INSTALL_DIR}/sbin/ovs-vswitchd --dpdk -vhost_sock_dir $OVS_DB_SOCKET_DIR -c $OVS_CORE_MASK -n $OVS_MEM_CHANNELS  --proc-type primary  --huge-dir $OVS_HUGEPAGE_MOUNT --socket-mem $OVS_SOCKET_MEM $pciAddressWhitelist -- unix:$OVS_DB_SOCKET --pidfile=${OVS_DB_SOCKET_DIR}/ovs-vswitchd.pid 2>&1 | tee ${OVS_LOG_DIR}/ovs-vswitchd.log"
+                    echo $start_cmd; $start_cmd
                     break
                 fi
             fi
@@ -532,7 +555,7 @@ start_ovs(){
             sleep 10
         done
     else
-        screen -dms ovs-vswitchd sudo sg $qemu_group -c "umask 002; ${OVS_INSTALL_DIR}/sbin/ovs-vswitchd --dpdk -vhost_sock_dir $OVS_DB_SOCKET_DIR -c $OVS_CORE_MASK -n $OVS_MEM_CHANNELS  --proc-type primary  --huge-dir $OVS_HUGEPAGE_MOUNT --socket-mem $OVS_SOCKET_MEM $pciAddressWhitelist -- unix:$OVS_DB_SOCKET --pidfile=${OVS_DB_SOCKET_DIR}/ovs-vswitchd.pid 2>&1 | tee ${OVS_LOG_DIR}/ovs-vswitchd.log"
+        echo $start_cmd; eval $start_cmd
     fi
 
     retry_count=1
