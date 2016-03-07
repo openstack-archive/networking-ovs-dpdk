@@ -23,6 +23,21 @@ See :download:`local.conf_example <_downloads/local.conf_example>`_ for sample u
 
 Default values for the below settings can be found in `settings` file in devstack directory of the main OVS DPDK repository.
 
+**OVS_INIT_POLICY**
+    This setting controls how ovs with dpdk is enabled.
+
+    Allowed values: 'cmd', 'db', 'auto'
+
+    cmd:  setting this value enables the legacy workflow where dpdk paramaters are passed on the ovs-vswitchd commandline.
+    db:   setting this value enables the new workflow where dpdk paramaters are stored in the ovsdb.
+    auto: setting this value instructs the plugin to try and deterim the correct value to use.
+
+    Default: 'auto'
+
+    Example:
+
+    OVS_INIT_POLICY=db
+
 **OVS_SOCKET_MEM**
     (Size in MB/auto) Amount of memory reserved by OVS from each NUMA node.
 

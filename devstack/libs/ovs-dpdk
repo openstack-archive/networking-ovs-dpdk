@@ -211,6 +211,11 @@ function clone_ovs_dpdk(){
             popd
         fi
     fi
+    if [ "$OVS_INIT_POLICY" == "auto" ] && [ $(grep dpdk-init "${OVS_DIR}/vswitchd/vswitch.xml" > /dev/null ; echo $?) == "0" ]; then
+        OVS_INIT_POLICY='db'
+    else
+        OVS_INIT_POLICY=${OVS_INIT_POLICY:-'cmd'}
+    fi
 }
 
 function build_ovs_dpdk(){
@@ -283,6 +288,7 @@ function ovs_dpdk_write_conf {
     sudo sed "s#OVS_INTERFACE_DRIVER=.*#OVS_INTERFACE_DRIVER=$OVS_INTERFACE_DRIVER#" -i /etc/default/ovs-dpdk
     sudo sed "s#OVS_TUNNEL_CIDR_MAPPING=.*#OVS_TUNNEL_CIDR_MAPPING=$OVS_TUNNEL_CIDR_MAPPING#" -i /etc/default/ovs-dpdk
     sudo sed "s#OVS_DPDK_SERVICE_DEBUG_OUTPUT=.*#OVS_DPDK_SERVICE_DEBUG_OUTPUT=$OVS_DPDK_SERVICE_DEBUG_OUTPUT#" -i /etc/default/ovs-dpdk
+    sudo sed "s#OVS_INIT_POLICY=.*#OVS_INIT_POLICY=$OVS_INIT_POLICY#" -i /etc/default/ovs-dpdk
 
     if [ "$OVS_SOCKET_MEM" == "auto" ]; then
         for d in /sys/devices/system/node/node? ; do
