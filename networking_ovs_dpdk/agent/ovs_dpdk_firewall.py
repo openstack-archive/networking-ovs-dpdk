@@ -178,13 +178,13 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         if other_config is None or other_config.get('tag') is None:
             LOG.info(_LI("Port %(port_name)s VLAN tag info is not present in "
                          "'other_config', looking in 'tag'"),
-                     {'port_id': port_name})
+                     {'port_name': port_name})
             port_info['tag'] = self._int_br_not_deferred.db_get_val('Port',
                 port_name, 'tag')
             if port_info['tag'] is None:
                 LOG.error(_LE("Port %(port_name)s tag info is not present. SG "
                               "rules can't be applied on this port."),
-                          {'port_id': port_name})
+                          {'port_name': port_name})
         else:
             port_info['tag'] = other_config['tag']
         # Default fields (also other fields could be present):
