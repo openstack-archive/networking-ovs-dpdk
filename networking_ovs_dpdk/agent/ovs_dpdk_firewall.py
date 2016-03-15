@@ -25,15 +25,17 @@ from neutron.agent.common import ovs_lib
 from neutron.agent import firewall
 from neutron.common import constants
 from neutron.i18n import _, _LW, _LE
+from neutron.plugins.ml2.drivers.openvswitch.agent.common import constants \
+    as ovs_constants
 
 LOG = logging.getLogger(__name__)
 
 # OpenFlow Table IDs
-OF_ZERO_TABLE = 0
-OF_SELECT_TABLE = 1
-OF_EGRESS_TABLE = 11
-OF_INGRESS_TABLE = 21
-OF_INGRESS_EXT_TABLE = 23
+OF_ZERO_TABLE = ovs_constants.LOCAL_SWITCHING
+OF_SELECT_TABLE = ovs_constants.OVS_FIREWALL_TABLES[0]
+OF_EGRESS_TABLE = ovs_constants.OVS_FIREWALL_TABLES[1]
+OF_INGRESS_TABLE = ovs_constants.OVS_FIREWALL_TABLES[2]
+OF_INGRESS_EXT_TABLE = ovs_constants.OVS_FIREWALL_TABLES[3]
 
 # Openflow ZERO table priorities
 OF_T0_ARP_INT_PRIO = 100
@@ -151,6 +153,8 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         self._int_br = ovs_lib.OVSBridge(cfg.CONF.OVS.integration_bridge)
         self._int_br_not_deferred = self._int_br
         self._deferred = False
+        self._cookie = None
+
         self._enable_multicast = \
             cfg.CONF.OVS.enable_sg_firewall_multicast
 
@@ -164,11 +168,34 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         self.pre_sg_members = None
 
         # Known ports managed.
-        self.known_in_port_for_device = {}
+        self._filtered_in_ports = {}
 
     @property
     def ports(self):
         return self._filtered_ports
+
+    @property
+    def cookie(self):
+        if not self._cookie:
+            self._cookie = self._br_int_cookie()
+        return self._cookie
+
+    def _br_int_cookie(self):
+        """Returns the cookie of current br_int instance."""
+        ct_flows = self._int_br_not_deferred.dump_flows_for_table(
+            ovs_constants.CANARY_TABLE)
+        if type(ct_flows) is list:
+            ct_flows = ct_flows.pop()
+        if not ct_flows:
+            LOG.error(_LE("Canary table empty, cookie number not present"))
+            return None
+
+        re_cookie = re.compile("cookie=0x([0-9a-fA-F]+),")
+        cookie = re_cookie.search(ct_flows)
+        if not cookie:
+            LOG.error(_LE("Error retrieving the cookie number"))
+            return None
+        return int(cookie.group(1), 16)
 
     def _vif_port_info(self, port_name):
         """Returns additional vif port info: internal vlan tag,
@@ -244,9 +271,10 @@ class OVSFirewallDriver(firewall.FirewallDriver):
     def apply_port_filter(self, port):
         pass
 
-    def _add_flow(self, *args, **kwargs):
+    def _add_flow(self, **kwargs):
+        kwargs['cookie'] = self.cookie
         LOG.debug("OFW add rule: %s", kwargs)
-        self._int_br.add_flow(*args, **kwargs)
+        self._int_br.add_flow(**kwargs)
 
     def _add_base_flows(self, port, vif_port):
         """Set base flows for every port."""
@@ -285,6 +313,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                             constants.PROTO_NAME_IPV6_ICMP),
                         dl_vlan=segmentation_id,
                         icmpv6_type=icmpv6_type,
+                        ipv6_dst=fixed_ip,
                         actions='strip_vlan,output:%s'
                             % vif_port.ofport)
 
@@ -310,6 +339,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                        dl_src=port['mac_address'],
                        actions="mod_vlan_vid:%s,"
                                "load:0->NXM_NX_REG0[0..11],"
+                               "load:0->NXM_NX_REG1[0..11],"
                                "resubmit(,%s)"
                                % (port['vinfo']['tag'], OF_SELECT_TABLE))
 
@@ -319,6 +349,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                        dl_vlan=segmentation_id,
                        actions="mod_vlan_vid:%s,"
                                "load:%s->NXM_NX_REG0[0..11],"
+                               "load:0->NXM_NX_REG1[0..11],"
                                "resubmit(,%s)"
                                % (port['vinfo']['tag'],
                                   port['vinfo']['tag'],
@@ -438,7 +469,8 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                     dl_vlan=port['vinfo']['tag'],
                     dl_dst=MULTICAST_MAC,
                     nw_dst=str(netaddr.ip.IPV4_MULTICAST.cidr),
-                    actions='resubmit(,%s)' % OF_INGRESS_TABLE)
+                    actions='load:1->NXM_NX_REG1[0..11],'
+                            'resubmit(,%s)' % OF_INGRESS_TABLE)
                 self._add_flow(priority=OF_SEL_SERVICES_EXT_MULTICAST_PRIO,
                     table=OF_SELECT_TABLE,
                     reg0="%s" % port['vinfo']['tag'],
@@ -446,7 +478,8 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                     dl_vlan=port['vinfo']['tag'],
                     dl_dst=MULTICAST_MAC,
                     ipv6_dst=str(netaddr.ip.IPV6_MULTICAST.cidr),
-                    actions='resubmit(,%s)' % OF_INGRESS_TABLE)
+                    actions='load:1->NXM_NX_REG1[0..11],'
+                            'resubmit(,%s)' % OF_INGRESS_TABLE)
 
     def _add_selection_table_port_block(self, port):
         """Block rest of the traffic.
@@ -616,22 +649,31 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                 table=OF_INGRESS_EXT_TABLE,
                 priority=OF_INGRESS_EXT_BLOCK_MULTICAST_PRIO,
                 dl_vlan=port['vinfo']['tag'],
-                dl_dst=MULTICAST_MAC,
-                nw_dst=str(netaddr.ip.IPV4_MULTICAST.cidr),
+                reg1="1",
                 actions='drop')
 
     def _get_ingress_actions(self, vif_port):
         return 'strip_vlan,output:%(oport)s' % \
                {'oport': vif_port.ofport}
 
-    def _remove_flows(self, port, vif_port):
+    def _remove_flows(self, port):
+        # Remove manual and "learn action" rules.
         self._int_br.delete_flows(dl_src=port["mac_address"])
         self._int_br.delete_flows(dl_dst=port["mac_address"])
-        if vif_port:
-            self._int_br.delete_flows(in_port=vif_port.ofport)
-        else:
-            self._int_br.delete_flows(
-                in_port=self.known_in_port_for_device.pop(port['device']))
+        # Remove antispoof rules.
+        if self._filtered_in_ports.get(port['device']):
+            self._int_br.delete_flows(in_port=self._filtered_in_ports.get(
+                port['device']))
+        # Remove ARP rules.
+        for ipv4 in [ip for ip in port['fixed_ips'] if
+                     self._ip_version_from_address(ip) == IPv4]:
+            self._int_br.delete_flows(table=OF_ZERO_TABLE, nw_dst=ipv4,
+                proto=self._write_proto(IPv4, "arp"))
+        # Remove ND rules.
+        for ipv6 in [ip for ip in port['fixed_ips'] if
+                     self._ip_version_from_address(ip) == IPv6]:
+            self._int_br.delete_flows(table=OF_ZERO_TABLE, ipv6_dst=ipv6,
+                proto=self._write_proto(IPv6, constants.PROTO_NAME_IPV6_ICMP))
 
     def _write_multicast_flow(self, flow, direction, port, port_match,
                               priority, ip_version, ip_proto):
@@ -763,12 +805,12 @@ class OVSFirewallDriver(firewall.FirewallDriver):
 
     def _write_flows_per_port_match(self, flow, port_match):
         if port_match == "" or isinstance(flow[port_match], int):
-            self._int_br.add_flow(**flow)
+            self._add_flow(**flow)
         elif isinstance(flow[port_match], list):
             for portm in flow[port_match]:
                 hp_flow = dict.copy(flow)
                 hp_flow[port_match] = portm
-                self._int_br.add_flow(**hp_flow)
+                self._add_flow(**hp_flow)
 
     def _write_flows_per_ip(self, flow, rule, port, port_match, ip_proto):
         """Write the needed flows per each IP in the port."""
@@ -885,14 +927,16 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         vif_port = self._int_br_not_deferred.get_vif_port_by_id(
             port['device'])
         if not vif_port:
-            LOG.info(_LW("Port %(port_id)s not present in bridge. Skip"
-                         "applying rules for this port"),
-                     {'port_id': port})
+            LOG.warning(_LW("Port %(port_id)s not present in bridge. Skip"
+                            "applying rules for this port"),
+                        {'port_id': port})
+            return
         port['vinfo'] = self._vif_port_info(vif_port.port_name)
+        self._remove_flows(port)
         self._filtered_ports[port['device']] = port
-        self._remove_flows(port, vif_port)
+        self._filtered_in_ports[port['device']] = vif_port.ofport
         self._add_base_flows(port, vif_port)
-        self.known_in_port_for_device[port['device']] = vif_port.ofport
+        self._add_rules_flows(port)
 
     def update_port_filter(self, port):
         LOG.debug("OFW Updating device (%s) filter: %s", port['device'],
@@ -902,18 +946,20 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                        'filtered %s'), port['device'])
             return
 
-        old_port = self._filtered_ports[port['device']]
+        old_port = self._filtered_ports.get(port['device'])
         vif_port = self._int_br_not_deferred.get_vif_port_by_id(
             port['device'])
         if not vif_port:
-            LOG.info(_LW("Port %(port_id)s not present in bridge. Skip"
-                         "applying rules for this port"),
-                     {'port_id': port})
+            LOG.warning(_LW("Port %(port_id)s not present in bridge. Skip"
+                            "applying rules for this port"),
+                        {'port_id': port})
+            return
         port['vinfo'] = self._vif_port_info(vif_port.port_name)
+        self._remove_flows(old_port)
         self._filtered_ports[port['device']] = port
-        self._remove_flows(old_port, vif_port)
+        self._filtered_in_ports[port['device']] = vif_port.ofport
         self._add_base_flows(port, vif_port)
-        self.known_in_port_for_device[port['device']] = vif_port.ofport
+        self._add_rules_flows(port)
 
     def remove_port_filter(self, port):
         LOG.debug("OFW Removing device (%s) filter: %s", port['device'],
@@ -922,14 +968,9 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             LOG.info(_('Attempted to remove port filter which is not '
                        'filtered %r'), port)
             return
-        vif_port = self._int_br_not_deferred.get_vif_port_by_id(
-            port['device'])
-        if not vif_port:
-            LOG.info(_LW("Port %(port_id)s not present in bridge. Skip"
-                         "applying rules for this port"),
-                     {'port_id': port})
-        self._remove_flows(port, vif_port)
+        self._remove_flows(port)
         self._filtered_ports.pop(port['device'])
+        self._filtered_in_ports.pop(port['device'])
 
     def filter_defer_apply_on(self):
         LOG.debug("OFW defer_apply_on")
@@ -941,14 +982,6 @@ class OVSFirewallDriver(firewall.FirewallDriver):
     def filter_defer_apply_off(self):
         LOG.debug("OFW defer_apply_off")
         if self._deferred:
-            for table in [OF_ZERO_TABLE,
-                          OF_SELECT_TABLE,
-                          OF_EGRESS_TABLE,
-                          OF_INGRESS_TABLE,
-                          OF_INGRESS_EXT_TABLE]:
-                self._int_br_not_deferred.delete_flows(table=table)
-            for port in self.ports.values():
-                self._add_rules_flows(port)
             self._apply_flows()
             self._deferred = False
 
