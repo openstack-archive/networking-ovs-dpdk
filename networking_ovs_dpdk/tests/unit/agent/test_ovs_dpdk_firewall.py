@@ -21,6 +21,11 @@ from networking_ovs_dpdk.agent import ovs_dpdk_firewall
 from neutron.agent.common import config as a_cfg
 from neutron.agent.common import ovs_lib
 from neutron.agent import securitygroups_rpc as sg_cfg
+from neutron.i18n import _
+from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl \
+    import br_int
+from neutron.plugins.ml2.drivers.openvswitch.agent.ovs_agent_extension_api\
+    import OVSCookieBridge
 from neutron.tests import base
 from oslo_config import cfg
 
@@ -77,10 +82,10 @@ HARD_TIMEOUT = 1800
 
 # OpenFlow Table IDs
 OF_ZERO_TABLE = 0
-OF_SELECT_TABLE = 1
-OF_EGRESS_TABLE = 11
-OF_INGRESS_TABLE = 21
-OF_INGRESS_EXT_TABLE = 23
+OF_SELECT_TABLE = 71
+OF_EGRESS_TABLE = 72
+OF_INGRESS_TABLE = 73
+OF_INGRESS_EXT_TABLE = 81
 
 # From networking_ovs_dpdk.common.config
 DEFAULT_BRIDGE_MAPPINGS = []
@@ -106,6 +111,8 @@ ovs_opts = [
                        "integration bridge to physical bridges."))
 ]
 
+COOKIE = 1
+
 
 class BaseOVSDPDKFirewallTestCase(base.BaseTestCase):
     def setUp(self):
@@ -113,22 +120,23 @@ class BaseOVSDPDKFirewallTestCase(base.BaseTestCase):
         cfg.CONF.register_opts(a_cfg.ROOT_HELPER_OPTS, 'AGENT')
         cfg.CONF.register_opts(sg_cfg.security_group_opts, 'SECURITYGROUP')
         cfg.CONF.register_opts(ovs_opts, "OVS")
-        self.firewall = ovs_dpdk_firewall.OVSFirewallDriver()
+        int_br = br_int.OVSIntegrationBridge(cfg.CONF.OVS.integration_bridge)
+        self.firewall = ovs_dpdk_firewall.OVSFirewallDriver(int_br)
 
 
 class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
     def setUp(self):
         super(OVSDPDKFirewallTestCase, self).setUp()
         self._mock_add_flow = \
-            mock.patch.object(ovs_lib.OVSBridge, "add_flow")
+            mock.patch.object(OVSCookieBridge, "add_flow")
         self.mock_add_flow = self._mock_add_flow.start()
         self._mock_delete_flows = \
-            mock.patch.object(ovs_lib.OVSBridge, "delete_flows")
+            mock.patch.object(OVSCookieBridge, "delete_flows")
         self.mock_delete_flows = self._mock_delete_flows.start()
-        self._mock_get_vif_port_by_id = \
+        self._mock_get_vif_port_by_id =\
             mock.patch.object(ovs_lib.OVSBridge, "get_vif_port_by_id")
         self.mock_get_vif_port_by_id = self._mock_get_vif_port_by_id.start()
-        self._mock_db_get_val = \
+        self._mock_db_get_val =\
             mock.patch.object(ovs_lib.OVSBridge, "db_get_val")
         self.mock_db_get_val = self._mock_db_get_val.start()
 
@@ -351,7 +359,12 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
 
         calls_del_flows = [mock.call(dl_src=port['mac_address']),
                            mock.call(dl_dst=port['mac_address']),
-                           mock.call(in_port=port['ofport'])]
+                           mock.call(nw_dst=FAKE_IP[IPv4],
+                                     proto='arp',
+                                     table=OF_ZERO_TABLE),
+                           mock.call(ipv6_dst=FAKE_IP[IPv6],
+                                     proto=self._write_proto(IPv6, 'icmp'),
+                                     table=OF_ZERO_TABLE)]
         self.mock_delete_flows.assert_has_calls(calls_del_flows,
                                                 any_order=False)
         self.firewall._filtered_ports = port
@@ -365,23 +378,23 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
             mock.call(proto=self._write_proto(IPv6, 'icmp'),
                       actions='strip_vlan,output:%s' % port['ofport'],
                       icmpv6_type=133, priority=100, dl_vlan=SEGMENTATION_ID,
-                      table=OF_ZERO_TABLE),
+                      ipv6_dst=FAKE_IP[IPv6], table=OF_ZERO_TABLE),
             mock.call(proto=self._write_proto(IPv6, 'icmp'),
                       actions='strip_vlan,output:%s' % port['ofport'],
                       icmpv6_type=134, priority=100, dl_vlan=SEGMENTATION_ID,
-                      table=OF_ZERO_TABLE),
+                      ipv6_dst=FAKE_IP[IPv6], table=OF_ZERO_TABLE),
             mock.call(proto=self._write_proto(IPv6, 'icmp'),
                       actions='strip_vlan,output:%s' % port['ofport'],
                       icmpv6_type=135, priority=100, dl_vlan=SEGMENTATION_ID,
-                      table=OF_ZERO_TABLE),
+                      ipv6_dst=FAKE_IP[IPv6], table=OF_ZERO_TABLE),
             mock.call(proto=self._write_proto(IPv6, 'icmp'),
                       actions='strip_vlan,output:%s' % port['ofport'],
                       icmpv6_type=136, priority=100, dl_vlan=SEGMENTATION_ID,
-                      table=OF_ZERO_TABLE),
+                      ipv6_dst=FAKE_IP[IPv6], table=OF_ZERO_TABLE),
             mock.call(proto=self._write_proto(IPv6, 'icmp'),
                       actions='strip_vlan,output:%s' % port['ofport'],
                       icmpv6_type=137, priority=100, dl_vlan=SEGMENTATION_ID,
-                      table=OF_ZERO_TABLE),
+                      ipv6_dst=FAKE_IP[IPv6], table=OF_ZERO_TABLE),
             mock.call(proto='arp', actions='normal', priority=90,
                       table=OF_ZERO_TABLE),
             mock.call(proto=self._write_proto(IPv6, 'icmp'),
@@ -400,13 +413,16 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                       actions='normal', icmpv6_type=137, priority=90,
                       table=OF_ZERO_TABLE),
             mock.call(actions='mod_vlan_vid:%s,load:%s->NXM_NX_REG0[0..11],'
-                      'resubmit(,%s)' % (TAG_ID, 0, OF_SELECT_TABLE),
+                              'load:0->NXM_NX_REG1[0..11],resubmit(,%s)' %
+                              (TAG_ID, 0, OF_SELECT_TABLE),
                       priority=50, table=OF_ZERO_TABLE,
                       dl_src=port['mac_address']),
             mock.call(actions='mod_vlan_vid:%s,load:%s->NXM_NX_REG0[0..11],'
-                      'resubmit(,%s)' % (TAG_ID, TAG_ID, OF_SELECT_TABLE),
+                              'load:0->NXM_NX_REG1[0..11],resubmit(,%s)' %
+                              (TAG_ID, TAG_ID, OF_SELECT_TABLE),
                       priority=40, table=OF_ZERO_TABLE,
                       dl_vlan=SEGMENTATION_ID),
+            mock.call(actions='drop', priority=35, table=OF_ZERO_TABLE),
             mock.call(proto=self._write_proto(IPv4, 'ip'),
                       dl_src=port['mac_address'],
                       actions='resubmit(,%s)' % OF_EGRESS_TABLE,
@@ -460,25 +476,29 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                       dl_dst='01:00:5e:00:00:00/01:00:5e:00:00:00',
                       nw_dst='224.0.0.0/4',
                       proto=self._write_proto(IPv4, 'tcp'),
-                      actions='resubmit(,%s)' % OF_INGRESS_TABLE),
+                      actions='load:1->NXM_NX_REG1[0..11],resubmit(,%s)' %
+                              OF_INGRESS_TABLE),
             mock.call(priority=180, table=OF_SELECT_TABLE,
                       dl_vlan=TAG_ID, reg0=TAG_ID,
                       dl_dst='01:00:5e:00:00:00/01:00:5e:00:00:00',
                       ipv6_dst='ff00::/8',
                       proto=self._write_proto(IPv6, 'tcp'),
-                      actions='resubmit(,%s)' % OF_INGRESS_TABLE),
+                      actions='load:1->NXM_NX_REG1[0..11],resubmit(,%s)' %
+                              OF_INGRESS_TABLE),
             mock.call(priority=180, table=OF_SELECT_TABLE,
                       dl_vlan=TAG_ID, reg0=TAG_ID,
                       dl_dst='01:00:5e:00:00:00/01:00:5e:00:00:00',
                       nw_dst='224.0.0.0/4',
                       proto=self._write_proto(IPv4, 'udp'),
-                      actions='resubmit(,%s)' % OF_INGRESS_TABLE),
+                      actions='load:1->NXM_NX_REG1[0..11],resubmit(,%s)' %
+                              OF_INGRESS_TABLE),
             mock.call(priority=180, table=OF_SELECT_TABLE,
                       dl_vlan=TAG_ID, reg0=TAG_ID,
                       dl_dst='01:00:5e:00:00:00/01:00:5e:00:00:00',
                       ipv6_dst='ff00::/8',
                       proto=self._write_proto(IPv6, 'udp'),
-                      actions='resubmit(,%s)' % OF_INGRESS_TABLE),
+                      actions='load:1->NXM_NX_REG1[0..11],resubmit(,%s)' %
+                              OF_INGRESS_TABLE),
             mock.call(priority=50, table=OF_SELECT_TABLE,
                       dl_vlan=TAG_ID, actions='drop',
                       proto=self._write_proto(IPv4, 'ip')),
@@ -580,18 +600,14 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                       table=OF_INGRESS_TABLE, dl_vlan=TAG_ID),
             mock.call(priority=100, table=OF_INGRESS_EXT_TABLE,
                       dl_vlan=TAG_ID,
-                      dl_dst='01:00:5e:00:00:00/01:00:5e:00:00:00',
-                      nw_dst='224.0.0.0/4',
-                      actions='drop'),
+                      reg1='1', actions='drop'),
         ]
         self.mock_add_flow.assert_has_calls(calls_add_flows, any_order=True)
 
     def _test_rules(self, rule_list, fake_sgid, flow_call_list):
-        self.firewall.update_security_group_rules(FAKE_SGID, rule_list)
+        self.firewall.update_security_group_rules(fake_sgid, rule_list)
         self.firewall._add_rules_flows(self.fake_port_1)
-
-        calls_add_flows = flow_call_list
-        self.mock_add_flow.assert_has_calls(calls_add_flows, any_order=False)
+        self.mock_add_flow.assert_has_calls(flow_call_list, any_order=False)
 
     def test_filter_ipv4_ingress(self):
         rule = {'ethertype': IPv4,
@@ -640,6 +656,7 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 nw_dst=FAKE_IP[IPv4],
                 nw_src=prefix,
                 priority=30,
+
                 proto=self._write_proto(IPv4, proto),
                 table=OF_INGRESS_TABLE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
