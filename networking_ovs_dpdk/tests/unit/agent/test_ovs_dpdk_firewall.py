@@ -21,6 +21,9 @@ from networking_ovs_dpdk.agent import ovs_dpdk_firewall
 from neutron.agent.common import config as a_cfg
 from neutron.agent.common import ovs_lib
 from neutron.agent import securitygroups_rpc as sg_cfg
+from neutron.i18n import _
+from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl \
+    import br_int
 from neutron.tests import base
 from oslo_config import cfg
 
@@ -77,10 +80,10 @@ HARD_TIMEOUT = 1800
 
 # OpenFlow Table IDs
 OF_ZERO_TABLE = 0
-OF_SELECT_TABLE = 1
-OF_EGRESS_TABLE = 11
-OF_INGRESS_TABLE = 21
-OF_INGRESS_EXT_TABLE = 23
+OF_SELECT_TABLE = 71
+OF_EGRESS_TABLE = 72
+OF_INGRESS_TABLE = 73
+OF_INGRESS_EXT_TABLE = 81
 
 # From networking_ovs_dpdk.common.config
 DEFAULT_BRIDGE_MAPPINGS = []
@@ -106,6 +109,8 @@ ovs_opts = [
                        "integration bridge to physical bridges."))
 ]
 
+COOKIE = 1
+
 
 class BaseOVSDPDKFirewallTestCase(base.BaseTestCase):
     def setUp(self):
@@ -113,30 +118,36 @@ class BaseOVSDPDKFirewallTestCase(base.BaseTestCase):
         cfg.CONF.register_opts(a_cfg.ROOT_HELPER_OPTS, 'AGENT')
         cfg.CONF.register_opts(sg_cfg.security_group_opts, 'SECURITYGROUP')
         cfg.CONF.register_opts(ovs_opts, "OVS")
-        self.firewall = ovs_dpdk_firewall.OVSFirewallDriver()
+        int_br = br_int.OVSIntegrationBridge(cfg.CONF.OVS.integration_bridge)
+        self.firewall = ovs_dpdk_firewall.OVSFirewallDriver(int_br)
 
 
 class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
     def setUp(self):
         super(OVSDPDKFirewallTestCase, self).setUp()
         self._mock_add_flow = \
-            mock.patch.object(ovs_lib.OVSBridge, "add_flow")
+            mock.patch.object(br_int.OVSIntegrationBridge, "add_flow")
         self.mock_add_flow = self._mock_add_flow.start()
         self._mock_delete_flows = \
-            mock.patch.object(ovs_lib.OVSBridge, "delete_flows")
+            mock.patch.object(br_int.OVSIntegrationBridge, "delete_flows")
         self.mock_delete_flows = self._mock_delete_flows.start()
-        self._mock_get_vif_port_by_id = \
-            mock.patch.object(ovs_lib.OVSBridge, "get_vif_port_by_id")
+        self._mock_get_vif_port_by_id = mock.patch.object(
+            br_int.OVSIntegrationBridge, "get_vif_port_by_id")
         self.mock_get_vif_port_by_id = self._mock_get_vif_port_by_id.start()
         self._mock_db_get_val = \
-            mock.patch.object(ovs_lib.OVSBridge, "db_get_val")
+            mock.patch.object(br_int.OVSIntegrationBridge, "db_get_val")
         self.mock_db_get_val = self._mock_db_get_val.start()
+        self._mock_cookie = \
+            mock.patch.object(ovs_dpdk_firewall.OVSFirewallDriver, "cookie")
+        self.mock_cookie = self._mock_cookie.start()
 
         # Create a fake port.
         self.fake_port_1 = self._fake_port(name='tapfake_dev_1')
         # Mock the VifPort.
         self.mock_get_vif_port_by_id.return_value = \
             self._fake_vifport(self.fake_port_1)
+        # Mock cookie.
+        self.mock_cookie.return_value = COOKIE
 
     def tearDown(self):
         super(OVSDPDKFirewallTestCase, self).tearDown()
@@ -144,6 +155,7 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
         self._mock_delete_flows.stop()
         self._mock_get_vif_port_by_id.stop()
         self._mock_db_get_val.stop()
+        self._mock_cookie.stop()
 
     def _fake_port(self, name,
                    ofport=1,
@@ -351,7 +363,13 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
 
         calls_del_flows = [mock.call(dl_src=port['mac_address']),
                            mock.call(dl_dst=port['mac_address']),
-                           mock.call(in_port=port['ofport'])]
+                           mock.call(nw_dst=FAKE_IP[IPv4],
+                                     proto='arp',
+                                     table=OF_ZERO_TABLE),
+                           mock.call(ipv6_dst=FAKE_IP[IPv6],
+                                     proto=self._write_proto(
+                                         IPv6, 'icmp'),
+                                     table=OF_ZERO_TABLE)]
         self.mock_delete_flows.assert_has_calls(calls_del_flows,
                                                 any_order=False)
         self.firewall._filtered_ports = port
@@ -361,72 +379,80 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                       actions='strip_vlan,output:%s' % port['ofport'],
                       dl_vlan=SEGMENTATION_ID,
                       nw_dst='%s' % FAKE_IP[IPv4], priority=100,
-                      table=OF_ZERO_TABLE),
+                      table=OF_ZERO_TABLE, cookie=COOKIE),
             mock.call(proto=self._write_proto(IPv6, 'icmp'),
                       actions='strip_vlan,output:%s' % port['ofport'],
                       icmpv6_type=133, priority=100, dl_vlan=SEGMENTATION_ID,
-                      table=OF_ZERO_TABLE),
+                      ipv6_dst=FAKE_IP[IPv6], table=OF_ZERO_TABLE,
+                      cookie=COOKIE),
             mock.call(proto=self._write_proto(IPv6, 'icmp'),
                       actions='strip_vlan,output:%s' % port['ofport'],
                       icmpv6_type=134, priority=100, dl_vlan=SEGMENTATION_ID,
-                      table=OF_ZERO_TABLE),
+                      ipv6_dst=FAKE_IP[IPv6], table=OF_ZERO_TABLE,
+                      cookie=COOKIE),
             mock.call(proto=self._write_proto(IPv6, 'icmp'),
                       actions='strip_vlan,output:%s' % port['ofport'],
                       icmpv6_type=135, priority=100, dl_vlan=SEGMENTATION_ID,
-                      table=OF_ZERO_TABLE),
+                      ipv6_dst=FAKE_IP[IPv6], table=OF_ZERO_TABLE,
+                      cookie=COOKIE),
             mock.call(proto=self._write_proto(IPv6, 'icmp'),
                       actions='strip_vlan,output:%s' % port['ofport'],
                       icmpv6_type=136, priority=100, dl_vlan=SEGMENTATION_ID,
-                      table=OF_ZERO_TABLE),
+                      ipv6_dst=FAKE_IP[IPv6], table=OF_ZERO_TABLE,
+                      cookie=COOKIE),
             mock.call(proto=self._write_proto(IPv6, 'icmp'),
                       actions='strip_vlan,output:%s' % port['ofport'],
                       icmpv6_type=137, priority=100, dl_vlan=SEGMENTATION_ID,
-                      table=OF_ZERO_TABLE),
+                      ipv6_dst=FAKE_IP[IPv6], table=OF_ZERO_TABLE,
+                      cookie=COOKIE),
             mock.call(proto='arp', actions='normal', priority=90,
-                      table=OF_ZERO_TABLE),
+                      table=OF_ZERO_TABLE, cookie=COOKIE),
             mock.call(proto=self._write_proto(IPv6, 'icmp'),
                       actions='normal', icmpv6_type=133, priority=90,
-                      table=OF_ZERO_TABLE),
+                      table=OF_ZERO_TABLE, cookie=COOKIE),
             mock.call(proto=self._write_proto(IPv6, 'icmp'),
                       actions='normal', icmpv6_type=134, priority=90,
-                      table=OF_ZERO_TABLE),
+                      table=OF_ZERO_TABLE, cookie=COOKIE),
             mock.call(proto=self._write_proto(IPv6, 'icmp'),
                       actions='normal', icmpv6_type=135, priority=90,
-                      table=OF_ZERO_TABLE),
+                      table=OF_ZERO_TABLE, cookie=COOKIE),
             mock.call(proto=self._write_proto(IPv6, 'icmp'),
                       actions='normal', icmpv6_type=136, priority=90,
-                      table=OF_ZERO_TABLE),
+                      table=OF_ZERO_TABLE, cookie=COOKIE),
             mock.call(proto=self._write_proto(IPv6, 'icmp'),
                       actions='normal', icmpv6_type=137, priority=90,
-                      table=OF_ZERO_TABLE),
+                      table=OF_ZERO_TABLE, cookie=COOKIE),
             mock.call(actions='mod_vlan_vid:%s,load:%s->NXM_NX_REG0[0..11],'
-                      'resubmit(,%s)' % (TAG_ID, 0, OF_SELECT_TABLE),
+                              'load:0->NXM_NX_REG1[0..11],resubmit(,%s)' %
+                              (TAG_ID, 0, OF_SELECT_TABLE),
                       priority=50, table=OF_ZERO_TABLE,
-                      dl_src=port['mac_address']),
+                      dl_src=port['mac_address'], cookie=COOKIE),
             mock.call(actions='mod_vlan_vid:%s,load:%s->NXM_NX_REG0[0..11],'
-                      'resubmit(,%s)' % (TAG_ID, TAG_ID, OF_SELECT_TABLE),
+                              'load:0->NXM_NX_REG1[0..11],resubmit(,%s)' %
+                              (TAG_ID, TAG_ID, OF_SELECT_TABLE),
                       priority=40, table=OF_ZERO_TABLE,
-                      dl_vlan=SEGMENTATION_ID),
+                      dl_vlan=SEGMENTATION_ID, cookie=COOKIE),
             mock.call(proto=self._write_proto(IPv4, 'ip'),
                       dl_src=port['mac_address'],
                       actions='resubmit(,%s)' % OF_EGRESS_TABLE,
                       priority=100, table=OF_SELECT_TABLE, dl_vlan=TAG_ID,
                       nw_src='%s' % FAKE_IP[IPv4],
-                      in_port=port['ofport']),
+                      in_port=port['ofport'], cookie=COOKIE),
             mock.call(proto=self._write_proto(IPv6, 'ip'),
                       dl_src=port['mac_address'],
                       actions='resubmit(,%s)' % OF_EGRESS_TABLE,
                       priority=100, table=OF_SELECT_TABLE, dl_vlan=TAG_ID,
                       ipv6_src='%s' % FAKE_IP[IPv6],
-                      in_port=port['ofport']),
+                      in_port=port['ofport'], cookie=COOKIE),
             mock.call(priority=100, table=OF_SELECT_TABLE,
                       dl_dst=port['mac_address'], dl_vlan=TAG_ID,
-                      actions='resubmit(,%s)' % OF_INGRESS_TABLE),
+                      actions='resubmit(,%s)' % OF_INGRESS_TABLE,
+                      cookie=COOKIE),
             mock.call(proto=self._write_proto(IPv4, 'ip'),
                       dl_src=port['mac_address'],
                       actions='resubmit(,%s)' % OF_EGRESS_TABLE,
                       priority=100, table=OF_SELECT_TABLE, dl_vlan=TAG_ID,
-                      nw_src='0.0.0.0', in_port=port['ofport']),
+                      nw_src='0.0.0.0', in_port=port['ofport'], cookie=COOKIE),
             mock.call(priority=200, table=OF_SELECT_TABLE,
                       in_port=port['ofport'], dl_vlan=TAG_ID,
                       dl_dst='01:00:5e:00:00:00/01:00:5e:00:00:00',
@@ -434,7 +460,7 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                       nw_dst='224.0.0.0/4',
                       nw_src='%s' % FAKE_IP[IPv4],
                       proto=self._write_proto(IPv4, 'igmp'),
-                      actions='strip_vlan,normal'),
+                      actions='strip_vlan,normal', cookie=COOKIE),
             mock.call(priority=200, table=OF_SELECT_TABLE,
                       in_port=port['ofport'], dl_vlan=TAG_ID,
                       dl_dst='01:00:5e:00:00:00/01:00:5e:00:00:00',
@@ -442,152 +468,162 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                       ipv6_dst='ff00::/8',
                       ipv6_src='%s' % FAKE_IP[IPv6],
                       proto=self._write_proto(IPv6, 'icmp'),
-                      actions='strip_vlan,normal'),
+                      actions='strip_vlan,normal', cookie=COOKIE),
             mock.call(priority=190, table=OF_SELECT_TABLE,
                       dl_vlan=TAG_ID,
                       dl_dst='01:00:5e:00:00:00/01:00:5e:00:00:00',
                       nw_dst='224.0.0.0/4',
                       proto=self._write_proto(IPv4, 'igmp'),
-                      actions='normal'),
+                      actions='normal', cookie=COOKIE),
             mock.call(priority=190, table=OF_SELECT_TABLE,
                       dl_vlan=TAG_ID,
                       dl_dst='01:00:5e:00:00:00/01:00:5e:00:00:00',
                       ipv6_dst='ff00::/8',
                       proto=self._write_proto(IPv6, 'icmp'),
-                      actions='normal'),
+                      actions='normal', cookie=COOKIE),
             mock.call(priority=180, table=OF_SELECT_TABLE,
                       dl_vlan=TAG_ID, reg0=TAG_ID,
                       dl_dst='01:00:5e:00:00:00/01:00:5e:00:00:00',
                       nw_dst='224.0.0.0/4',
                       proto=self._write_proto(IPv4, 'tcp'),
-                      actions='resubmit(,%s)' % OF_INGRESS_TABLE),
+                      actions='load:1->NXM_NX_REG1[0..11],resubmit(,%s)' %
+                              OF_INGRESS_TABLE,
+                      cookie=COOKIE),
             mock.call(priority=180, table=OF_SELECT_TABLE,
                       dl_vlan=TAG_ID, reg0=TAG_ID,
                       dl_dst='01:00:5e:00:00:00/01:00:5e:00:00:00',
                       ipv6_dst='ff00::/8',
                       proto=self._write_proto(IPv6, 'tcp'),
-                      actions='resubmit(,%s)' % OF_INGRESS_TABLE),
+                      actions='load:1->NXM_NX_REG1[0..11],resubmit(,%s)' %
+                              OF_INGRESS_TABLE,
+                      cookie=COOKIE),
             mock.call(priority=180, table=OF_SELECT_TABLE,
                       dl_vlan=TAG_ID, reg0=TAG_ID,
                       dl_dst='01:00:5e:00:00:00/01:00:5e:00:00:00',
                       nw_dst='224.0.0.0/4',
                       proto=self._write_proto(IPv4, 'udp'),
-                      actions='resubmit(,%s)' % OF_INGRESS_TABLE),
+                      actions='load:1->NXM_NX_REG1[0..11],resubmit(,%s)' %
+                              OF_INGRESS_TABLE,
+                      cookie=COOKIE),
             mock.call(priority=180, table=OF_SELECT_TABLE,
                       dl_vlan=TAG_ID, reg0=TAG_ID,
                       dl_dst='01:00:5e:00:00:00/01:00:5e:00:00:00',
                       ipv6_dst='ff00::/8',
                       proto=self._write_proto(IPv6, 'udp'),
-                      actions='resubmit(,%s)' % OF_INGRESS_TABLE),
+                      actions='load:1->NXM_NX_REG1[0..11],resubmit(,%s)' %
+                              OF_INGRESS_TABLE,
+                      cookie=COOKIE),
             mock.call(priority=50, table=OF_SELECT_TABLE,
                       dl_vlan=TAG_ID, actions='drop',
-                      proto=self._write_proto(IPv4, 'ip')),
+                      proto=self._write_proto(IPv4, 'ip'),
+                      cookie=COOKIE),
             mock.call(priority=50, table=OF_SELECT_TABLE,
                       dl_vlan=TAG_ID, actions='drop',
-                      proto=self._write_proto(IPv6, 'ip')),
+                      proto=self._write_proto(IPv6, 'ip'),
+                      cookie=COOKIE),
             mock.call(actions='drop', in_port=port['ofport'], priority=40,
                       proto=self._write_proto(IPv4, 'udp'),
                       table=OF_EGRESS_TABLE, udp_dst=68,
-                      udp_src=67, dl_vlan=TAG_ID),
+                      udp_src=67, dl_vlan=TAG_ID, cookie=COOKIE),
             mock.call(actions='drop', in_port=port['ofport'], priority=40,
                       proto=self._write_proto(IPv6, 'udp'),
                       table=OF_EGRESS_TABLE, udp_dst=546,
-                      udp_src=547, dl_vlan=TAG_ID),
+                      udp_src=547, dl_vlan=TAG_ID, cookie=COOKIE),
             mock.call(actions='resubmit(,%s)' % OF_INGRESS_TABLE,
                       dl_src=port['mac_address'], in_port=port['ofport'],
                       priority=50,
                       proto=self._write_proto(IPv4, 'udp'),
                       table=OF_EGRESS_TABLE,
-                      udp_dst=67, udp_src=68, dl_vlan=TAG_ID),
+                      udp_dst=67, udp_src=68, dl_vlan=TAG_ID, cookie=COOKIE),
             mock.call(actions='resubmit(,%s)' % OF_INGRESS_TABLE,
                       dl_src=port['mac_address'], in_port=port['ofport'],
                       priority=50,
                       proto=self._write_proto(IPv6, 'udp'),
                       table=OF_EGRESS_TABLE,
-                      udp_dst=547, udp_src=546, dl_vlan=TAG_ID),
+                      udp_dst=547, udp_src=546, dl_vlan=TAG_ID, cookie=COOKIE),
             mock.call(icmp_type=9,
                       proto=self._write_proto(IPv4, 'icmp'),
                       dl_src=port['mac_address'],
                       actions='resubmit(,%s)' % OF_INGRESS_TABLE, priority=50,
-                      table=OF_EGRESS_TABLE, dl_vlan=TAG_ID),
+                      table=OF_EGRESS_TABLE, dl_vlan=TAG_ID, cookie=COOKIE),
             mock.call(icmp_type=10,
                       proto=self._write_proto(IPv4, 'icmp'),
                       dl_src=port['mac_address'],
                       actions='resubmit(,%s)' % OF_INGRESS_TABLE, priority=50,
-                      table=OF_EGRESS_TABLE, dl_vlan=TAG_ID),
+                      table=OF_EGRESS_TABLE, dl_vlan=TAG_ID, cookie=COOKIE),
             mock.call(icmpv6_type=130,
                       proto=self._write_proto(IPv6, 'icmp'),
                       dl_src=port['mac_address'],
                       actions='resubmit(,%s)' % OF_INGRESS_TABLE,
                       priority=50, table=OF_EGRESS_TABLE, dl_vlan=TAG_ID,
-                      in_port=port['ofport']),
+                      in_port=port['ofport'], cookie=COOKIE),
             mock.call(icmpv6_type=131,
                       proto=self._write_proto(IPv6, 'icmp'),
                       dl_src=port['mac_address'],
                       actions='resubmit(,%s)' % OF_INGRESS_TABLE,
                       priority=50, table=OF_EGRESS_TABLE, dl_vlan=TAG_ID,
-                      in_port=port['ofport']),
+                      in_port=port['ofport'], cookie=COOKIE),
             mock.call(icmpv6_type=132,
                       proto=self._write_proto(IPv6, 'icmp'),
                       dl_src=port['mac_address'],
                       actions='resubmit(,%s)' % OF_INGRESS_TABLE,
                       priority=50, table=OF_EGRESS_TABLE, dl_vlan=TAG_ID,
-                      in_port=port['ofport']),
+                      in_port=port['ofport'], cookie=COOKIE),
             mock.call(priority=10, table=OF_INGRESS_TABLE, dl_vlan=TAG_ID,
-                      actions='resubmit(,%s)' % OF_INGRESS_EXT_TABLE),
+                      actions='resubmit(,%s)' % OF_INGRESS_EXT_TABLE,
+                      cookie=COOKIE),
             mock.call(priority=100, table=OF_INGRESS_EXT_TABLE,
                       dl_dst=port['mac_address'], dl_vlan=TAG_ID,
-                      actions='drop'),
+                      actions='drop', cookie=COOKIE),
             mock.call(priority=100, table=OF_INGRESS_EXT_TABLE,
                       reg0=TAG_ID, dl_vlan=TAG_ID,
-                      actions='drop'),
+                      actions='drop', cookie=COOKIE),
             mock.call(priority=50, table=OF_INGRESS_EXT_TABLE,
-                      dl_vlan=TAG_ID, actions='strip_vlan,normal'),
+                      dl_vlan=TAG_ID, actions='strip_vlan,normal',
+                      cookie=COOKIE),
             mock.call(actions='strip_vlan,output:%s' % port['ofport'],
                       proto=self._write_proto(IPv4, 'udp'),
                       priority=50, udp_src=67, udp_dst=68,
                       table=OF_INGRESS_TABLE, dl_vlan=TAG_ID,
-                      dl_dst=port['mac_address']),
+                      dl_dst=port['mac_address'], cookie=COOKIE),
             mock.call(actions='strip_vlan,output:%s' % port['ofport'],
                       proto=self._write_proto(IPv6, 'udp'),
                       priority=50, udp_src=547, udp_dst=546,
                       table=OF_INGRESS_TABLE, dl_vlan=TAG_ID,
-                      dl_dst=port['mac_address']),
+                      dl_dst=port['mac_address'], cookie=COOKIE),
             mock.call(actions='strip_vlan,output:%s' % port['ofport'],
                       icmp_type=9,
                       proto=self._write_proto(IPv4, 'icmp'),
                       dl_dst=port['mac_address'], priority=50,
-                      table=OF_INGRESS_TABLE, dl_vlan=TAG_ID),
+                      table=OF_INGRESS_TABLE, dl_vlan=TAG_ID, cookie=COOKIE),
             mock.call(actions='strip_vlan,output:%s' % port['ofport'],
                       icmp_type=10,
                       proto=self._write_proto(IPv4, 'icmp'),
                       dl_dst=port['mac_address'], priority=50,
-                      table=OF_INGRESS_TABLE, dl_vlan=TAG_ID),
+                      table=OF_INGRESS_TABLE, dl_vlan=TAG_ID, cookie=COOKIE),
             mock.call(actions='strip_vlan,output:%s' % port['ofport'],
                       icmpv6_type=130,
                       proto=self._write_proto(IPv6, 'icmp'),
                       dl_dst=port['mac_address'], priority=50,
-                      table=OF_INGRESS_TABLE, dl_vlan=TAG_ID),
+                      table=OF_INGRESS_TABLE, dl_vlan=TAG_ID, cookie=COOKIE),
             mock.call(actions='strip_vlan,output:%s' % port['ofport'],
                       icmpv6_type=131,
                       proto=self._write_proto(IPv6, 'icmp'),
                       dl_dst=port['mac_address'], priority=50,
-                      table=OF_INGRESS_TABLE, dl_vlan=TAG_ID),
+                      table=OF_INGRESS_TABLE, dl_vlan=TAG_ID, cookie=COOKIE),
             mock.call(actions='strip_vlan,output:%s' % port['ofport'],
                       icmpv6_type=132,
                       proto=self._write_proto(IPv6, 'icmp'),
                       dl_dst=port['mac_address'], priority=50,
-                      table=OF_INGRESS_TABLE, dl_vlan=TAG_ID),
+                      table=OF_INGRESS_TABLE, dl_vlan=TAG_ID, cookie=COOKIE),
             mock.call(priority=100, table=OF_INGRESS_EXT_TABLE,
                       dl_vlan=TAG_ID,
-                      dl_dst='01:00:5e:00:00:00/01:00:5e:00:00:00',
-                      nw_dst='224.0.0.0/4',
-                      actions='drop'),
+                      reg1='1', actions='drop', cookie=COOKIE),
         ]
         self.mock_add_flow.assert_has_calls(calls_add_flows, any_order=True)
 
     def _test_rules(self, rule_list, fake_sgid, flow_call_list):
-        self.firewall.update_security_group_rules(FAKE_SGID, rule_list)
+        self.firewall.update_security_group_rules(fake_sgid, rule_list)
         self.firewall._add_rules_flows(self.fake_port_1)
 
         calls_add_flows = flow_call_list
@@ -606,7 +642,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 nw_dst=FAKE_IP[IPv4],
                 priority=30,
                 proto=self._write_proto(IPv4, proto),
-                table=OF_INGRESS_TABLE))
+                table=OF_INGRESS_TABLE,
+                cookie=COOKIE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_ingress(self):
@@ -622,7 +659,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 ipv6_dst=FAKE_IP[IPv6],
                 priority=30,
                 proto=self._write_proto(IPv6, proto),
-                table=OF_INGRESS_TABLE))
+                table=OF_INGRESS_TABLE,
+                cookie=COOKIE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_ingress_prefix(self):
@@ -640,8 +678,10 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 nw_dst=FAKE_IP[IPv4],
                 nw_src=prefix,
                 priority=30,
+
                 proto=self._write_proto(IPv4, proto),
-                table=OF_INGRESS_TABLE))
+                table=OF_INGRESS_TABLE,
+                cookie=COOKIE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_ingress_prefix(self):
@@ -660,7 +700,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 ipv6_src=prefix,
                 priority=30,
                 proto=self._write_proto(IPv6, proto),
-                table=OF_INGRESS_TABLE))
+                table=OF_INGRESS_TABLE,
+                cookie=COOKIE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_ingress_tcp(self):
@@ -676,7 +717,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
             nw_dst=FAKE_IP[IPv4],
             priority=30,
             proto=self._write_proto(IPv4, proto),
-            table=OF_INGRESS_TABLE)]
+            table=OF_INGRESS_TABLE,
+            cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_ingress_tcp(self):
@@ -692,7 +734,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
             ipv6_dst=FAKE_IP[IPv6],
             priority=30,
             proto=self._write_proto(IPv6, proto),
-            table=OF_INGRESS_TABLE)]
+            table=OF_INGRESS_TABLE,
+            cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_ingress_tcp_prefix(self):
@@ -711,7 +754,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
             nw_src=prefix,
             priority=30,
             proto=self._write_proto(IPv4, proto),
-            table=OF_INGRESS_TABLE)]
+            table=OF_INGRESS_TABLE,
+            cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_ingress_tcp_prefix(self):
@@ -730,7 +774,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
             ipv6_src=prefix,
             priority=30,
             proto=self._write_proto(IPv6, proto),
-            table=OF_INGRESS_TABLE)]
+            table=OF_INGRESS_TABLE,
+            cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_ingress_icmp(self):
@@ -754,7 +799,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
             nw_src=prefix,
             priority=30,
             proto=self._write_proto(IPv4, proto),
-            table=OF_INGRESS_TABLE)]
+            table=OF_INGRESS_TABLE,
+            cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_ingress_icmp(self):
@@ -778,7 +824,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
             ipv6_src=prefix,
             priority=30,
             proto=self._write_proto(IPv6, proto),
-            table=OF_INGRESS_TABLE)]
+            table=OF_INGRESS_TABLE,
+            cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_ingress_icmp_prefix(self):
@@ -802,7 +849,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
             nw_src=prefix,
             priority=30,
             proto=self._write_proto(IPv4, proto),
-            table=OF_INGRESS_TABLE)]
+            table=OF_INGRESS_TABLE,
+            cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_ingress_icmp_prefix(self):
@@ -826,7 +874,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
             ipv6_src=prefix,
             priority=30,
             proto=self._write_proto(IPv6, proto),
-            table=OF_INGRESS_TABLE)]
+            table=OF_INGRESS_TABLE,
+            cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_ingress_tcp_port(self):
@@ -845,7 +894,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
             tcp_dst=rule['port_range_min'],
             priority=30,
             proto=self._write_proto(IPv4, proto),
-            table=OF_INGRESS_TABLE)]
+            table=OF_INGRESS_TABLE,
+            cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_ingress_tcp_port(self):
@@ -864,7 +914,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
             tcp_dst=rule['port_range_min'],
             priority=30,
             proto=self._write_proto(IPv6, proto),
-            table=OF_INGRESS_TABLE)]
+            table=OF_INGRESS_TABLE,
+            cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_ingress_tcp_mport(self):
@@ -888,7 +939,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 tcp_dst=port,
                 priority=30,
                 proto=self._write_proto(IPv4, proto),
-                table=OF_INGRESS_TABLE))
+                table=OF_INGRESS_TABLE,
+                cookie=COOKIE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_ingress_tcp_mport(self):
@@ -912,7 +964,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 tcp_dst=port,
                 priority=30,
                 proto=self._write_proto(IPv6, proto),
-                table=OF_INGRESS_TABLE))
+                table=OF_INGRESS_TABLE,
+                cookie=COOKIE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_ingress_tcp_mport_prefix(self):
@@ -939,7 +992,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 tcp_dst=port,
                 priority=30,
                 proto=self._write_proto(IPv4, proto),
-                table=OF_INGRESS_TABLE))
+                table=OF_INGRESS_TABLE,
+                cookie=COOKIE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_ingress_tcp_mport_prefix(self):
@@ -966,7 +1020,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 tcp_dst=port,
                 priority=30,
                 proto=self._write_proto(IPv6, proto),
-                table=OF_INGRESS_TABLE))
+                table=OF_INGRESS_TABLE,
+                cookie=COOKIE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_ingress_udp(self):
@@ -982,7 +1037,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
             nw_dst=FAKE_IP[IPv4],
             priority=30,
             proto=self._write_proto(IPv4, proto),
-            table=OF_INGRESS_TABLE)]
+            table=OF_INGRESS_TABLE,
+            cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_ingress_udp(self):
@@ -998,7 +1054,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
             ipv6_dst=FAKE_IP[IPv6],
             priority=30,
             proto=self._write_proto(IPv6, proto),
-            table=OF_INGRESS_TABLE)]
+            table=OF_INGRESS_TABLE,
+            cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_ingress_udp_prefix(self):
@@ -1017,7 +1074,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
             nw_src=prefix,
             priority=30,
             proto=self._write_proto(IPv4, proto),
-            table=OF_INGRESS_TABLE)]
+            table=OF_INGRESS_TABLE,
+            cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_ingress_udp_prefix(self):
@@ -1036,7 +1094,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
             ipv6_src=prefix,
             priority=30,
             proto=self._write_proto(IPv6, proto),
-            table=OF_INGRESS_TABLE)]
+            table=OF_INGRESS_TABLE,
+            cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_ingress_udp_port(self):
@@ -1055,7 +1114,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
             priority=30,
             udp_dst=10,
             proto=self._write_proto(IPv4, proto),
-            table=OF_INGRESS_TABLE)]
+            table=OF_INGRESS_TABLE,
+            cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_ingress_udp_port(self):
@@ -1074,7 +1134,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
             priority=30,
             udp_dst=10,
             proto=self._write_proto(IPv6, proto),
-            table=OF_INGRESS_TABLE)]
+            table=OF_INGRESS_TABLE,
+            cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_ingress_udp_mport(self):
@@ -1098,7 +1159,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 udp_dst=port,
                 priority=30,
                 proto=self._write_proto(IPv4, proto),
-                table=OF_INGRESS_TABLE))
+                table=OF_INGRESS_TABLE,
+                cookie=COOKIE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_ingress_udp_mport(self):
@@ -1122,7 +1184,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 udp_dst=port,
                 priority=30,
                 proto=self._write_proto(IPv6, proto),
-                table=OF_INGRESS_TABLE))
+                table=OF_INGRESS_TABLE,
+                cookie=COOKIE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_ingress_udp_mport_prefix(self):
@@ -1149,7 +1212,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 udp_dst=port,
                 priority=30,
                 proto=self._write_proto(IPv4, proto),
-                table=OF_INGRESS_TABLE))
+                table=OF_INGRESS_TABLE,
+                cookie=COOKIE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_ingress_udp_mport_prefix(self):
@@ -1176,7 +1240,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 udp_dst=port,
                 priority=30,
                 proto=self._write_proto(IPv6, proto),
-                table=OF_INGRESS_TABLE))
+                table=OF_INGRESS_TABLE,
+                cookie=COOKIE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_egress(self):
@@ -1192,7 +1257,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                           nw_src=FAKE_IP[IPv4],
                           priority=30,
                           proto=self._write_proto(IPv4, proto),
-                          table=OF_EGRESS_TABLE))
+                          table=OF_EGRESS_TABLE,
+                          cookie=COOKIE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_egress(self):
@@ -1208,7 +1274,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                           ipv6_src=FAKE_IP[IPv6],
                           priority=30,
                           proto=self._write_proto(IPv6, proto),
-                          table=OF_EGRESS_TABLE))
+                          table=OF_EGRESS_TABLE,
+                          cookie=COOKIE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_egress_prefix(self):
@@ -1227,7 +1294,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                           nw_dst=prefix,
                           priority=30,
                           proto=self._write_proto(IPv4, proto),
-                          table=OF_EGRESS_TABLE))
+                          table=OF_EGRESS_TABLE,
+                          cookie=COOKIE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_egress_prefix(self):
@@ -1246,7 +1314,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                           ipv6_dst=prefix,
                           priority=30,
                           proto=self._write_proto(IPv6, proto),
-                          table=OF_EGRESS_TABLE))
+                          table=OF_EGRESS_TABLE,
+                          cookie=COOKIE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_egress_tcp(self):
@@ -1262,7 +1331,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                                     priority=30,
                                     proto=self._write_proto(IPv4,
                                                             proto),
-                                    table=OF_EGRESS_TABLE)]
+                                    table=OF_EGRESS_TABLE,
+                                    cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_egress_tcp(self):
@@ -1278,7 +1348,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                                     priority=30,
                                     proto=self._write_proto(IPv6,
                                                             proto),
-                                    table=OF_EGRESS_TABLE)]
+                                    table=OF_EGRESS_TABLE,
+                                    cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_egress_tcp_prefix(self):
@@ -1297,7 +1368,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                                     priority=30,
                                     proto=self._write_proto(IPv4,
                                                             proto),
-                                    table=OF_EGRESS_TABLE)]
+                                    table=OF_EGRESS_TABLE,
+                                    cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_egress_tcp_prefix(self):
@@ -1316,7 +1388,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                                     priority=30,
                                     proto=self._write_proto(IPv6,
                                                             proto),
-                                    table=OF_EGRESS_TABLE)]
+                                    table=OF_EGRESS_TABLE,
+                                    cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_egress_icmp(self):
@@ -1338,7 +1411,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                                     priority=30,
                                     proto=self._write_proto(IPv4,
                                                             proto),
-                                    table=OF_EGRESS_TABLE)]
+                                    table=OF_EGRESS_TABLE,
+                                    cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_egress_icmp(self):
@@ -1360,7 +1434,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                                     priority=30,
                                     proto=self._write_proto(IPv6,
                                                             proto),
-                                    table=OF_EGRESS_TABLE)]
+                                    table=OF_EGRESS_TABLE,
+                                    cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_egress_icmp_prefix(self):
@@ -1385,7 +1460,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                                     priority=30,
                                     proto=self._write_proto(IPv4,
                                                             proto),
-                                    table=OF_EGRESS_TABLE)]
+                                    table=OF_EGRESS_TABLE,
+                                    cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_egress_icmp_prefix(self):
@@ -1410,7 +1486,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                                     priority=30,
                                     proto=self._write_proto(IPv6,
                                                             proto),
-                                    table=OF_EGRESS_TABLE)]
+                                    table=OF_EGRESS_TABLE,
+                                    cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_egress_tcp_port(self):
@@ -1429,7 +1506,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                                     proto=self._write_proto(IPv4,
                                                             proto),
                                     table=OF_EGRESS_TABLE,
-                                    tcp_dst=rule['port_range_min'])]
+                                    tcp_dst=rule['port_range_min'],
+                                    cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_egress_tcp_port(self):
@@ -1448,7 +1526,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                                     proto=self._write_proto(IPv6,
                                                             proto),
                                     table=OF_EGRESS_TABLE,
-                                    tcp_dst=rule['port_range_min'])]
+                                    tcp_dst=rule['port_range_min'],
+                                    cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_egress_tcp_mport(self):
@@ -1472,7 +1551,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                           priority=30,
                           proto=self._write_proto(IPv4, proto),
                           table=OF_EGRESS_TABLE,
-                          tcp_dst=port))
+                          tcp_dst=port,
+                          cookie=COOKIE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_egress_tcp_mport(self):
@@ -1496,7 +1576,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                           priority=30,
                           proto=self._write_proto(IPv6, proto),
                           table=OF_EGRESS_TABLE,
-                          tcp_dst=port))
+                          tcp_dst=port,
+                          cookie=COOKIE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_egress_tcp_mport_prefix(self):
@@ -1523,7 +1604,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                           priority=30,
                           proto=self._write_proto(IPv4, proto),
                           table=OF_EGRESS_TABLE,
-                          tcp_dst=port))
+                          tcp_dst=port,
+                          cookie=COOKIE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_egress_tcp_mport_prefix(self):
@@ -1550,7 +1632,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                           priority=30,
                           proto=self._write_proto(IPv6, proto),
                           table=OF_EGRESS_TABLE,
-                          tcp_dst=port))
+                          tcp_dst=port,
+                          cookie=COOKIE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_egress_udp(self):
@@ -1566,7 +1649,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                                     priority=30,
                                     proto=self._write_proto(IPv4,
                                                             proto),
-                                    table=OF_EGRESS_TABLE)]
+                                    table=OF_EGRESS_TABLE,
+                                    cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_egress_udp(self):
@@ -1582,7 +1666,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                                     priority=30,
                                     proto=self._write_proto(IPv6,
                                                             proto),
-                                    table=OF_EGRESS_TABLE)]
+                                    table=OF_EGRESS_TABLE,
+                                    cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_egress_udp_prefix(self):
@@ -1601,7 +1686,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                                     priority=30,
                                     proto=self._write_proto(IPv4,
                                                             proto),
-                                    table=OF_EGRESS_TABLE)]
+                                    table=OF_EGRESS_TABLE,
+                                    cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_egress_udp_prefix(self):
@@ -1620,7 +1706,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                                     priority=30,
                                     proto=self._write_proto(IPv6,
                                                             proto),
-                                    table=OF_EGRESS_TABLE)]
+                                    table=OF_EGRESS_TABLE,
+                                    cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_egress_udp_port(self):
@@ -1639,7 +1726,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                                     proto=self._write_proto(IPv4,
                                                             proto),
                                     table=OF_EGRESS_TABLE,
-                                    udp_dst=rule['port_range_min'])]
+                                    udp_dst=rule['port_range_min'],
+                                    cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_egress_udp_port(self):
@@ -1658,7 +1746,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                                     proto=self._write_proto(IPv6,
                                                             proto),
                                     table=OF_EGRESS_TABLE,
-                                    udp_dst=rule['port_range_min'])]
+                                    udp_dst=rule['port_range_min'],
+                                    cookie=COOKIE)]
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_egress_udp_mport(self):
@@ -1682,7 +1771,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                           priority=30,
                           proto=self._write_proto(IPv4, proto),
                           table=OF_EGRESS_TABLE,
-                          udp_dst=port))
+                          udp_dst=port,
+                          cookie=COOKIE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_egress_udp_mport(self):
@@ -1706,7 +1796,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                           priority=30,
                           proto=self._write_proto(IPv6, proto),
                           table=OF_EGRESS_TABLE,
-                          udp_dst=port))
+                          udp_dst=port,
+                          cookie=COOKIE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv4_egress_udp_mport_prefix(self):
@@ -1733,7 +1824,8 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                           priority=30,
                           proto=self._write_proto(IPv4, proto),
                           table=OF_EGRESS_TABLE,
-                          udp_dst=port))
+                          udp_dst=port,
+                          cookie=COOKIE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
 
     def test_filter_ipv6_egress_udp_mport_prefix(self):
@@ -1760,5 +1852,6 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                           priority=30,
                           proto=self._write_proto(IPv6, proto),
                           table=OF_EGRESS_TABLE,
-                          udp_dst=port))
+                          udp_dst=port,
+                          cookie=COOKIE))
         self._test_rules([rule], FAKE_SGID, flow_call_list)
