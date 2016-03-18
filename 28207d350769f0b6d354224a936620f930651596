@@ -1,0 +1,9 @@
+Code-Review+2: Michal Ptacek <michalx.ptacek@intel.com>
+Code-Review+2: Przemyslaw Czesnowicz <przemyslaw.czesnowicz@intel.com>
+Workflow+1: Przemyslaw Czesnowicz <przemyslaw.czesnowicz@intel.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 18 Mar 2016 14:45:36 +0000
+Reviewed-on: https://review.openstack.org/286597
+Project: openstack/networking-ovs-dpdk
+Branch: refs/heads/stable/liberty
