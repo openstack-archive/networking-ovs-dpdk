@@ -77,7 +77,7 @@
 #   (nic:bridge) list of comma separated pairs of "nic:bridge name" used by
 #   OVS/DPDK. "nic" must be a NIC interface present in the system
 #   "bridge" is the linux bridge created by OVS
-#   Example: ovs_dpdk_port_mappings=eth1:br-01,eth2:br02
+#   Example: ovs_dpdk_port_mappings=eth1:br-01,eth2:br-02
 #
 # [*ovs_log_dir*]
 #   directory where ovs-vswitchd.log will be created
@@ -91,14 +91,40 @@
 #   Drivers names are the ones supported by DPDK, i.e: not the kernel names.
 #   Defaults: "igb_uio"
 #
+# [*controller*]
+#   if set to True, controller specific changes will be applied
+#   Defaults: "False"
+#
+# [*compute*]
+#   if set to True, compute specific changes will be applied
+#   Defaults: "False"
+#
+# [*ovs_bond_mode*]
+#   (bond:bond_type) comma separated list of bond to mode mappings. Should be used
+#   together with ovs_bond_ports. Bond_mode is optional, one of active-backup,
+#   balance-tcp or balance-slb. Defaults to active-backup if unset.
+#   Example: ovs_bond_mode=bond0:active-backup,bond1:balance-slb
+#
+# [*ovs_bond_ports*]
+#   (bond:nic) comma separated list of bond to NIC mappings. Specified NIC
+#   interfaces will be added as dpdk ports to OVS. It's also required that
+#   user specify bridge for particular bonds in ovs_dpdk_port_mappings,
+#   relevant nic's will be added automatically.
+#   Example:
+#   ovs_bond_ports=bond0:enp9s0f0,bond0:enp9s0f1
+#   ovs_dpdk_port_mappings=bond0:br-fast
+#
 # [*ovs_patches*]
 #   *todo*
 #
 # [*ovs_dpdk_patches*]
 #   *todo*
 #
-# [*openrc_file*]
-#    openrc file contains shell variables needed to invoke openstack api
+# [*ovs_enable_sg_firewall_multicast*]
+#   *todo
+#
+# [*ovs_multicast_snooping_aging_time*]
+#   *todo
 #
 class ovsdpdk (
   $rte_target                  = 'x86_64-native-linuxapp-gcc',
@@ -110,7 +136,7 @@ class ovsdpdk (
   $ovs_tunnel_cidr_mapping     = '',
   $ovs_hugepage_mount          = '/mnt/huge',
   $ovs_hugepage_mount_pagesize = '2M',
-  $ovs_num_hugepages           = '1024',
+  $ovs_num_hugepages           = '2048',
   $ovs_socket_mem              = 'auto',
   $ovs_mem_channels            = '4',
   $ovs_core_mask               = '2',
@@ -122,12 +148,17 @@ class ovsdpdk (
   $ovs_interface_driver        = 'igb_uio',
   $ovs_patches                 = '',
   $ovs_dpdk_patches            = '',
-  $openrc_file                 = '',
+  $controller                  = 'False',
+  $compute                     = 'False',
+  $ovs_bond_mode               = 'active-backup',
+  $ovs_bond_ports              = '',
 ) inherits ::ovsdpdk::params {
 
-  include '::ovsdpdk::clone'
-  include '::ovsdpdk::uninstall_ovs'
-  include '::ovsdpdk::build_ovs_dpdk'
-  include '::ovsdpdk::install_ovs_dpdk'
-  include '::ovsdpdk::postinstall_ovs_dpdk'
+  anchor { '::ovsdpdk::start': }->
+    class { '::ovsdpdk::prepare': }->
+    class { '::ovsdpdk::build_ovs_dpdk': }->
+    class { '::ovsdpdk::install_ovs_dpdk': }->
+    class { '::ovsdpdk::postinstall_ovs_dpdk': }->
+  anchor { '::ovsdpdk::end': }
+
 }
