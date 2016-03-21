@@ -97,8 +97,13 @@
 # [*ovs_dpdk_patches*]
 #   *todo*
 #
-# [*openrc_file*]
-#    openrc file contains shell variables needed to invoke openstack api
+# [*controller*]
+#   if set to True, controller specific changes will be applied
+#   Defaults: "False"
+#
+# [*compute*]
+#   if set to True, compute specific changes will be applied
+#   Defaults: "False"
 #
 class ovsdpdk (
   $rte_target                  = 'x86_64-native-linuxapp-gcc',
@@ -110,7 +115,7 @@ class ovsdpdk (
   $ovs_tunnel_cidr_mapping     = '',
   $ovs_hugepage_mount          = '/mnt/huge',
   $ovs_hugepage_mount_pagesize = '2M',
-  $ovs_num_hugepages           = '1024',
+  $ovs_num_hugepages           = '2048',
   $ovs_socket_mem              = 'auto',
   $ovs_mem_channels            = '4',
   $ovs_core_mask               = '2',
@@ -122,12 +127,15 @@ class ovsdpdk (
   $ovs_interface_driver        = 'igb_uio',
   $ovs_patches                 = '',
   $ovs_dpdk_patches            = '',
-  $openrc_file                 = '',
+  $controller                  = 'False',
+  $compute                     = 'False',
 ) inherits ::ovsdpdk::params {
 
-  include '::ovsdpdk::clone'
-  include '::ovsdpdk::uninstall_ovs'
-  include '::ovsdpdk::build_ovs_dpdk'
-  include '::ovsdpdk::install_ovs_dpdk'
-  include '::ovsdpdk::postinstall_ovs_dpdk'
+  anchor { '::ovsdpdk::start': }->
+    class { '::ovsdpdk::prepare': }->
+    class { '::ovsdpdk::build_ovs_dpdk': }->
+    class { '::ovsdpdk::install_ovs_dpdk': }->
+    class { '::ovsdpdk::postinstall_ovs_dpdk': }->
+  anchor { '::ovsdpdk::end': }
+
 }
