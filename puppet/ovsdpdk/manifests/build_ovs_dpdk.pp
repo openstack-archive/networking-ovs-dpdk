@@ -4,18 +4,35 @@
 #
 class ovsdpdk::build_ovs_dpdk (
   $plugin_dir =  $::ovsdpdk::params::plugin_dir,
+  $compute    =  $::ovsdpdk::compute,
 ) inherits ovsdpdk {
-  require ovsdpdk::uninstall_ovs
 
-  file {"${plugin_dir}/files/build_ovs_dpdk.sh":
-      content => template("${plugin_dir}/files/build_ovs_dpdk.erb"),
-      mode    => '0775',
+  if $compute == 'True' {
+    file {"${plugin_dir}/files/patches.sh":
+        content => template("${plugin_dir}/files/patches.erb"),
+        mode    => '0775',
+    }
+
+    exec {"${plugin_dir}/files/patches.sh":
+        require   => File["${plugin_dir}/files/patches.sh"],
+        timeout   => 0,
+        logoutput => true,
+    }
+
+    file {"${plugin_dir}/files/build_ovs_dpdk.sh":
+        require => Exec["${plugin_dir}/files/patches.sh"],
+        content => template("${plugin_dir}/files/build_ovs_dpdk.erb"),
+        mode    => '0775',
+    }
+
+    exec {"${plugin_dir}/files/build_ovs_dpdk.sh":
+        require   => File["${plugin_dir}/files/build_ovs_dpdk.sh"],
+        timeout   => 0,
+        logoutput => 'on_failure',
+    }
   }
-
-  exec {"${plugin_dir}/files/build_ovs_dpdk.sh":
-      require   => File["${plugin_dir}/files/build_ovs_dpdk.sh"],
-      timeout   => 0,
-      logoutput => true,
+  else {
+    info('ovsdpdk build not triggered, compute node not specified')
   }
 }
 
