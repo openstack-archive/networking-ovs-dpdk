@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+set -o errexit
+
+if [ "<%= @ovs_patches %>" != "" ]; then
+    patches=( <%= @ovs_patches %> )
+    pushd <%= @ovs_dir %>
+    git clean -f -x -d
+    git reset --hard <%= @ovs_git_tag %>
+    for url in "${patches[@]}"; do
+        curl $url | patch -p1
+    done
+    popd
+fi
+
+if [ "<%= @ovs_dpdk_patches %>" != "" ]; then
+    patches=( <%= @ovs_dpdk_patches %> )
+    pushd <%= @ovs_dpdk_dir %>
+    git clean -f -x -d
+    git reset --hard <%= @ovs_dpdk_git_tag %>
+    for url in "${patches[@]}"; do
+        curl $url | patch -p1
+    done
+    popd
+fi
+
+set +o errexit
