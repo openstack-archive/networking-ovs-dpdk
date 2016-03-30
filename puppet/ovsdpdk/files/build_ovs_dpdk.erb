@@ -26,7 +26,7 @@ else
    cd <%= @ovs_dir %>
    ./boot.sh
    ./configure --with-dpdk=<%= @ovs_dpdk_dir %>/<%= @rte_target %> --prefix=/usr --with-dbdir=<%= @ovs_db_conf_dir %> --with-rundir=<%= @ovs_db_socket_dir %>
-   make -j `nproc` CFLAGS='-O3 -march=native'
+   make -j `nproc` CFLAGS='-O3 -march=native -fPIC'
    touch <%= @ovs_dir %>/BUILD_COMPLETE
    sudo make install
    set +o errexit
