@@ -21,12 +21,12 @@ else
    sed "s/CONFIG_RTE_MAX_MEMSEG=.*$/CONFIG_RTE_MAX_MEMSEG=<%= @ovs_dpdk_mem_segments %>/" -i <%= @ovs_dpdk_dir %>/build/.config
    sed "s/CONFIG_RTE_LIBRTE_VHOST=.*$/CONFIG_RTE_LIBRTE_VHOST=<%= @ovs_dpdk_rte_librte_vhost %>/" -i <%= @ovs_dpdk_dir %>/build/.config
    sed "s/CONFIG_RTE_LIBRTE_VHOST_DEBUG=.*$/CONFIG_RTE_LIBRTE_VHOST_DEBUG=<%= @ovs_dpdk_vhost_user_debug %>/" -i <%= @ovs_dpdk_dir %>/build/.config
-   make -j `nproc`
+   make -j `nproc` EXTRA_CFLAGS='-fPIC'
    sudo cp <%= @ovs_dpdk_dir %>/build/lib/*dpdk.* /lib
    cd <%= @ovs_dir %>
    ./boot.sh
    ./configure --with-dpdk=<%= @ovs_dpdk_dir %>/<%= @rte_target %> --prefix=/usr --with-dbdir=<%= @ovs_db_conf_dir %> --with-rundir=<%= @ovs_db_socket_dir %>
-   make -j `nproc` CFLAGS='-O3 -march=native'
+   make -j `nproc` CFLAGS='-O3 -march=native -fPIC'
    touch <%= @ovs_dir %>/BUILD_COMPLETE
    sudo make install
    set +o errexit

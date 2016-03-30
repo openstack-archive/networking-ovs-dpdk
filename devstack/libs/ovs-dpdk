@@ -247,12 +247,12 @@ function build_ovs_dpdk(){
     sed "s/CONFIG_RTE_LIBRTE_VHOST_DEBUG=.*$/CONFIG_RTE_LIBRTE_VHOST_DEBUG=${OVS_DPDK_VHOST_USER_DEBUG}/" -i ${OVS_DPDK_DIR}/build/.config
     sed "s/CONFIG_RTE_LIBRTE_KNI=.*$/CONFIG_RTE_LIBRTE_KNI=n/" -i ${OVS_DPDK_DIR}/build/.config
 
-    make -j $(nproc)
+    make -j $(nproc) EXTRA_CFLAGS='-fPIC'
     sudo cp ${OVS_DPDK_DIR}/build/lib/*dpdk.* /lib
     cd ${OVS_DIR}
     ./boot.sh
     ./configure --with-dpdk=${OVS_DPDK_DIR}/${RTE_TARGET} --prefix=/usr --with-dbdir=$OVS_DB_CONF_DIR --with-rundir=$OVS_DB_SOCKET_DIR
-    make -j $(nproc) CFLAGS='-O3 -march=native'
+    make -j $(nproc) CFLAGS='-O3 -march=native -fPIC'
     touch ${OVS_DIR}/BUILD_COMPLETE
     sudo make install
 }
