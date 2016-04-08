@@ -19,18 +19,6 @@ while [ $# -gt 0 ]; do
 
         fi
         ;;
-    -object)
-        args[i]="$1"
-        (( i++ ))
-        shift
-        if [[ $1 =~ "memory-backend-file" ]]
-        then
-                args[i]=${1},${SHARE}
-                (( i++))
-                shift
-
-        fi
-        ;;
 
      *)
          args[i]="$1"
