@@ -124,6 +124,11 @@ Default values for the below settings can be found in `settings` file in devstac
     Example:
     OVS_BRIDGE_MAPPINGS=default:br-eth1,default1:br-enp9s0f0
 
+**OVS_DPDK_BIND_PORT**
+    (True|False) Indicates whether networking-ovs-dpdk plugin shall automatically bind the interfaces to the dpdk poll mode driver for each bridge added to OVS_BRIDGE_MAPPINGS
+    If 'True' OpenVSwitch/DPDK will automatically bind the interfaces to the dpdk poll mode driver for each bridge added to OVS_BRIDGE_MAPPINGS
+    Default: True
+
 **OVS_DPDK_PORT_MAPPINGS**
     (nic:bridge) List of comma separated pairs of "nic:bridge name" used by DPDK/OVS.
     "nic" must be a NIC interface present in the system; "bridge" is the linux virtual bridge created by OVS.
