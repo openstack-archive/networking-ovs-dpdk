@@ -220,7 +220,11 @@ setup_ovs(){
     # dpdk sorts physical ports on pci addresses,
     # need to keep that order when adding phys ports to ovs
     add_bridges $OVS_BRIDGE_MAPPINGS
-    add_nics_to_bridges
+    if [ $OVS_DPDK_BIND_PORT == 'False' ]; then
+        echo "Not binding nic to OVS_INTERFACE_DRIVER"
+    else
+        add_nics_to_bridges
+    fi
 
 }
 
