@@ -23,7 +23,7 @@ from oslo_log import log as logging
 
 from neutron.agent import firewall
 from neutron.common import constants
-from neutron.i18n import _, _LW, _LE
+from neutron._i18n import _, _LW, _LE
 from neutron.plugins.ml2.drivers.openvswitch.agent.common import constants \
     as ovs_constants
 from neutron.plugins.ml2.drivers.openvswitch.agent.ovs_agent_extension_api\
