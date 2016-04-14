@@ -56,7 +56,6 @@ fi
             # Shut Down OVS-DPDK
             ovs_dpdk_db_cleanup
             stop_ovs_dpdk
-            uninstall_libvirt_CentOS
         ;;
         "clean")
             # Remove state and transient data
