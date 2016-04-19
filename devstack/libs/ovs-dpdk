@@ -433,17 +433,21 @@ function install_ovs_dpdk {
     # Install deps
     set +o errexit
     if is_ubuntu; then
-        stop_service openvswitch-switch
-        uninstall_package openvswitch-switch openvswitch-datapath-dkms openvswitch-common
+        if [ dpkg -s openvswitch-switch | grep installed > /dev/null ]; then
+            stop_service openvswitch-switch
+            uninstall_package openvswitch-switch openvswitch-datapath-dkms openvswitch-common
+        fi
         install_package autoconf libtool libfuse-dev
     else
-        stop_service openvswitch
-        uninstall_package openvswitch
+        if [ rpm -qa | grep openvswitch > /dev/null ]; then
+            stop_service openvswitch
+            uninstall_package openvswitch
+        fi
         install_package pciutils autoconf libtool fuse-devel
     fi
     # This function exits on an error so that errors don't compound and you see
     # only the first error that occurred.
-    sudo rmmod openvswitch
+    lsmod | grep openvswitch > /dev/null && sudo rmmod openvswitch
     set -o errexit
 
     build_ovs_dpdk
