@@ -126,58 +126,43 @@ unbind_nics(){
     for pair in "${PCI_ARRAY[@]}"; do
         addr=`echo $pair | cut -f 1 -d "#"`
         sudo RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py -u $addr
+        drv=$(sudo ovs-vsctl get interface $(sudo ovs-vsctl --column name --bare find interface other_config:pci_address=$(echo $addr|  sed "s/:/\\\:/g" )) other_config:previous_dirver)
+        drv=$( echo $drv | sed "s/'//g" | sed "s/\"//g")
+        sudo ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py -b $drv $addr
     done
 
-    #bind nics to their standard linux kernel driver
-    STATUS=$(RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py --status)
-    while read line; do
-        if [[ $line =~ ",$OVS_INTERFACE_DRIVER" || $line =~ "unused=$OVS_INTERFACE_DRIVER" ]] && [[ ! $line =~ "drv=" ]]; then
-            addr=${line%% *}
-            for pair in "${PCI_ARRAY[@]}"; do
-                if [[ "$addr" == `echo $pair | cut -f 1 -d "#"` ]]; then
-                    drv=${line/*unused=/}
-                    drv=${drv/,$OVS_INTERFACE_DRIVER/}
-                    if [[ $drv =~ "," ]]; then
-                        IFS_OLD=$IFS
-                        IFS=","
-                        echo "Multiple drivers detected: $drv"
-                        drivers=($drv);
-                        for driver in "${drivers[@]}"; do
-                            if [[ ! $driver =~ "igb_uio" ]] &&  [[ ! $driver =~ "vfio-pci" ]]; then
-                                drv=$driver
-                                echo "selecting $driver"
-                                break
-                            fi
-                        done
-                        IFS=$IFS_OLD
-                    fi
-                    #workaround for Fedora pciutils bug
-                    if [[ $drv == "" ]]; then
-                        drv="ixgbe"
-                    fi
-                    sudo RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py -b $drv $addr
-                    continue
-                fi
-            done
-        fi
-   done <<< "$STATUS"
 }
 
 
-bind_nics(){
-    # Loop over network definitions, create bridges
-    # Extract nic name, bind it with OVS_INTERFACE_DRIVER driver, and add it to a bridge
-    # dpdk sorts physical ports on pci addresses,
-    # need to keep that order when adding phys ports to ovs
-
-    add_bridges $OVS_BRIDGE_MAPPINGS
-
+add_nics_to_bridges(){
+    # bind nic to dpdk driver
     PCI_MAPPINGS=${OVS_PCI_MAPPINGS//,/ }
     PCI_ARRAY=( $PCI_MAPPINGS )
+    local -A driver_map
+    for pair in "${PCI_ARRAY[@]}"; do
+        addr=`echo $pair | cut -f 1 -d "#"`
+        nic=`echo $pair | cut -f 2 -d "#"`
+        STATUS=$(RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py --status)
+        while read line; do
+            # Check if this physical nic it's using OVS_INTERFACE_DRIVER.
+            if [[ "$line" =~ "unused="[[:graph:]]*"${OVS_INTERFACE_DRIVER}" ]] && [[ "$line" =~ "$addr" ]]; then
+                # Check the status of the nic. If it's up, take it down.
+                if [[ $line =~ "Active" ]]; then
+                    sudo ip link set dev $nic down
+                fi
+                oldDriver=$(echo $line | sed -r 's/[[:alnum:]]+=/\n&/g' | grep drv= | cut -d "=" -f 2)
+                # Bind nic to OVS_INTERFACE_DRIVER.
+                local cmd="${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py -b $OVS_INTERFACE_DRIVER $addr"
+                echo $cmd
+                sudo $cmd
+                driver_map[$addr]="$oldDriver"
 
-    bind_nic_2_ovsdriver "${PCI_ARRAY[@]}"
+            fi
+        done <<< "$STATUS"
+    done
 
-    # Add ports to physical nic. Keep the order of physical nic.
+
+    # Add physical nics to bridges Keep the order of physical nic.
     phys_ofport=0
     STATUS=$(RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py --status)
     while read line; do
@@ -205,8 +190,10 @@ bind_nics(){
                     echo "interface $nic skipped from individual binding under dpdk$phys_ofport, it will be added inside bond"
                 else
                     # Map this physical nic interface to the logical bridge.
-                    echo "sudo ovs-vsctl --no-wait --may-exist add-port $bridge dpdk$phys_ofport -- set Interface dpdk$phys_ofport type=dpdk"
-                    sudo ovs-vsctl --no-wait --may-exist add-port $bridge dpdk$phys_ofport -- set Interface dpdk$phys_ofport type=dpdk
+                    local cmd="ovs-vsctl --no-wait --may-exist add-port $bridge dpdk$phys_ofport -- set Interface dpdk$phys_ofport type=dpdk other_config:pci_address=$addr  \
+                               other_config:driver=${OVS_INTERFACE_DRIVER} other_config:previous_dirver=${driver_map[$addr]}"
+                    echo "$cmd"
+                    sudo $cmd
                 fi
                 # Remove element from list.
                 PCI_ARRAY[$index]=''
@@ -225,6 +212,16 @@ bind_nics(){
             sudo ovs-vsctl --no-wait -- --may-exist add-port $bridge $nic
         fi
     done
+}
+
+setup_ovs(){
+    # Loop over network definitions, create bridges
+    # Extract nic name, bind it with OVS_INTERFACE_DRIVER driver, and add it to a bridge
+    # dpdk sorts physical ports on pci addresses,
+    # need to keep that order when adding phys ports to ovs
+    add_bridges $OVS_BRIDGE_MAPPINGS
+    add_nics_to_bridges
+
 }
 
 add_bonds() {
@@ -309,34 +306,6 @@ add_bridges() {
     for pair in "${NIC_ARRAY[@]}"; do
         bridge=`echo $pair | cut -f 2 -d ":"`
         sudo ovs-vsctl --no-wait -- --may-exist add-br $bridge -- set Bridge $bridge datapath_type=netdev
-    done
-}
-
-
-bind_nic_2_ovsdriver() {
-    # Check argument is supplied.
-    if [[ -z "$1" ]]; then
-        die 5 $LINENO "No argument supplied, PCI_ARRAY[@] expected"
-    fi
-
-    list=("$@")
-    # Bind nics to OVS_INTERFACE_DRIVER.
-    for pair in "${list[@]}"; do
-        addr=`echo $pair | cut -f 1 -d "#"`
-        nic=`echo $pair | cut -f 2 -d "#"`
-        STATUS=$(RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py --status)
-        while read line; do
-            # Check if this physical nic it's using OVS_INTERFACE_DRIVER.
-            if [[ "$line" =~ "unused="[[:graph:]]*"${OVS_INTERFACE_DRIVER}" ]] && [[ "$line" =~ "$addr" ]]; then
-                # Check the status of the nic. If it's up, take it down.
-                if [[ $line =~ "Active" ]]; then
-                    sudo ip link set dev $nic down
-                fi
-                # Bind nic to OVS_INTERFACE_DRIVER.
-                echo sudo RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py -b $OVS_INTERFACE_DRIVER $addr
-                sudo RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py -b $OVS_INTERFACE_DRIVER $addr
-            fi
-        done <<< "$STATUS"
     done
 }
 
@@ -434,15 +403,17 @@ get_ovs_status(){
     return $result
 
 }
-stop_ovs(){
-    pids_files=( "$OVS_LOG_DIR/ovs-vswitchd.pid"  "$OVS_LOG_DIR/ovsdb-server.pid" )
-    for file in ${pids_files[@]}; do
-        sudo kill -9 `cat $file`
-        sudo rm -f $file
-    done
+
+stop_ovs_deamon(){
+    sudo kill -9 $(cat $OVS_LOG_DIR/ovs-vswitchd.pid)
+    sudo rm -f  $OVS_LOG_DIR/ovs-vswitchd.pid
 
 }
 
+stop_ovsdb(){
+    sudo kill -9 $(cat $OVS_LOG_DIR/ovsdb-server.pid)
+    sudo rm -f $OVS_LOG_DIR/ovsdb-server.pid
+}
 
 start_ovs(){
     sudo modprobe veth
@@ -483,7 +454,7 @@ start_ovs(){
         fi
     done
 
-    bind_nics
+    setup_ovs
 
     MAPPINGS=${OVS_BRIDGE_MAPPINGS//,/ }
     ARRAY=( $MAPPINGS )
@@ -634,12 +605,14 @@ cmd_stop(){
     #else
     # retrive pid of each process in $OVS_LOG_DIR/*
     echo "stopping vswitchd"
-    echo "stopping ovs db"
-    stop_ovs
+    stop_ovs_deamon
 
     #if physical nics bindings are defined, bind nics with linux driver
     echo "rebinding nics to linux_driver"
     unbind_nics
+
+    echo "stopping ovs db"
+    stop_ovsdb
 
     echo "unloading OVS_INTERFACE_DRIVER"
     if [[ "$OVS_INTERFACE_DRIVER" == "igb_uio" ]]; then
