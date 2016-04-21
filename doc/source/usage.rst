@@ -59,10 +59,17 @@ Default values for the below settings can be found in `settings` file in devstac
     ('compute'|'controller_ovs'|'controller_ovs_dpdk') This parameter determines the installation mode of ovs-dpdk.
     It has no default value and when not set plugin works as usual.
     When set, this parameter alters the defaults for other devstack settings if they are not explicitly set by the user as follows:
-    "controller_ovs" mode - OVS_DPDK_INSTALL set to 'False'
-                          - OVS_AGENT_TYPE set to '$Q_AGENT'
-    "compute" mode or "controller_ovs_dpdk" mode - OVS_DPDK_INSTALL set to 'True'
-                                                 - OVS_DATAPATH_TYPE set to 'netdev'
+
+    **"controller_ovs" mode**::
+
+      OVS_DPDK_INSTALL='False'
+      OVS_AGENT_TYPE=$Q_AGENT
+
+    **"compute" mode or "controller_ovs_dpdk" mode**::
+
+      OVS_DPDK_INSTALL='True'
+      OVS_DATAPATH_TYPE='netdev'
+
     For both controller* modes the openvswitch mechanism driver is added to Q_ML2_PLUGIN_MECHANISM_DRIVERS, if not declared earlier.
 
 **OVS_LOG_DIR**
