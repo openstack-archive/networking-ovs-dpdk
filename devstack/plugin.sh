@@ -1,8 +1,12 @@
 local xtrace=$(set +o | grep xtrace)
+local error_on_clone=${ERROR_ON_CLONE}
 if [ "$VERBOSE" == 'True' ]; then
     # enabling verbosity on whole plugin - default behavior
     set -o xtrace
 fi
+
+# disabling ERROR_NO_CLONE to allow this plugin work with devstack-gate
+ERROR_ON_CLONE=False
 
     # Initial source of lib script
     source $NETWORKING_OVS_DPDK_DIR/devstack/libs/ovs-dpdk
@@ -65,4 +69,5 @@ fi
         ;;
     esac
 
+ERROR_ON_CLONE=$error_on_clone
 $xtrace
