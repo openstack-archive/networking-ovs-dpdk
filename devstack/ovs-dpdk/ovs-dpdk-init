@@ -60,6 +60,29 @@ restart_service(){
     sudo service $1 restart
 }
 
+remove_uio_pci_generic_module(){
+    echo "Unloading uio_pci_generic UIO module"
+    lsmod | grep -ws uio_pci_generic > /dev/null
+    if [ $? -eq 0 ] ; then
+        sudo modprobe -r uio_pci_generic
+    fi
+}
+
+#
+# Loads new uio_pci_generic.ko (and uio module if needed).
+#
+load_uio_pci_generic_module(){
+    # UIO may be compiled into kernel, so it may not be an error if it can't
+    # be loaded.
+
+    echo "Loading uio_pci_generic UIO module"
+    sudo modprobe uio_pci_generic
+    if [ $? -ne 0 ] ; then
+        die 1 $LINENO "## ERROR: Could not load uio_pci_generic."
+    fi
+}
+
+
 remove_igb_uio_module(){
     echo "Unloading any existing DPDK UIO module"
     lsmod | grep -ws igb_uio > /dev/null
@@ -143,7 +166,7 @@ unbind_nics(){
                         echo "Multiple drivers detected: $drv"
                         drivers=($drv);
                         for driver in "${drivers[@]}"; do
-                            if [[ ! $driver =~ "igb_uio" ]] &&  [[ ! $driver =~ "vfio-pci" ]]; then
+                            if [[ ! $driver =~ "igb_uio" ]] &&  [[ ! $driver =~ "vfio-pci" ]] &&  [[ ! $driver =~ "uio_pci_generic" ]]; then
                                 drv=$driver
                                 echo "selecting $driver"
                                 break
@@ -605,6 +628,8 @@ cmd_start(){
         load_igb_uio_module
     elif [[ "$OVS_INTERFACE_DRIVER" == "vfio-pci" ]]; then
         load_vfio_pci_module
+    elif [[ "$OVS_INTERFACE_DRIVER" == "uio_pci_generic" ]]; then
+        load_uio_pci_generic_module
     fi
 
     # store pid of each process in $OVS_LOG_DIR/*
@@ -646,6 +671,8 @@ cmd_stop(){
         remove_igb_uio_module
     elif [[ "$OVS_INTERFACE_DRIVER" =~ "vfio-pci" ]]; then
         remove_vfio_pci_module
+    elif [[ "$OVS_INTERFACE_DRIVER" =~ "uio_pci_generic" ]]; then
+        remove_uio_pci_generic_module
     fi
 
     echo "unmounting hugepages"

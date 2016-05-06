@@ -131,9 +131,9 @@ Default values for the below settings can be found in `settings` file in devstac
     OVS_DPDK_PORT_MAPPINGS=eth1:br-01,eth2:br-01,eth3:br-02
 
 **OVS_INTERFACE_DRIVER**
-    (vfio-pci|igb_uio) NIC driver to use for physical network interface(s). Note: drivers names are the ones supported by DPDK, i.e.: not the kernel names.
+    (vfio-pci|igb_uio|uio_pci_generic) NIC driver to use for physical network interface(s). Note: drivers names are the ones supported by DPDK, i.e.: not the kernel names.
 
-    Default: igb_uio
+    Default: uio_pci_generic
 
 **OVS_PATCHES**
     (http/ftp/file location) Space separated cURL-like locations of OVS patches. Patches are downloaded and applied in the same order they are listed here.

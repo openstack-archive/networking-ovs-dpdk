@@ -87,9 +87,9 @@
 #   directory containing OVS lock file
 #
 # [*ovs_interface_driver*]
-#   (vfio-pci/igb_uio) NIC driver to use for physical network interfaces.
+#   (vfio-pci/igb_uio/uio_pci_generic) NIC driver to use for physical network interfaces.
 #   Drivers names are the ones supported by DPDK, i.e: not the kernel names.
-#   Defaults: "igb_uio"
+#   Defaults: "uio_pci_generic"
 #
 # [*controller*]
 #   if set to True, controller specific changes will be applied
@@ -149,7 +149,7 @@ class ovsdpdk (
   $ovs_dpdk_port_mappings      = '',
   $ovs_log_dir                 = '/tmp',
   $ovs_lock_dir                = '',
-  $ovs_interface_driver        = 'igb_uio',
+  $ovs_interface_driver        = 'uio_pci_generic',
   $controller                  = 'False',
   $compute                     = 'False',
   $ovs_bond_mode               = 'active-backup',
