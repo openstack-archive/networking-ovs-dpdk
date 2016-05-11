@@ -80,17 +80,8 @@ Default values for the below settings can be found in `settings` file in devstac
 **OVS_LOCK_DIR**
     (Filesystem path) Directory containing OVS lock file.
 
-**OVS_SRC_DIR**
-    (Filesystem path) Directory containing OVS source code. It's used along with RTE_SDK and RTE_TARGET to compile OVS DPDK.
-
 **OVS_DIR**
     (Filesystem path) Destination installation directory for compiled OVS DPDK.
-
-**OVS_UTILS**
-    (Filesystem path) Destination installation directory for compiled OVS DPDK utilities.
-
-**OVS_DB_UTILS**
-    (Filesystem path) Directory containing OVS DB and related utilities.
 
 **OVS_DPDK_DIR**
     (Filesystem path) Directory containing DPDK compiled libraries.
@@ -132,6 +123,9 @@ Default values for the below settings can be found in `settings` file in devstac
 
 **OVS_PATCHES**
     (http/ftp/file location) Space separated cURL-like locations of OVS patches. Patches are downloaded and applied in the same order they are listed here.
+
+**OVS_DPDK_PATCHES**
+    (http/ftp/file location) Space separated cURL-like locations of DPDK patches. Patches are downloaded and applied in the same order they are listed here.
 
 **OVS_DATAPATH_TYPE**
     (datapath type) OVS bridges will be set to use this datapath. This parameter should be set to 'netdev' (without '') for userspace OVS.
