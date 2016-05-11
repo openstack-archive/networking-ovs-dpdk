@@ -65,7 +65,7 @@ privileges for this.
 | <USER> ALL=(ALL) NOPASSWD: ALL
 
 Check kernel version
-================
+====================
 DPDK 2.1 has issues with kernel versions later than 3.19 due to changes in
 kernel synchronization mechanisms.
 
@@ -192,3 +192,44 @@ are subsequently using it for vcpu_pin_set in nova.conf. Unfortunatelly if DPDK
 NIC's from numa nodes other than 0 are used, there is no PMD thread generated for
 them. If you are using host with multiple numa nodes please consider using not
 default OVS_PMD_CORE_MASK value.
+
+Using with OpenDayligh
+======================
+
+To use this plugin with OpenDaylight you need Neutron and Networking-ODL plugin:
+
+  https://github.com/openstack/networking-odl
+
+In your local.conf you should enable following lines::
+
+  enable_plugin networking-odl http://git.openstack.org/openstack/networking-odl master
+  disable_service q-agt
+
+Because both Networking-ODL and Networking-OVS-DPDK are going to try to install
+a different version of Open vSwitch this is order to enable both plugins this
+order matter::
+
+  enable_plugin networking-ovs-dpdk
+  enable_plugin networking-odl
+
+In fact Networking-OVS-DPDK plugin will install OVS-DPDK on the system.
+By default the Networking-ODL plugin will try to install Kernel OVS.
+To workaround this conflict it is possible to forbid Networking-ODL from
+installing any version of Open vSwitch by adding followning to the local.conf::
+  SKIP_OVS_INSTALL=True
+
+To enable integration of odl with neutron the opendaylight mechanism provided by
+Networking-ODL must be enabled::
+  Q_ML2_PLUGIN_MECHANISM_DRIVERS=opendaylight
+
+OVS with DPDK exposes accelerated virtual network interfaces such as vhost-user
+that can be requested by a VM. The OpenDaylight mechanism driver is capable of
+detecting the supported virtual interface types supported by OVS and OVS with DPDK
+allowing coexistence of Kernel and DPDK OVS.
+
+To detect if 'vhostuser' is supported the Networking-ODL driver (running on control node)
+must be able to translate the host name of compute nodes to their IP addresses on the
+management network (the one used by OVS to connect to OpenDaylight).
+To archive that you could edit file /etc/hosts on control node where the neutron server
+is running adding all compute nodes where you want to use 'vhostuser', or configure DNS
+in your environment to enable name resolution.
