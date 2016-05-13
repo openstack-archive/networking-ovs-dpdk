@@ -2,6 +2,13 @@
 
 set -o xtrace
 
+function patch_ovs() {
+    if [ ! -z "<%= @ovs_emc_size %>" ]; then
+        grep '#define EM_FLOW_HASH_SHIFT' <%= @ovs_dir %>/lib/dpif-netdev.c || (echo "Failed to patch dpif-netdev.c for EMC hash size"; exit 1)
+        sed "s/#define EM_FLOW_HASH_SHIFT.*$/#define EM_FLOW_HASH_SHIFT <%= @ovs_emc_size %>/" -i <%= @ovs_dir %>/lib/dpif-netdev.c
+    fi
+}
+
 if [  -e <%= @ovs_dir %>/BUILD_COMPLETE ]; then
    echo "Build already done."
    cd <%= @ovs_dir %>
@@ -26,6 +33,7 @@ else
    cd <%= @ovs_dir %>
    ./boot.sh
    ./configure --with-dpdk=<%= @ovs_dpdk_dir %>/<%= @rte_target %> --prefix=/usr --with-dbdir=<%= @ovs_db_conf_dir %> --with-rundir=<%= @ovs_db_socket_dir %>
+   patch_ovs
    make -j `nproc` CFLAGS='-O3 -march=native -fPIC'
    touch <%= @ovs_dir %>/BUILD_COMPLETE
    sudo make install
