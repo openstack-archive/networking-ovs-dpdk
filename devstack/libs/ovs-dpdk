@@ -221,6 +221,13 @@ function clone_ovs_dpdk(){
     fi
 }
 
+function patch_ovs_emc() {
+    if [ ! -z "${OVS_EMC_SIZE}" ]; then
+        grep '#define EM_FLOW_HASH_SHIFT' ${OVS_DIR}/lib/dpif-netdev.c || die $LINENO "Failed to patch dpif-netdev.c for EMC hash size";
+        sed "s/#define EM_FLOW_HASH_SHIFT.*$/#define EM_FLOW_HASH_SHIFT ${OVS_EMC_SIZE}/" -i ${OVS_DIR}/lib/dpif-netdev.c
+    fi
+}
+
 function build_ovs_dpdk(){
     if [ -e "${OVS_DIR}/BUILD_COMPLETE" ]; then
         echo "Build alread done."
@@ -260,6 +267,7 @@ function build_ovs_dpdk(){
     cd ${OVS_DIR}
     ./boot.sh
     ./configure --with-dpdk=${OVS_DPDK_DIR}/${RTE_TARGET} --prefix=/usr --with-dbdir=$OVS_DB_CONF_DIR --with-rundir=$OVS_DB_SOCKET_DIR
+    patch_ovs_emc
     make -j $(nproc) CFLAGS='-O3 -march=native -fPIC'
     touch ${OVS_DIR}/BUILD_COMPLETE
     sudo make install
