@@ -203,3 +203,8 @@ Default values for the below settings can be found in `settings` file in devstac
     The count starts when a IGMP subscription packet from a port is read by a bridge. During this time, all multicast packets to this multicast group will be delivered to this port. If the count finish or a leave group packet is sent, the register for this port in the multicast table will be deleted.
 
     Default: 3600
+
+**OVS_EMC_SIZE**
+    (number) Defines the count of bits which will be used for constant EM_FLOW_HASH_SHIFT in ovs lib/dpif-netdev.c.
+
+    Default: 13

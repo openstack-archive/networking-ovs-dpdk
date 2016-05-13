@@ -130,6 +130,10 @@
 # [*ovs_multicast_snooping_aging_time*]
 #   *todo
 #
+# [*ovs_emc_size*]
+#    (number) Defines the count of bits which will be used for constant EM_FLOW_HASH_SHIFT
+#    in ovs lib/dpif-netdev.c. Default is 13
+#
 class ovsdpdk (
   $rte_target                  = 'x86_64-native-linuxapp-gcc',
   $ovs_dpdk_mem_segments       = '256',
@@ -156,6 +160,7 @@ class ovsdpdk (
   $ovs_bond_ports              = '',
   $ovs_patches                 = '',
   $ovs_dpdk_patches            = '',
+  $ovs_emc_size                = '',
 ) inherits ::ovsdpdk::params {
 
   anchor { '::ovsdpdk::start': }->
