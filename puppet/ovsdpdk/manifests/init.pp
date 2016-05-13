@@ -156,6 +156,7 @@ class ovsdpdk (
   $ovs_bond_ports              = '',
   $ovs_patches                 = '',
   $ovs_dpdk_patches            = '',
+  $ovs_ems_size                = '',
 ) inherits ::ovsdpdk::params {
 
   anchor { '::ovsdpdk::start': }->
