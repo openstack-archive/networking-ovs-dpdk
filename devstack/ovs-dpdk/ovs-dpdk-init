@@ -1,4 +1,13 @@
 #!/bin/bash
+### BEGIN INIT INFO
+# Provides:          ovs-dpdk
+# Required-Start:    $network $syslog
+# Required-Stop:     $network $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:
+# Short-Description: Open vSwitch DPDK
+# Description:       Open vSwitch accelerate by DPDK
+### END INIT INFO
 # Starts and stops ovs with dpdk
 #
 echo "sourcing config"
