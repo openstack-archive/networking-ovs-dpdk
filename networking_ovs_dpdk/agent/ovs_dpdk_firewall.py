@@ -24,7 +24,7 @@ from oslo_log import log as logging
 from neutron.agent.common import ovs_lib
 from neutron.agent import firewall
 from neutron.common import constants
-from neutron.i18n import _, _LW, _LE
+from neutron._i18n import _, _LW, _LE
 
 LOG = logging.getLogger(__name__)
 
