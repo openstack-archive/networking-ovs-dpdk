@@ -409,14 +409,35 @@ get_ovs_status(){
 
 }
 
+stop_me_softly() {
+    retry_count=1
+    max_retry_count=20
+    sudo kill -15 $(cat $1)
+    while [ "$retry_count" -le "$max_retry_count" ]; do
+        if [ ! -e $1 ]; then
+            break;
+        elif [ "$retry_count" == "10"]; then
+            echo "$1 has to be killed hardly"
+            sudo kill -9 $(cat $1)
+            let retry_count="$retry_count+1"
+        else
+            echo "Waiting for $1 to stop..."
+            let retry_count="$retry_count+1"
+            sleep 1
+        fi
+    done
+    if [ -f $1 ]; then
+        echo "removing forcibly pid file $1"
+        sudo rm -f $1
+    fi
+}
+
 stop_ovs_deamon(){
-    sudo kill -9 $(cat $OVS_LOG_DIR/ovs-vswitchd.pid)
-    sudo rm -f  $OVS_LOG_DIR/ovs-vswitchd.pid
+    stop_me_softly $OVS_DB_SOCKET_DIR/ovs-vswitchd.pid
 }
 
 stop_ovsdb(){
-    sudo kill -9 $(cat $OVS_LOG_DIR/ovsdb-server.pid)
-    sudo rm -f $OVS_LOG_DIR/ovsdb-server.pid
+    stop_me_softly $OVS_DB_SOCKET_DIR/ovsdb-server.pid
 }
 
 start_ovs(){
