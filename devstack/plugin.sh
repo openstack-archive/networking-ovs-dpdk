@@ -58,11 +58,13 @@ ERROR_ON_CLONE=False
         ;;
         "unstack")
             # Shut Down OVS-DPDK
+            uninstall_dpdk_modules
             ovs_dpdk_db_cleanup
             stop_ovs_dpdk
             uninstall_libvirt_CentOS
         ;;
         "clean")
+            uninstall_dpdk_modules
             # Remove state and transient data
             # Remember clean.sh first calls unstack.sh
             ovs_dpdk_clean
