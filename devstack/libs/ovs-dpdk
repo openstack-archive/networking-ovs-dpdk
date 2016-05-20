@@ -423,6 +423,28 @@ function install_qemu_kvm {
         install_package qemu-kvm
 }
 
+function install_dpdk_modules {
+
+    sudo mkdir -p /lib/modules/$(uname -r)/extra/dpdk
+    for mod in ${OVS_DPDK_DIR}/build/kmod/*.ko ; do
+        sudo cp -f -v $mod /lib/modules/$(uname -r)/extra/dpdk/
+    done
+    sudo depmod -a
+
+    MODULE=$OVS_INTERFACE_DRIVER
+
+    # rename to module name
+    if [[ "$OVS_INTERFACE_DRIVER" == "vfio-pci" ]]; then
+        MODULE="vfio_pci"
+    fi
+
+    echo -e "# DO NOT MODIFY this file (can be replaced or deleted during stack/unstack)\n$MODULE" | sudo tee /etc/modules-load.d/ovs-dpdk.conf
+}
+
+function uninstall_dpdk_modules {
+    sudo rm -f /etc/modules-load.d/ovs-dpdk.conf
+}
+
 function install_ovs_dpdk {
     # Install deps
     set +o errexit
@@ -445,6 +467,7 @@ function install_ovs_dpdk {
     set -o errexit
 
     build_ovs_dpdk
+    install_dpdk_modules
 
     sudo cp $NETWORKING_OVS_DPDK_DIR/devstack/ovs-dpdk/ovs-dpdk-init /etc/init.d/ovs-dpdk
     ovs_dpdk_write_conf
