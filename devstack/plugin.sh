@@ -58,6 +58,7 @@ ERROR_ON_CLONE=False
         ;;
         "unstack")
             # Shut Down OVS-DPDK
+            uninstall_dpdk_modules
             ovs_dpdk_db_cleanup
             stop_ovs_dpdk
             uninstall_libvirt_CentOS
