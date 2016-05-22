@@ -42,6 +42,14 @@ class ovsdpdk::install_ovs_dpdk (
       onlyif  => "test -f ${openvswitch_service_path}/${openvswitch_service_file}",
     }
 
+    if $::operatingsystem == 'CentOS' {
+      exec { 'systemctl daemon-reload':
+        path    => ['/usr/bin','/bin','/usr/sbin'],
+        user    => root,
+        require => Exec['update ovs service'],
+      }
+    }
+
     # schema convert required as we are not removing original db
     exec { "ovsdb-tool convert /etc/openvswitch/conf.db ${ovs_dir}/vswitchd/vswitch.ovsschema":
       path      => ['/usr/bin','/bin'],

@@ -6,6 +6,7 @@ This document describes how to use OVS-DPDK with puppet as well as configuration
 
 To use networking-ovs-dpdk with puppet please refer to installation guide in:
 `<networking-ovs-dpdk/doc/source/getstarted/puppet/ubuntu.rst>`
+`<networking-ovs-dpdk/doc/source/getstarted/puppet/centos.rst>`
 
 Example manifest files are available in:
 `<networking-ovs-dpdk/puppet/ovsdpdk/examples/*.pp>`

@@ -8,12 +8,22 @@ $service_ip = '192.168.51.2'
 # public network below with CIDR 172.24.5.0/24
 
 Exec { logoutput => 'on_failure' }
+
 # Common resources
-include ::apt
-class { '::openstack_extras::repo::debian::ubuntu':
-  release         => 'mitaka',
-  repo            => 'proposed',
-  package_require => true,
+case $::operatingsystem {
+  'Ubuntu': {
+    include ::apt
+    class { '::openstack_extras::repo::debian::ubuntu':
+      release         => 'mitaka',
+      repo            => 'proposed',
+      package_require => true,
+    }
+  }
+  'CentOS': {
+    class { '::openstack_extras::repo::redhat::redhat':
+    release         => 'mitaka',
+    }
+  }
 }
 
 ################
@@ -353,3 +363,4 @@ exec { 'create_br-ex_vif':
   command     => 'ip addr add 172.24.5.1/24 dev br-ex; ip link set br-ex up',
   refreshonly => true,
 }
+
