@@ -3,7 +3,7 @@
 # This script will just check if in nova.conf taken from first argument
 # NUMATopologyFilter is in place and append if needed
 
-ORIG_FILTERS=`grep scheduler_default_filters $1 | sed -e 's/\(.*\)=//'`
+ORIG_FILTERS=`grep "#scheduler_default_filters" $1 | sed -e 's/\(.*\)=//'`
 
 if [ -z "$ORIG_FILTERS" ]; then
   SEPARATOR=""

@@ -9,12 +9,22 @@ $compute_service_ip = '192.168.51.3'
 $local_tunnel_ip = '192.168.52.3'
 
 Exec { logoutput => 'on_failure' }
+
 # Common resources
-include ::apt
-class { '::openstack_extras::repo::debian::ubuntu':
-  release         => 'mitaka',
-  repo            => 'proposed',
-  package_require => true,
+case $::operatingsystem {
+  'Ubuntu': {
+    include ::apt
+    class { '::openstack_extras::repo::debian::ubuntu':
+      release         => 'mitaka',
+      repo            => 'proposed',
+      package_require => true,
+    }
+  }
+  'CentOS': {
+    class { '::openstack_extras::repo::redhat::redhat':
+    release         => 'mitaka',
+    }
+  }
 }
 
 ################
