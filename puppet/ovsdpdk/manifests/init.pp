@@ -87,7 +87,7 @@
 #   directory containing OVS lock file
 #
 # [*ovs_interface_driver*]
-#   (vfio-pci/igb_uio) NIC driver to use for physical network interfaces.
+#   (vfio-pci/igb_uio/uio_pci_generic) NIC driver to use for physical network interfaces.
 #   Drivers names are the ones supported by DPDK, i.e: not the kernel names.
 #   Defaults: "igb_uio"
 #
