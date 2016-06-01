@@ -276,11 +276,17 @@ function build_ovs_dpdk(){
         OVS_DPDK_VHOST_USER_DEBUG='n'
     fi
 
+    local enable_igb_uio='n'
+    if [ "$OVS_INTERFACE_DRIVER" == "igb_uio" ]; then
+        enable_igb_uio='y'
+    fi
+
     sed "s/CONFIG_RTE_BUILD_COMBINE_LIBS=n/CONFIG_RTE_BUILD_COMBINE_LIBS=y/" -i ${OVS_DPDK_DIR}/build/.config
     sed "s/CONFIG_RTE_MAX_MEMSEG=.*$/CONFIG_RTE_MAX_MEMSEG=${OVS_DPDK_MEM_SEGMENTS}/" -i ${OVS_DPDK_DIR}/build/.config
     sed "s/CONFIG_RTE_LIBRTE_VHOST=.*$/CONFIG_RTE_LIBRTE_VHOST=${OVS_DPDK_RTE_LIBRTE_VHOST}/" -i ${OVS_DPDK_DIR}/build/.config
     sed "s/CONFIG_RTE_LIBRTE_VHOST_DEBUG=.*$/CONFIG_RTE_LIBRTE_VHOST_DEBUG=${OVS_DPDK_VHOST_USER_DEBUG}/" -i ${OVS_DPDK_DIR}/build/.config
     sed "s/CONFIG_RTE_LIBRTE_KNI=.*$/CONFIG_RTE_LIBRTE_KNI=n/" -i ${OVS_DPDK_DIR}/build/.config
+    sed "s/CONFIG_RTE_EAL_IGB_UIO=.*$/CONFIG_RTE_EAL_IGB_UIO=${enable_igb_uio}/" -i ${OVS_DPDK_DIR}/build/.config
 
     make -j $(nproc) EXTRA_CFLAGS='-fPIC'
     sudo cp ${OVS_DPDK_DIR}/build/lib/*dpdk.* /lib
