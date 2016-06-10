@@ -66,6 +66,15 @@ function ovs_dpdk_create_kvm_wrapper {
     fi
 
     sudo mv $KVM_CMD $KVM_CMD.orig
+    if [ "$os_VENDOR" == "CentOS" ]; then
+        if [ ! -e /usr/bin/qemu-system-x86_64.org ]; then
+            sudo mv /usr/bin/qemu-system-x86_64 /usr/bin/qemu-system-x86_64.org
+        fi
+        if [ -e /usr/bin/qemu-system-x86_64 ]; then
+            sudo rm -f /usr/bin/qemu-system-x86_64
+        fi
+        sudo ln -s $KVM_CMD /usr/bin/qemu-system-x86_64
+    fi
 
 cat << 'EOF' | sudo tee  $KVM_CMD
 #!/bin/bash -
@@ -109,12 +118,15 @@ while [ $# -gt 0 ]; do
          shift ;;
     esac
 done
+
 echo "qemu ${args[@]}"  > /tmp/qemu.orig
-if [ -e /usr/bin/qemu-system-x86_64 ]; then
-    exec /usr/bin/qemu-system-x86_64  "${args[@]}"
-elif [ -e /usr/libexec/qemu-kvm.orig ]; then
+
+if [ -e /usr/libexec/qemu-kvm.orig ]; then
     exec /usr/libexec/qemu-kvm.orig  "${args[@]}"
+elif [ -e /usr/bin/qemu-system-x86_64 ]; then
+    exec /usr/bin/qemu-system-x86_64  "${args[@]}"
 fi
+
 EOF
 
     sudo chmod +x $KVM_CMD
@@ -139,10 +151,13 @@ function ovs_dpdk_db_cleanup {
         KVM_CMD="/usr/bin/kvm"
     elif [ -e /usr/bin/qemu-kvm ]; then
         KVM_CMD="/usr/bin/qemu-kvm"
+    elif [ -e /usr/libexec/qemu-kvm ]; then
+        KVM_CMD="/usr/libexec/qemu-kvm"
     fi
     if [ -e "$KVM_CMD.orig" ]; then
         sudo mv $KVM_CMD.orig $KVM_CMD
     fi
+
 }
 
 function ovs_dpdk_clean(){
@@ -398,53 +413,8 @@ function ovs_dpdk_write_conf {
     sudo sed "s/OVS_DPDK_BIND_PORT=.*/OVS_DPDK_BIND_PORT=$OVS_DPDK_BIND_PORT/" -i /etc/default/ovs-dpdk
 }
 
-function uninstall_libvirt_CentOS {
-
-    if [ "$os_VENDOR" == CentOS ] ; then
-
-        sudo rm /usr/libexec/qemu-kvm
-        sudo rm /usr/libexec/qemu-kvm.orig
-
-        sudo yum remove -y libvirt* qemu* libcard* glusterfs*
-    fi
-}
-
 function install_qemu_kvm {
-
-    if [ "$os_VENDOR" == CentOS ] ; then
-        echo "Configuring libvirt for CentOS"
-        sudo service libvirtd stop
-
-        sudo yum remove -y libvirt* qemu* libcacard* glusterfs*
-
-        if [ ! -d /opt/stack/rpms ]; then
-            sudo mkdir -m 777 -p /opt/stack/rpms
-        fi
-
-        RPMS=/opt/stack/rpms
-
-        wget_cmd=" wget -nc -P"
-
-        if [ "$RECLONE" == True ] ; then
-            sudo rm -f $RPMS/*
-            wget_cmd=" wget -P"
-        fi
-
-        for file in ${CentOS_libvirt_repo[@]} ; do
-            $wget_cmd $RPMS $file
-        done
-
-        for file in ${CentOS_qemu_repo[@]} ; do
-            $wget_cmd $RPMS $file
-        done
-
-        sudo yum install -y $RPMS/*
-
-        sudo service libvirtd start
-    else
         install_package qemu-kvm
-    fi
-
 }
 
 function install_ovs_dpdk {

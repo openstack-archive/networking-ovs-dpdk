@@ -118,12 +118,18 @@ git, socat, kernel-devel and redhat-lsb-core and update all packages for yum.
 The system will need to be rebooted for the changes to take effect.
 | sudo reboot
 
-Libvirt configuration
+QEMU configuration
 ---------------------
-Libvirt and qemu on CentOS 7 are out of date for networking-ovs-dpdk.
-As a result libvirt will be uninstalled and reinstalled from binaries
-which are downloaded from repos.fedorapeople.org and cbs.centos.org.
-the binaries are downloaded if they are not present or while RECLONE is true.
+The default qemu version on CentOS 7.2 is incompatible with ovs with dpdk.
+To provide compatible versions the CentOS virt SIG must be enabled.
+To enable the virt SIG create /etc/yum.repos.d/centos-virt-sig.repo with the following content:
+
+[virt7-kvm-common-release]
+name=virt7-kvm-common-release
+baseurl=http://cbs.centos.org/repos/virt7-kvm-common-release/x86_64/os
+enabled=1
+gpgcheck=0
+
 
 Devstack configuration
 ----------------------

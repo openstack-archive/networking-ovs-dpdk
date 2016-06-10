@@ -54,43 +54,6 @@ fi
 OVS_ENABLE_SG_FIREWALL_MULTICAST=${OVS_ENABLE_SG_FIREWALL_MULTICAST:-False}
 OVS_MULTICAST_SNOOPING_AGING_TIME=${OVS_MULTICAST_SNOOPING_AGING_TIME:-3600}
 
-# qemu settings
-if [ -z "$CentOS_libvirt_repo" ] ; then
-    CentOS_libvirt_repo=(https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-1.2.11-1.el7.centos.x86_64.rpm
-                         https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-1.2.11-1.el7.centos.x86_64.rpm
-                         https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-client-1.2.11-1.el7.centos.x86_64.rpm
-                         https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-driver-interface-1.2.11-1.el7.centos.x86_64.rpm
-                         https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-driver-lxc-1.2.11-1.el7.centos.x86_64.rpm
-                         https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-driver-network-1.2.11-1.el7.centos.x86_64.rpm
-                         https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-driver-nodedev-1.2.11-1.el7.centos.x86_64.rpm
-                         https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-driver-nwfilter-1.2.11-1.el7.centos.x86_64.rpm
-                         https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-driver-qemu-1.2.11-1.el7.centos.x86_64.rpm
-                         https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-driver-secret-1.2.11-1.el7.centos.x86_64.rpm
-                         https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-driver-storage-1.2.11-1.el7.centos.x86_64.rpm
-                         https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-config-network-1.2.11-1.el7.centos.x86_64.rpm
-                         https://repos.fedorapeople.org/repos/openstack/.virt-upstream-el7/libvirt-daemon-config-nwfilter-1.2.11-1.el7.centos.x86_64.rpm)
-fi
-
-if [ -z "$CentOS_qemu_repo" ] ; then
-    CentOS_qemu_repo=(http://cbs.centos.org/kojifiles/packages/qemu-kvm-ev/2.1.2/23.el7.1/x86_64/libcacard-devel-ev-2.1.2-23.el7.1.x86_64.rpm
-                      http://cbs.centos.org/kojifiles/packages/qemu-kvm-ev/2.1.2/23.el7.1/x86_64/libcacard-ev-2.1.2-23.el7.1.x86_64.rpm
-                      http://cbs.centos.org/kojifiles/packages/qemu-kvm-ev/2.1.2/23.el7.1/x86_64/libcacard-tools-ev-2.1.2-23.el7.1.x86_64.rpm
-                      http://cbs.centos.org/kojifiles/packages/qemu-kvm-ev/2.1.2/23.el7.1/x86_64/qemu-kvm-common-ev-2.1.2-23.el7.1.x86_64.rpm
-                      http://cbs.centos.org/kojifiles/packages/qemu-kvm-ev/2.1.2/23.el7.1/x86_64/qemu-kvm-tools-ev-2.1.2-23.el7.1.x86_64.rpm
-                      http://cbs.centos.org/kojifiles/packages/qemu-kvm-ev/2.1.2/23.el7.1/x86_64/qemu-kvm-ev-debuginfo-2.1.2-23.el7.1.x86_64.rpm
-                      http://cbs.centos.org/kojifiles/packages/qemu-kvm-ev/2.1.2/23.el7.1/x86_64/qemu-kvm-ev-2.1.2-23.el7.1.x86_64.rpm
-                      http://cbs.centos.org/kojifiles/packages/qemu-kvm-ev/2.1.2/23.el7.1/x86_64/qemu-img-ev-2.1.2-23.el7.1.x86_64.rpm
-                      http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-3.7.4-2.el7.x86_64.rpm
-                      http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-api-3.7.4-2.el7.x86_64.rpm
-                      http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-cli-3.7.4-2.el7.x86_64.rpm
-                      http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-client-xlators-3.7.4-2.el7.x86_64.rpm
-                      http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-debuginfo-3.7.4-2.el7.x86_64.rpm
-                      http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-fuse-3.7.4-2.el7.x86_64.rpm
-                      http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-geo-replication-3.7.4-2.el7.x86_64.rpm
-                      http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-libs-3.7.4-2.el7.x86_64.rpm
-                      http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-rdma-3.7.4-2.el7.x86_64.rpm
-                      http://cbs.centos.org/kojifiles/packages/glusterfs/3.7.4/2.el7/x86_64/glusterfs-server-3.7.4-2.el7.x86_64.rpm)
-fi
 
 #patch settings
 #do not install any patches by default.
