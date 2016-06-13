@@ -20,6 +20,7 @@ OVS_DB_CONF_DIR=/etc/openvswitch
 OVS_DB_SOCKET_DIR=/var/run/openvswitch
 
 #ovs settings
+OVS_INIT_POLICY=${OVS_INIT_POLICY:-'auto'}
 OVS_DIR=${OVS_DIR:-$DEST/ovs}
 OVS_GIT_REPO=${OVS_GIT_REPO:-https://github.com/openvswitch/ovs.git}
 OVS_GIT_TAG=${OVS_GIT_TAG:-ace39a6f63d4c28344ca0e2a2c4233ddbc16b07c}
