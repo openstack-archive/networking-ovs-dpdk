@@ -18,10 +18,10 @@ import mock
 import six
 
 from networking_ovs_dpdk.agent import ovs_dpdk_firewall
+from networking_ovs_dpdk.common._i18n import _
 from neutron.agent.common import config as a_cfg
 from neutron.agent.common import ovs_lib
 from neutron.agent import securitygroups_rpc as sg_cfg
-from neutron.i18n import _
 from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl \
     import br_int
 from neutron.plugins.ml2.drivers.openvswitch.agent.ovs_agent_extension_api\
