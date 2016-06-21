@@ -410,13 +410,13 @@ get_ovs_status(){
 }
 
 stop_ovs_deamon(){
-    sudo kill -9 $(cat $OVS_LOG_DIR/ovs-vswitchd.pid)
-    sudo rm -f  $OVS_LOG_DIR/ovs-vswitchd.pid
+    sudo kill -9 $(cat $OVS_DB_SOCKET_DIR/ovs-vswitchd.pid)
+    sudo rm -f $OVS_DB_SOCKET_DIR/ovs-vswitchd.pid
 }
 
 stop_ovsdb(){
-    sudo kill -9 $(cat $OVS_LOG_DIR/ovsdb-server.pid)
-    sudo rm -f $OVS_LOG_DIR/ovsdb-server.pid
+    sudo kill -9 $(cat $OVS_DB_SOCKET_DIR/ovsdb-server.pid)
+    sudo rm -f $OVS_DB_SOCKET_DIR/ovsdb-server.pid
 }
 
 start_ovs(){
