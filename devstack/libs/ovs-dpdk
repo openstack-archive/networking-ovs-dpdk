@@ -447,6 +447,7 @@ function install_ovs_dpdk {
     build_ovs_dpdk
 
     sudo cp $NETWORKING_OVS_DPDK_DIR/devstack/ovs-dpdk/ovs-dpdk-init /etc/init.d/ovs-dpdk
+    type systemctl 2>&1 >/dev/null && sudo systemctl daemon-reload
     ovs_dpdk_write_conf
     ovs_dpdk_create_kvm_wrapper
 
