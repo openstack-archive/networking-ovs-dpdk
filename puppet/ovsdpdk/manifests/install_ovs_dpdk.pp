@@ -26,7 +26,7 @@ class ovsdpdk::install_ovs_dpdk (
       path    => ['/usr/bin','/bin'],
     }
 
-    file {'/etc/default/ovs-dpdk': content => template("${plugin_dir}/files/ovs-dpdk-conf.erb"), mode => '0644' }
+    file {'/etc/default/ovs-dpdk': content => template('ovsdpdk/ovs-dpdk-conf.erb'), mode => '0644' }
 
     exec {'adapt_conf_file':
       command   => "${plugin_dir}/files/tune_params.sh",

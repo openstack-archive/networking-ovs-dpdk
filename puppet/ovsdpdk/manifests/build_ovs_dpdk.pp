@@ -9,7 +9,7 @@ class ovsdpdk::build_ovs_dpdk (
 
   if $compute == 'True' {
     file {"${plugin_dir}/files/patches.sh":
-        content => template("${plugin_dir}/files/patches.erb"),
+        content => template('ovsdpdk/patches.erb'),
         mode    => '0775',
     }
 
@@ -21,7 +21,7 @@ class ovsdpdk::build_ovs_dpdk (
 
     file {"${plugin_dir}/files/build_ovs_dpdk.sh":
         require => Exec["${plugin_dir}/files/patches.sh"],
-        content => template("${plugin_dir}/files/build_ovs_dpdk.erb"),
+        content => template('ovsdpdk/build_ovs_dpdk.erb'),
         mode    => '0775',
     }
 
