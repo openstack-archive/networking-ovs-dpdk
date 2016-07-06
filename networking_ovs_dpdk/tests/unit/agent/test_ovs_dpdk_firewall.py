@@ -21,6 +21,7 @@ from networking_ovs_dpdk.agent import ovs_dpdk_firewall
 from networking_ovs_dpdk.common._i18n import _
 from neutron.agent.common import config as a_cfg
 from neutron.agent.common import ovs_lib
+from neutron.agent.ovsdb import api as ovsdb
 from neutron.agent import securitygroups_rpc as sg_cfg
 from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl \
     import br_int
@@ -120,6 +121,9 @@ class BaseOVSDPDKFirewallTestCase(base.BaseTestCase):
         cfg.CONF.register_opts(a_cfg.ROOT_HELPER_OPTS, 'AGENT')
         cfg.CONF.register_opts(sg_cfg.security_group_opts, 'SECURITYGROUP')
         cfg.CONF.register_opts(ovs_opts, "OVS")
+        self._mock_ovsdb =\
+            mock.patch.object(ovsdb.API, "get")
+        self.mock_ovsdb = self._mock_ovsdb.start()
         int_br = br_int.OVSIntegrationBridge(cfg.CONF.OVS.integration_bridge)
         self.firewall = ovs_dpdk_firewall.OVSFirewallDriver(int_br)
 
