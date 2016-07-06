@@ -18,13 +18,13 @@ import math
 import netaddr
 import re
 
+from neutron_lib import constants
 from oslo_config import cfg
 from oslo_log import log as logging
 
 from networking_ovs_dpdk.common._i18n import _, _LW, _LE
 
 from neutron.agent import firewall
-from neutron.common import constants
 from neutron.plugins.ml2.drivers.openvswitch.agent.common import constants \
     as ovs_constants
 from neutron.plugins.ml2.drivers.openvswitch.agent.ovs_agent_extension_api\
