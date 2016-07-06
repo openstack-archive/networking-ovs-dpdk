@@ -226,8 +226,8 @@ NIC's from numa nodes other than 0 are used, there is no PMD thread generated fo
 them. If you are using host with multiple numa nodes please consider using not
 default OVS_PMD_CORE_MASK value.
 
-Using with OpenDayligh
-======================
+Using with OpenDaylight
+=======================
 
 To use this plugin with OpenDaylight you need Neutron and Networking-ODL plugin:
 
