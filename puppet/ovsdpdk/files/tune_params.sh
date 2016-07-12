@@ -125,3 +125,14 @@ if [ $OVS_PMD_CORE_MASK -eq 4 ]; then
 fi
 
 sudo sed "s#OVS_PMD_CORE_MASK=.*#OVS_PMD_CORE_MASK=$OVS_PMD_CORE_MASK#" -i /etc/default/ovs-dpdk
+
+if [ "$OVS_INIT_POLICY" == "auto" ] && [ $(grep dpdk-init "${OVS_DIR}/vswitchd/vswitch.xml" > /dev/null ; echo $?) == "0" ]; then
+    OVS_INIT_POLICY='db'
+    sudo sed "s#OVS_INIT_POLICY=.*#OVS_INIT_POLICY=$OVS_INIT_POLICY#" -i /etc/default/ovs-dpdk
+elif [ "$OVS_INIT_POLICY" == "auto" ]; then
+    OVS_INIT_POLICY='cmd'
+    sudo sed "s#OVS_INIT_POLICY=.*#OVS_INIT_POLICY=$OVS_INIT_POLICY#" -i /etc/default/ovs-dpdk
+else
+    echo "debug: OVS_INIT_POLICY not changed"
+fi
+
