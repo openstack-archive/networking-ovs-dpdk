@@ -134,6 +134,18 @@
 #    (number) Defines the value which will be replaced in constant EM_FLOW_HASH_SHIFT in ovs lib/dpif-netdev.c.
 #    The constant represents count of bits for hash.
 #
+# [*ovs_init_policy*]
+#    This setting controls how ovs with dpdk is enabled.
+#    Allowed values: 'cmd', 'db', 'auto'
+#    cmd:  setting this value enables the legacy workflow where dpdk paramaters are passed on the ovs-vswitchd commandline.
+#    db:   setting this value enables the new workflow where dpdk paramaters are stored in the ovsdb.
+#    auto: setting this value instructs the plugin to try and deterim the correct value to use.
+#
+#    Default: 'auto'
+#
+#    Example: ovs_init_policy='db'
+#
+
 class ovsdpdk (
   $rte_target                  = 'x86_64-native-linuxapp-gcc',
   $ovs_dpdk_mem_segments       = '256',
@@ -161,6 +173,7 @@ class ovsdpdk (
   $ovs_patches                 = '',
   $ovs_dpdk_patches            = '',
   $ovs_emc_size                = '',
+  $ovs_init_policy             = 'auto',
 ) inherits ::ovsdpdk::params {
 
   anchor { '::ovsdpdk::start': }->
