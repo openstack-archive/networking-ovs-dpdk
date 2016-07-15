@@ -110,9 +110,9 @@ Export these variables
 Install required packages
 -------------------------
 Devstack will pull down the required packages, but for the initial clone we need
-git, socat, kernel-devel and redhat-lsb-core and update all packages for yum.
+git, socat.
 
-| sudo yum install -y kernel-devel git socat redhat-lsb-core
+| sudo yum install -y git socat
 | sudo yum update
 
 The system will need to be rebooted for the changes to take effect.

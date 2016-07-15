@@ -187,6 +187,18 @@ function git_update_repo {
     popd
 }
 
+function ovs_dpdk_pre_install(){
+    OFFLINE=$(trueorfalse False OFFLINE)
+    echo "In ovs_dpdk_pre_install $OFFLINE is_ubuntu: $is_ubuntu"
+    if [ "$OFFLINE" != True ]; then
+        if [ is_ubuntu ]; then
+            sudo apt-get install -y linux-headers-$(uname -r) fdutils libxtst6 libnuma-dev
+        elif [ "$os_VENDOR" == "CentOS" ]; then
+            sudo yum install -y kernel-devel-$(uname -r) redhat-lsb-core
+        fi
+    fi
+}
+
 function clone_ovs_dpdk(){
     OFFLINE=$(trueorfalse False OFFLINE)
     RECLONE=$(trueorfalse False RECLONE)

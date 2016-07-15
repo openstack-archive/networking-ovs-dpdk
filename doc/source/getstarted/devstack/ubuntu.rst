@@ -110,9 +110,9 @@ Export these variables
 Install required packages
 -------------------------
 Devstack will pull down the required packages, but for the initial clone we need
-git, socat, linux-headers-3.19.0-26-generic, fdutils and libxtst6.
+git, socat.
 
-| sudo apt-get install linux-headers-'uname -r' fdutils git socat libxtst6
+| sudo apt-get install git socat
 
 We will also need the Ubuntu basic server package and add a repository.
 | sudo tasksel install server
