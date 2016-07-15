@@ -77,9 +77,9 @@ class { '::nova::compute':
 }
 
 class { '::nova::network::neutron':
-  neutron_url            => "http://${controller_service_ip}:9696",
-  neutron_admin_password => 'a_big_secret',
-  neutron_admin_auth_url => "http://${controller_service_ip}:35357/v3",
+  neutron_url      => "http://${controller_service_ip}:9696",
+  neutron_password => 'a_big_secret',
+  neutron_auth_url => "http://${controller_service_ip}:35357/v3",
 }
 
 

@@ -12,7 +12,7 @@ class ovsdpdk::params {
       $openvswitch_service_name = 'openvswitch-switch'
       $openvswitch_service_file = 'openvswitch-switch.conf'
       $openvswitch_service_path = '/etc/init'
-      $openvswitch_agent = 'neutron-openvswitch-agent'
+      #$openvswitch_agent = 'neutron-openvswitch-agent'
       $nova_compute_service_name = 'nova-compute'
       $nova_scheduler_service_name = 'nova-scheduler'
     }
@@ -23,7 +23,7 @@ class ovsdpdk::params {
       $openvswitch_service_name = 'openvswitch'
       $openvswitch_service_file = 'openvswitch.service'
       $openvswitch_service_path = '/usr/lib/systemd/system'
-      $openvswitch_agent = 'neutron-openvswitch-agent'
+      #$openvswitch_agent = 'neutron-openvswitch-agent'
       $nova_compute_service_name = 'openstack-nova-compute'
       $nova_scheduler_service_name = 'openstack-nova-scheduler'
     }
