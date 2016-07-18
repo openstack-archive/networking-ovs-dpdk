@@ -86,8 +86,9 @@ init_db(){
         local pciAddressWhitelist
         generate_pciwhitelist pciAddressWhitelist
         sudo ovs-vsctl --no-wait set Open_vSwitch . other_config:pmd-cpu-mask=$OVS_PMD_CORE_MASK other_config:dpdk-init=True other_config:dpdk-lcore-mask=$OVS_CORE_MASK \
-        other_config:dpdk-mem-channels=4 other_config:dpdk-socket-mem=$OVS_SOCKET_MEM other_config:dpdk-hugepage-dir=$OVS_HUGEPAGE_MOUNT other_config:vhost-sock-dir=$OVS_DB_SOCKET_DIR  \
+        other_config:dpdk-mem-channels=4 other_config:dpdk-socket-mem=$OVS_SOCKET_MEM other_config:dpdk-hugepage-dir=$OVS_HUGEPAGE_MOUNT  \
         other_config:dpdk-extra=" --proc-type primary $pciAddressWhitelist "
+        [ -n "$OVS_VHOST_USER_SOCKET_DIR" ] && sudo ovs-vsctl --no-wait set Open_vSwitch . other_config:vhost-sock-dir=$OVS_VHOST_USER_SOCKET_DIR
     fi
 
 }
@@ -530,12 +531,15 @@ start_ovs(){
     if is_ubuntu; then
         qemu_group="kvm"
     fi
-
+    [ -e "${OVS_DB_SOCKET_DIR}/${OVS_VHOST_USER_SOCKET_DIR}" ] ||  sudo sg $qemu_group -c "mkdir -m 777 -p ${OVS_DB_SOCKET_DIR}/${OVS_VHOST_USER_SOCKET_DIR}"
+    # the permeisions must be adjusted to allow qemu to create vhost-user sockets when in server mode.
+    sudo chown root:$qemu_group ${OVS_DB_SOCKET_DIR}
+    sudo chmod 777 ${OVS_DB_SOCKET_DIR}
     start_cmd="screen -dms ovs-vswitchd sudo sg $qemu_group -c \"umask 002; ${OVS_INSTALL_DIR}/sbin/ovs-vswitchd -- unix:$OVS_DB_SOCKET 2>&1 | tee ${OVS_LOG_DIR}/ovs-vswitchd.log\""
     if [ "$OVS_INIT_POLICY" == "cmd" ]; then
         local pciAddressWhitelist
         generate_pciwhitelist pciAddressWhitelist
-        start_cmd="screen -dms ovs-vswitchd sudo sg $qemu_group -c \"umask 002; ${OVS_INSTALL_DIR}/sbin/ovs-vswitchd --dpdk -vhost_sock_dir $OVS_DB_SOCKET_DIR -c $OVS_CORE_MASK -n $OVS_MEM_CHANNELS  --proc-type primary  --huge-dir $OVS_HUGEPAGE_MOUNT --socket-mem $OVS_SOCKET_MEM $pciAddressWhitelist -- unix:$OVS_DB_SOCKET --pidfile=${OVS_DB_SOCKET_DIR}/ovs-vswitchd.pid 2>&1 | tee ${OVS_LOG_DIR}/ovs-vswitchd.log\""
+        start_cmd="screen -dms ovs-vswitchd sudo sg $qemu_group -c \"umask 002; ${OVS_INSTALL_DIR}/sbin/ovs-vswitchd --dpdk -vhost_sock_dir ${OVS_DB_SOCKET_DIR}/${OVS_VHOST_USER_SOCKET_DIR} -c $OVS_CORE_MASK -n $OVS_MEM_CHANNELS  --proc-type primary  --huge-dir $OVS_HUGEPAGE_MOUNT --socket-mem $OVS_SOCKET_MEM $pciAddressWhitelist -- unix:$OVS_DB_SOCKET --pidfile=${OVS_DB_SOCKET_DIR}/ovs-vswitchd.pid 2>&1 | tee ${OVS_LOG_DIR}/ovs-vswitchd.log\""
     fi
 
 
