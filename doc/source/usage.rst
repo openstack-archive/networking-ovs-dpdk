@@ -22,7 +22,6 @@ local.conf settings
 See :download:`local.conf_example <_downloads/local.conf_example>`_ for sample usage of the below settings.
 
 Default values for the below settings can be found in `settings` file in devstack directory of the main OVS DPDK repository.
-
 **OVS_INIT_POLICY**
     This setting controls how ovs with dpdk is enabled.
 
@@ -37,6 +36,21 @@ Default values for the below settings can be found in `settings` file in devstac
     Example:
 
     OVS_INIT_POLICY=db
+
+**OVS_VHOST_DRIVER_MODE**
+    This setting controls how ovs with dpdk is enabled.
+
+    Allowed values: 'client', 'server', 'auto'
+
+    client:  setting this value enables support for vhost-user reconnect by configuring dpdk client / qemu server mode.
+    server:  setting this value enables the legacy dpdk server / qemu client mode form compatibility.
+    auto:    setting this value instructs the plugin to try and deterim the correct value to use.
+
+    Default: 'auto'
+
+    Example:
+
+    OVS_VHOST_DRIVER_MODE=client
 
 **OVS_SOCKET_MEM**
     (Size in MB/auto) Amount of memory reserved by OVS from each NUMA node.

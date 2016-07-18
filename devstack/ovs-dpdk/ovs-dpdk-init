@@ -89,6 +89,7 @@ init_db(){
         other_config:dpdk-mem-channels=4 other_config:dpdk-socket-mem=$OVS_SOCKET_MEM other_config:dpdk-hugepage-dir=$OVS_HUGEPAGE_MOUNT  \
         other_config:dpdk-extra=" --proc-type primary $pciAddressWhitelist "
         [ -n "$OVS_VHOST_USER_SOCKET_DIR" ] && sudo ovs-vsctl --no-wait set Open_vSwitch . other_config:vhost-sock-dir=$OVS_VHOST_USER_SOCKET_DIR
+        [ "auto" == "$OVS_VHOST_DRIVER_MODE" ] || sudo ovs-vsctl --no-wait set Open_vSwitch . other_config:vhost_driver_mode=$OVS_VHOST_DRIVER_MODE
     fi
 
 }
