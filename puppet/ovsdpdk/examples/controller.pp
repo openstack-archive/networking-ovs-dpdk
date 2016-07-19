@@ -149,6 +149,8 @@ class { '::glance::api':
   verbose             => true,
   database_connection => "mysql://glance:glance@${controller_service_ip}/glance?charset=utf8",
   keystone_password   => 'a_big_secret',
+  auth_uri            => "http://${service_ip}:5000",
+  identity_uri        => "http://${service_ip}:35357",
   workers             => 2,
 }
 
@@ -157,6 +159,8 @@ class { '::glance::registry':
   verbose             => true,
   database_connection => "mysql://glance:glance@${controller_service_ip}/glance?charset=utf8",
   keystone_password   => 'a_big_secret',
+  auth_uri            => "http://${service_ip}:5000",
+  identity_uri        => "http://${service_ip}:35357",
   workers             => 2,
 }
 
@@ -190,10 +194,6 @@ class { '::nova::keystone::auth':
   public_url_v3    => "http://${controller_service_ip}:8774/v3",
   internal_url_v3  => "http://${controller_service_ip}:8774/v3",
   admin_url_v3     => "http://${controller_service_ip}:8774/v3",
-  ec2_public_url   => "http://${controller_service_ip}:8773/services/Cloud",
-  ec2_internal_url => "http://${controller_service_ip}:8773/services/Cloud",
-  ec2_admin_url    => "http://${controller_service_ip}:8773/services/Admin",
-
 }
 
 class { '::nova':
@@ -216,7 +216,6 @@ class { '::nova::api':
   osapi_v3                             => true,
   neutron_metadata_proxy_shared_secret => 'a_big_secret',
   osapi_compute_workers                => 2,
-  ec2_workers                          => 2,
   metadata_workers                     => 2,
   default_floating_pool                => 'public',
   sync_db_api                          => true,
@@ -274,16 +273,15 @@ class { '::neutron::client': }
 class { '::neutron::server':
   database_connection => "mysql://neutron:neutron@${controller_service_ip}/neutron?charset=utf8",
   auth_password       => 'a_big_secret',
-  identity_uri        => "http://${controller_service_ip}:35357/",
+  auth_uri            => "http://${controller_service_ip}:5000/",
+  auth_url            => "http://${controller_service_ip}:35357/",
   sync_db             => true,
   api_workers         => 4,
 }
 
 class { '::neutron::agents::metadata':
   debug            => true,
-  auth_password    => 'a_big_secret',
   shared_secret    => 'a_big_secret',
-  auth_url         => "http://${controller_service_ip}:35357/v2.0",
   metadata_ip      => "${controller_service_ip}",
   metadata_workers => 2,
 }
