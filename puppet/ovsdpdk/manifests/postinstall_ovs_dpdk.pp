@@ -25,7 +25,6 @@ class ovsdpdk::postinstall_ovs_dpdk (
     # restart modified services
     exec {'restart_ovs':
       command => "/usr/sbin/service ${openvswitch_service_name} restart",
-      user    => root,
       require => Exec['update PMD cpumask'],
     }
 
@@ -35,31 +34,23 @@ class ovsdpdk::postinstall_ovs_dpdk (
       command =>  "sudo ${ovs_install_dir}/sbin/ovsdb-server  --detach --pidfile=${ovs_db_socket_dir}/ovsdb-server.pid\
  --remote=punix:${ovs_db_socket}  --remote=db:Open_vSwitch,Open_vSwitch,manager_options;sleep 10;ovs-vsctl --no-wait set\
  Open_vSwitch . other_config:pmd-cpu-mask=$(cat /etc/default/ovs-dpdk | grep 'OVS_PMD_CORE_MASK' | tr -d 'OVS_PMD_CORE_MASK=');",
-      path    => ['/usr/bin','/bin'],
-      user    => root,
     }
 
     exec {'restart_ovs_agent':
       command => "/usr/sbin/service ${openvswitch_agent} restart",
-      user    => root,
       require => Exec['restart_ovs'],
     }
 
     exec {'configure_bridges':
       command   => "${plugin_dir}/files/configure_bridges.sh ${ovs_datapath_type}",
-      user      => root,
       require   => Exec['restart_ovs'],
-      logoutput => true,
     }
 
     exec {'adjust_vcpu_pinset':
       command   => "${plugin_dir}/files/set_vcpu_pin.sh ${nova_conf}",
-      path      => ['/usr/bin','/bin'],
-      user      => root,
       onlyif    => "test -f ${nova_conf}",
       require   => Package['crudini'],
       notify    => Service["${nova_compute_service_name}"],
-      logoutput => true,
     }
 
   }
@@ -70,12 +61,9 @@ class ovsdpdk::postinstall_ovs_dpdk (
     # changing of nova specific configuration options
     exec {'append_NUMATopologyFilter':
       command   => "${plugin_dir}/files/numa_filter_append.sh ${nova_conf}",
-      path      => ['/usr/bin','/bin'],
-      user      => root,
       onlyif    => "test -f ${nova_conf}",
       require   => Package['crudini'],
       notify    => Service["${nova_scheduler_service_name}"],
-      logoutput => true,
     }
 
   }

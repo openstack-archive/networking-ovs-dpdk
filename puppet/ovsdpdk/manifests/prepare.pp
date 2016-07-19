@@ -56,19 +56,13 @@ class ovsdpdk::prepare(
       revision => $ovs_dpdk_git_tag,
     }
 
-    exec { "/usr/sbin/service ${openvswitch_service_name} stop":
-      user => root,
-    }
+    exec { "/usr/sbin/service ${openvswitch_service_name} stop": }
 
-    exec { "/usr/sbin/service ${openvswitch_agent} stop":
-      user => root,
-    }
+    exec { "/usr/sbin/service ${openvswitch_agent} stop":  }
   }
 
   if $controller == 'True' {
-    exec { '/usr/sbin/service neutron-server stop':
-      user => root,
-    }
+    exec { '/usr/sbin/service neutron-server stop': }
   }
 
   if ($compute != "True") and ($controller != "True") {
