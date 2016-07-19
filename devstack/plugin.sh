@@ -18,6 +18,7 @@ ERROR_ON_CLONE=False
                     # cloning source code
                     if [ $OVS_DPDK_INSTALL == 'True' ]; then
                         echo_summary "Downloading Dependencies for OVS DPDK"
+                        ovs_dpdk_pre_install
                         clone_ovs_dpdk
                     else
                         echo_summary "Cloning of src files for ovs-dpdk not required"
