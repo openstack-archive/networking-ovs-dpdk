@@ -61,9 +61,7 @@ class ovsdpdk::prepare(
   }
 
   if $controller == 'True' {
-    exec { '/usr/sbin/service neutron-server stop':
-      user => root,
-    }
+    exec { '/usr/sbin/service neutron-server stop': }
   }
 
   if ($compute != "True") and ($controller != "True") {

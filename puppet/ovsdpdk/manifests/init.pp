@@ -176,6 +176,12 @@ class ovsdpdk (
   $ovs_init_policy             = 'auto',
 ) inherits ::ovsdpdk::params {
 
+  Exec {
+    user      => root,
+    path      => ['/usr/bin','/bin','/usr/sbin'],
+    logoutput => true,
+  }
+
   anchor { '::ovsdpdk::start': }->
     class { '::ovsdpdk::prepare': }->
     class { '::ovsdpdk::build_ovs_dpdk': }->

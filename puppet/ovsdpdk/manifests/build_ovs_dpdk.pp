@@ -16,7 +16,6 @@ class ovsdpdk::build_ovs_dpdk (
     exec {"${plugin_dir}/files/patches.sh":
         require   => File["${plugin_dir}/files/patches.sh"],
         timeout   => 0,
-        logoutput => true,
     }
 
     file {"${plugin_dir}/files/build_ovs_dpdk.sh":
