@@ -4,6 +4,7 @@
 #
 class ovsdpdk::postinstall_ovs_dpdk (
   $plugin_dir               = $::ovsdpdk::params::plugin_dir,
+  $ovs_dpdk_dir             = $::ovsdpdk::params::ovs_dpdk_dir,
   $nova_conf                = $::ovsdpdk::params::nova_conf,
   $openvswitch_service_name = $::ovsdpdk::params::openvswitch_service_name,
   $openvswitch_agent        = $::ovsdpdk::params::openvswitch_agent,
@@ -12,6 +13,7 @@ class ovsdpdk::postinstall_ovs_dpdk (
   $ovs_db_socket            = $::ovsdpdk::params::ovs_db_socket,
   $ovs_datapath_type        = $::ovsdpdk::ovs_datapath_type,
   $ovs_pmd_core_mask        = $::ovsdpdk::ovs_pmd_core_mask,
+  $ovs_interface_driver     = $::ovsdpdk::ovs_interface_driver,
   $compute                  = $::ovsdpdk::compute,
   $controller               = $::ovsdpdk::controller,
 ) inherits ovsdpdk {
@@ -60,6 +62,10 @@ class ovsdpdk::postinstall_ovs_dpdk (
       require   => Package['crudini'],
       notify    => Service["${nova_compute_service_name}"],
       logoutput => true,
+    }
+
+    exec {'add_autoload':
+      command   => "${plugin_dir}/files/add_autoload.sh ${ovs_dpdk_dir} ${ovs_interface_driver}",
     }
 
   }
