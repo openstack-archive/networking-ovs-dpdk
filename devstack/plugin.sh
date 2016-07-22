@@ -48,6 +48,7 @@ ERROR_ON_CLONE=False
                         iniset /$Q_PLUGIN_CONF_FILE ovs vhostuser_socket_dir $OVS_DB_SOCKET_DIR
                     fi
                     ovs_dpdk_configure_firewall_driver
+                    nova_scheduler_configure
                 ;;
                 "extra")
                     # no-op
