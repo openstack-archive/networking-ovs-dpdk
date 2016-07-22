@@ -7,7 +7,6 @@ class ovsdpdk::postinstall_ovs_dpdk (
   $ovs_dpdk_dir             = $::ovsdpdk::params::ovs_dpdk_dir,
   $nova_conf                = $::ovsdpdk::params::nova_conf,
   $openvswitch_service_name = $::ovsdpdk::params::openvswitch_service_name,
-  $openvswitch_agent        = $::ovsdpdk::params::openvswitch_agent,
   $ovs_install_dir          = $::ovsdpdk::params::ovs_install_dir,
   $ovs_db_socket_dir        = $::ovsdpdk::params::ovs_db_socket_dir,
   $ovs_db_socket            = $::ovsdpdk::params::ovs_db_socket,
@@ -39,12 +38,6 @@ class ovsdpdk::postinstall_ovs_dpdk (
  Open_vSwitch . other_config:pmd-cpu-mask=$(cat /etc/default/ovs-dpdk | grep 'OVS_PMD_CORE_MASK' | tr -d 'OVS_PMD_CORE_MASK=');",
       path    => ['/usr/bin','/bin'],
       user    => root,
-    }
-
-    exec {'restart_ovs_agent':
-      command => "/usr/sbin/service ${openvswitch_agent} restart",
-      user    => root,
-      require => Exec['restart_ovs'],
     }
 
     exec {'configure_bridges':

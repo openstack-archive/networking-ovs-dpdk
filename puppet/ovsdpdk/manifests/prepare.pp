@@ -11,7 +11,6 @@ class ovsdpdk::prepare(
   $ovs_dpdk_git_tag         = $::ovsdpdk::params::ovs_dpdk_git_tag,
   $ovs_plugin_git_tag       = $::ovsdpdk::params::ovs_plugin_git_tag,
   $openvswitch_service_name = $::ovsdpdk::params::openvswitch_service_name,
-  $openvswitch_agent        = $::ovsdpdk::params::openvswitch_agent,
   $install_packages         = $::ovsdpdk::params::install_packages,
   $compute                  = $::ovsdpdk::compute,
   $controller               = $::ovsdpdk::controller,
@@ -57,10 +56,6 @@ class ovsdpdk::prepare(
     }
 
     exec { "/usr/sbin/service ${openvswitch_service_name} stop":
-      user => root,
-    }
-
-    exec { "/usr/sbin/service ${openvswitch_agent} stop":
       user => root,
     }
   }
