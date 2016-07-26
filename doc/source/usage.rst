@@ -229,3 +229,10 @@ Default values for the below settings can be found in `settings` file in devstac
     The constant represents count of bits for hash.
 
     Default: none
+
+**OVS_VHOST_USER_SOCKET_DIR**
+    (path) OVS_VHOST_USER_SOCKET_DIR can be defined to set the location to store vhost-user sockets.
+    The path will be interpreted relitve to the ovs run dir e.g."/var/run/openvswitch" and must be
+    a valid subdirectory
+
+    Default: ""
