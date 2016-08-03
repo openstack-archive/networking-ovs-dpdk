@@ -191,7 +191,7 @@ function ovs_dpdk_pre_install(){
     OFFLINE=$(trueorfalse False OFFLINE)
 
     if [ "$OFFLINE" != True ]; then
-        if [ is_ubuntu ]; then
+        if is_ubuntu; then
             sudo apt-get install -y linux-headers-$(uname -r) fdutils libxtst6 libnuma-dev
         elif [ "$os_VENDOR" == "CentOS" ]; then
             sudo yum install -y kernel-devel-$(uname -r) redhat-lsb-core
