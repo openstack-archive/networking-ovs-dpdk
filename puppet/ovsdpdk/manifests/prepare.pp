@@ -60,10 +60,6 @@ class ovsdpdk::prepare(
     }
   }
 
-  if $controller == 'True' {
-    exec { '/usr/sbin/service neutron-server stop': }
-  }
-
   if ($compute != "True") and ($controller != "True") {
     warning('Not running on controller or compute !?')
   }
