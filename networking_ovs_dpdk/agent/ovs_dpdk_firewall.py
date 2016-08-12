@@ -1021,6 +1021,10 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         if port_max < port_min:
             raise ValueError(_("'port_max' is smaller than 'port_min'"))
 
+        # If port_min matches port_max then no mask calculation is necessary
+        if port_min == port_max:
+            return ["%s" % hex_format(port_min)]
+
         # Rules to be added to OVS.
         rules = []
 

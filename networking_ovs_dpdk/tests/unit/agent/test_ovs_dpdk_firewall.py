@@ -342,6 +342,15 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
             "Expected rules: %s\n" \
             "Calculated rules: %s" % (expected_rules, rules)
 
+        # Test 4.
+        # test both odd/even single port values
+        expected_map = {42: ['0x002a'], 43: ['0x002b']}
+        for single_port, expected_rules in six.iteritems(expected_map):
+            rules = self.firewall._port_rule_masking(single_port, single_port)
+            assert rules == expected_rules,\
+                "Expected rules: %s\n" \
+                "Calculated rules: %s" % (expected_rules, rules)
+
     def test_prepare_port_filter(self):
         # Setup rules and SG.
         self.firewall.sg_rules = self._fake_sg_rules()
