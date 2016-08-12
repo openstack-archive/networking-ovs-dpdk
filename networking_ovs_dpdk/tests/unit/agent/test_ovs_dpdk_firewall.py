@@ -14,21 +14,26 @@
 #    under the License.
 
 import copy
+import inspect
 import mock
 import six
+import testscenarios
+import testtools
 
 from networking_ovs_dpdk.agent import ovs_dpdk_firewall
 from networking_ovs_dpdk.common._i18n import _
 from neutron.agent.common import config as a_cfg
 from neutron.agent.common import ovs_lib
 from neutron.agent.ovsdb import api as ovsdb
-from neutron.agent import securitygroups_rpc as sg_cfg
+from neutron.conf.agent import securitygroups_rpc as sg_cfg
 from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl \
     import br_int
 from neutron.plugins.ml2.drivers.openvswitch.agent.ovs_agent_extension_api\
     import OVSCookieBridge
 from neutron.tests import base
 from oslo_config import cfg
+
+load_tests = testscenarios.load_tests_apply_scenarios
 
 IPv4 = "IPv4"
 IPv6 = "IPv6"
@@ -126,6 +131,69 @@ class BaseOVSDPDKFirewallTestCase(base.BaseTestCase):
         self.mock_ovsdb = self._mock_ovsdb.start()
         int_br = br_int.OVSIntegrationBridge(cfg.CONF.OVS.integration_bridge)
         self.firewall = ovs_dpdk_firewall.OVSFirewallDriver(int_br)
+
+
+class TestPortRuleMasking(BaseOVSDPDKFirewallTestCase):
+    scenarios = [
+        ('Test 1',
+         {'port_min': 5,
+          'port_max': 12,
+          'expected': ['0x0005', '0x0006/0xfffe', '0x0008/0xfffc', '0x000c']}
+         ),
+        ('Test 2',
+         {'port_min': 20,
+          'port_max': 130,
+          'expected': ['0x0014/0xfffc', '0x0018/0xfff8',
+                       '0x0020/0xffe0', '0x0040/0xffc0', '0x0080/0xfffe',
+                       '0x0082']}),
+        ('Test 3',
+         {'port_min': 4501,
+          'port_max': 33057,
+          'expected': ['0x1195', '0x1196/0xfffe', '0x1198/0xfff8',
+                       '0x11a0/0xffe0', '0x11c0/0xffc0', '0x1200/0xfe00',
+                       '0x1400/0xfc00', '0x1800/0xf800', '0x2000/0xe000',
+                       '0x4000/0xc000', '0x8000/0xff00', '0x8100/0xffe0',
+                       '0x8120/0xfffe']}),
+        ('Test port_max == 2^k-1',
+         {'port_min': 101,
+          'port_max': 127,
+          'expected': ['0x0065', '0x0066/0xfffe', '0x0068/0xfff8',
+                       '0x0070/0xfff0']}),
+        ('Test single even port',
+         {'port_min': 22,
+          'port_max': 22,
+          'expected': ['0x0016']}),
+        ('Test single odd port',
+         {'port_min': 5001,
+          'port_max': 5001,
+          'expected': ['0x1389']}),
+        ('Test full interval',
+         {'port_min': 0,
+          'port_max': 7,
+          'expected': ['0x0000/0xfff8']}),
+        ('Test 2^k interval',
+         {'port_min': 8,
+          'port_max': 15,
+          'expected': ['0x0008/0xfff8']}),
+        ('Test full port range',
+         {'port_min': 0,
+          'port_max': 65535,
+          'expected': ['0x0000/0x0000']}),
+        ('Test bad values',
+         {'port_min': 12,
+          'port_max': 5,
+          'expected': ValueError}),
+    ]
+
+    def test_port_rule_masking(self):
+        if (inspect.isclass(self.expected)
+                and issubclass(self.expected, Exception)):
+            with testtools.ExpectedException(self.expected):
+                self.firewall.port_rule_masking(self.port_min, self.port_max)
+        else:
+            rules = self.firewall.port_rule_masking(self.port_min,
+                                                    self.port_max)
+            self.assertItemsEqual(self.expected, rules)
 
 
 class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
@@ -301,46 +369,6 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                         'icmp_code': icmp_code_str,
                         'ofport': ofport}
         return output_str
-
-    def test_port_rule_masking(self):
-        # Compare elements in two list, using sets and the length (sets don't
-        # have duplicated elements).
-        compare_rules = lambda x, y: set(x) == set(y) and len(x) == len(y)
-
-        # Test 1.
-        port_max = 12
-        port_min = 5
-        expected_rules = ['0x0005', '0x000c', '0x0006/0xfffe',
-                          '0x0008/0xfffc']
-        rules = self.firewall._port_rule_masking(port_min, port_max)
-        assert compare_rules(rules, expected_rules), \
-            "Expected rules: %s\n" \
-            "Calculated rules: %s" % (expected_rules, rules)
-
-        # Test 2.
-        port_max = 130
-        port_min = 20
-        expected_rules = ['0x0014/0xfffe', '0x0016/0xfffe', '0x0018/0xfff8',
-                          '0x0020/0xffe0', '0x0040/0xffc0', '0x0080/0xfffe',
-                          '0x0082']
-        rules = self.firewall._port_rule_masking(port_min, port_max)
-        assert rules == expected_rules, \
-            "Expected rules: %s\n" \
-            "Calculated rules: %s" % (expected_rules, rules)
-
-        # Test 3.
-        port_max = 33057
-        port_min = 4501
-        expected_rules = ['0x1195', '0x1196/0xfffe', '0x1198/0xfff8',
-                          '0x11a0/0xffe0', '0x11c0/0xffc0', '0x1200/0xfe00',
-                          '0x1400/0xfc00', '0x1800/0xf800', '0x2000/0xe000',
-                          '0x4000/0xc000', '0x8021/0xff00', '0x8101/0xffe0',
-                          '0x8120/0xfffe']
-
-        rules = self.firewall._port_rule_masking(port_min, port_max)
-        assert rules == expected_rules,\
-            "Expected rules: %s\n" \
-            "Calculated rules: %s" % (expected_rules, rules)
 
     def test_prepare_port_filter(self):
         # Setup rules and SG.
@@ -611,7 +639,7 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
     def _test_rules(self, rule_list, fake_sgid, flow_call_list):
         self.firewall.update_security_group_rules(fake_sgid, rule_list)
         self.firewall._add_rules_flows(self.fake_port_1)
-        self.mock_add_flow.assert_has_calls(flow_call_list, any_order=False)
+        self.mock_add_flow.assert_has_calls(flow_call_list, any_order=True)
 
     def test_filter_ipv4_ingress(self):
         rule = {'ethertype': IPv4,
@@ -897,7 +925,7 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 'port_range_min': 10,
                 'port_range_max': 100}
         tcp_dst = ['0x000a/0xfffe', '0x000c/0xfffc', '0x0010/0xfff0',
-                   '0x0020/0xffe0', '0x0044/0xffe0', '0x0060/0xfffc',
+                   '0x0020/0xffe0', '0x0040/0xffe0', '0x0060/0xfffc',
                    '0x0064']
         flow_call_list = []
         for port in tcp_dst:
@@ -921,7 +949,7 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 'port_range_min': 10,
                 'port_range_max': 100}
         tcp_dst = ['0x000a/0xfffe', '0x000c/0xfffc', '0x0010/0xfff0',
-                   '0x0020/0xffe0', '0x0044/0xffe0', '0x0060/0xfffc',
+                   '0x0020/0xffe0', '0x0040/0xffe0', '0x0060/0xfffc',
                    '0x0064']
         flow_call_list = []
         for port in tcp_dst:
@@ -947,7 +975,7 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 'port_range_max': 100,
                 'source_ip_prefix': prefix}
         tcp_dst = ['0x000a/0xfffe', '0x000c/0xfffc', '0x0010/0xfff0',
-                   '0x0020/0xffe0', '0x0044/0xffe0', '0x0060/0xfffc',
+                   '0x0020/0xffe0', '0x0040/0xffe0', '0x0060/0xfffc',
                    '0x0064']
         flow_call_list = []
         for port in tcp_dst:
@@ -974,7 +1002,7 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 'port_range_max': 100,
                 'source_ip_prefix': prefix}
         tcp_dst = ['0x000a/0xfffe', '0x000c/0xfffc', '0x0010/0xfff0',
-                   '0x0020/0xffe0', '0x0044/0xffe0', '0x0060/0xfffc',
+                   '0x0020/0xffe0', '0x0040/0xffe0', '0x0060/0xfffc',
                    '0x0064']
         flow_call_list = []
         for port in tcp_dst:
@@ -1107,7 +1135,7 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 'port_range_min': 10,
                 'port_range_max': 100}
         udp_dst = ['0x000a/0xfffe', '0x000c/0xfffc', '0x0010/0xfff0',
-                   '0x0020/0xffe0', '0x0044/0xffe0', '0x0060/0xfffc',
+                   '0x0020/0xffe0', '0x0040/0xffe0', '0x0060/0xfffc',
                    '0x0064']
         flow_call_list = []
         for port in udp_dst:
@@ -1131,7 +1159,7 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 'port_range_min': 10,
                 'port_range_max': 100}
         udp_dst = ['0x000a/0xfffe', '0x000c/0xfffc', '0x0010/0xfff0',
-                   '0x0020/0xffe0', '0x0044/0xffe0', '0x0060/0xfffc',
+                   '0x0020/0xffe0', '0x0040/0xffe0', '0x0060/0xfffc',
                    '0x0064']
         flow_call_list = []
         for port in udp_dst:
@@ -1157,7 +1185,7 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 'port_range_max': 100,
                 'source_ip_prefix': prefix}
         udp_dst = ['0x000a/0xfffe', '0x000c/0xfffc', '0x0010/0xfff0',
-                   '0x0020/0xffe0', '0x0044/0xffe0', '0x0060/0xfffc',
+                   '0x0020/0xffe0', '0x0040/0xffe0', '0x0060/0xfffc',
                    '0x0064']
         flow_call_list = []
         for port in udp_dst:
@@ -1184,7 +1212,7 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 'port_range_max': 100,
                 'source_ip_prefix': prefix}
         udp_dst = ['0x000a/0xfffe', '0x000c/0xfffc', '0x0010/0xfff0',
-                   '0x0020/0xffe0', '0x0044/0xffe0', '0x0060/0xfffc',
+                   '0x0020/0xffe0', '0x0040/0xffe0', '0x0060/0xfffc',
                    '0x0064']
         flow_call_list = []
         for port in udp_dst:
@@ -1481,7 +1509,7 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 'port_range_min': 10,
                 'port_range_max': 100}
         tcp_dst = ['0x000a/0xfffe', '0x000c/0xfffc', '0x0010/0xfff0',
-                   '0x0020/0xffe0', '0x0044/0xffe0', '0x0060/0xfffc',
+                   '0x0020/0xffe0', '0x0040/0xffe0', '0x0060/0xfffc',
                    '0x0064']
         flow_call_list = []
         for port in tcp_dst:
@@ -1505,7 +1533,7 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 'port_range_min': 10,
                 'port_range_max': 100}
         tcp_dst = ['0x000a/0xfffe', '0x000c/0xfffc', '0x0010/0xfff0',
-                   '0x0020/0xffe0', '0x0044/0xffe0', '0x0060/0xfffc',
+                   '0x0020/0xffe0', '0x0040/0xffe0', '0x0060/0xfffc',
                    '0x0064']
         flow_call_list = []
         for port in tcp_dst:
@@ -1531,7 +1559,7 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 'port_range_max': 100,
                 'dest_ip_prefix': prefix}
         tcp_dst = ['0x000a/0xfffe', '0x000c/0xfffc', '0x0010/0xfff0',
-                   '0x0020/0xffe0', '0x0044/0xffe0', '0x0060/0xfffc',
+                   '0x0020/0xffe0', '0x0040/0xffe0', '0x0060/0xfffc',
                    '0x0064']
         flow_call_list = []
         for port in tcp_dst:
@@ -1558,7 +1586,7 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 'port_range_max': 100,
                 'dest_ip_prefix': prefix}
         tcp_dst = ['0x000a/0xfffe', '0x000c/0xfffc', '0x0010/0xfff0',
-                   '0x0020/0xffe0', '0x0044/0xffe0', '0x0060/0xfffc',
+                   '0x0020/0xffe0', '0x0040/0xffe0', '0x0060/0xfffc',
                    '0x0064']
         flow_call_list = []
         for port in tcp_dst:
@@ -1691,7 +1719,7 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 'port_range_min': 10,
                 'port_range_max': 100}
         udp_dst = ['0x000a/0xfffe', '0x000c/0xfffc', '0x0010/0xfff0',
-                   '0x0020/0xffe0', '0x0044/0xffe0', '0x0060/0xfffc',
+                   '0x0020/0xffe0', '0x0040/0xffe0', '0x0060/0xfffc',
                    '0x0064']
         flow_call_list = []
         for port in udp_dst:
@@ -1715,7 +1743,7 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 'port_range_min': 10,
                 'port_range_max': 100}
         udp_dst = ['0x000a/0xfffe', '0x000c/0xfffc', '0x0010/0xfff0',
-                   '0x0020/0xffe0', '0x0044/0xffe0', '0x0060/0xfffc',
+                   '0x0020/0xffe0', '0x0040/0xffe0', '0x0060/0xfffc',
                    '0x0064']
         flow_call_list = []
         for port in udp_dst:
@@ -1741,7 +1769,7 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 'port_range_max': 100,
                 'dest_ip_prefix': prefix}
         udp_dst = ['0x000a/0xfffe', '0x000c/0xfffc', '0x0010/0xfff0',
-                   '0x0020/0xffe0', '0x0044/0xffe0', '0x0060/0xfffc',
+                   '0x0020/0xffe0', '0x0040/0xffe0', '0x0060/0xfffc',
                    '0x0064']
         flow_call_list = []
         for port in udp_dst:
@@ -1768,7 +1796,7 @@ class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
                 'port_range_max': 100,
                 'dest_ip_prefix': prefix}
         udp_dst = ['0x000a/0xfffe', '0x000c/0xfffc', '0x0010/0xfff0',
-                   '0x0020/0xffe0', '0x0044/0xffe0', '0x0060/0xfffc',
+                   '0x0020/0xffe0', '0x0040/0xffe0', '0x0060/0xfffc',
                    '0x0064']
         flow_call_list = []
         for port in udp_dst:
