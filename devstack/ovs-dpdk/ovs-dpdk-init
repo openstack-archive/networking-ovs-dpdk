@@ -186,11 +186,11 @@ unbind_nics(){
 
     for pair in "${PCI_ARRAY[@]}"; do
         addr=`echo $pair | cut -f 1 -d "#"`
-        sudo RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py -u $addr
+        sudo RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk-devbind.py -u $addr
         local interface=$(sudo ovs-vsctl --column name --bare find interface other_config:pci_address=$(echo $addr|  sed "s/:/\\\:/g" ))
         drv=$(sudo ovs-vsctl get interface $interface other_config:previous_driver)
         drv=$( echo $drv | sed "s/'//g" | sed "s/\"//g")
-        sudo ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py -b $drv $addr
+        sudo ${OVS_DPDK_DIR}/tools/dpdk-devbind.py -b $drv $addr
     done
 
 }
@@ -204,7 +204,7 @@ add_nics_to_bridges(){
     for pair in "${PCI_ARRAY[@]}"; do
         addr=`echo $pair | cut -f 1 -d "#"`
         nic=`echo $pair | cut -f 2 -d "#"`
-        STATUS=$(RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py --status)
+        STATUS=$(RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk-devbind.py --status)
         while read line; do
             # Check if this physical nic it's using OVS_INTERFACE_DRIVER.
             if [[ "$line" =~ "unused="[[:graph:]]*"${OVS_INTERFACE_DRIVER}" ]] && [[ "$line" =~ "$addr" ]]; then
@@ -214,7 +214,7 @@ add_nics_to_bridges(){
                 fi
                 oldDriver=$(echo $line | sed -r 's/[[:alnum:]]+=/\n&/g' | grep drv= | cut -d "=" -f 2)
                 # Bind nic to OVS_INTERFACE_DRIVER.
-                local cmd="${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py -b $OVS_INTERFACE_DRIVER $addr"
+                local cmd="${OVS_DPDK_DIR}/tools/dpdk-devbind.py -b $OVS_INTERFACE_DRIVER $addr"
                 echo $cmd
                 sudo $cmd
                 driver_map[$addr]="$oldDriver"
@@ -226,7 +226,7 @@ add_nics_to_bridges(){
 
     # Add physical nics to bridges Keep the order of physical nic.
     phys_ofport=0
-    STATUS=$(RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk_nic_bind.py --status)
+    STATUS=$(RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk-devbind.py --status)
     while read line; do
         for index in "${!PCI_ARRAY[@]}"; do
             tuple=${PCI_ARRAY[$index]}
