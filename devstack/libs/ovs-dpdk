@@ -616,4 +616,3 @@ function configure_multicast(){
         sudo ovs-vsctl set Port $patch_port other_config:mcast-snooping-flood-reports=true
     done
 }
-
