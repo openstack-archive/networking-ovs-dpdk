@@ -124,7 +124,7 @@
 #   Patches are downloaded and applied in the same order they are listed here.
 #   Example: ovs_dpdk_patches='file:///root/dpdk1.patch file:///root/dpdk2.patch'
 #
-# [*ovs_enable_sg_firewall_multicast*]
+# [*ovs_enable_multicast*]
 #   *todo
 #
 # [*ovs_multicast_snooping_aging_time*]

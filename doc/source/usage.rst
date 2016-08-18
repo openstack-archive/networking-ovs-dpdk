@@ -212,15 +212,16 @@ Default values for the below settings can be found in `settings` file in devstac
 
     Default: False
 
-**OVS_ENABLE_SG_FIREWALL_MULTICAST**
-    (ovs:enable_sg_firewall_multicast)(True/False) When enabled, using the OVS Security Group firewall, this option allows multicast traffic to get into the OVS and be delivered to the tenants.
-    The traffic, anyway, must match the manual rules defined by the administrator.
+**OVS_ENABLE_MULTICAST**
+    (True/False) When enabled, this option allows multicast traffic traverse ovs.
 
     Default: False
 
 **OVS_MULTICAST_SNOOPING_AGING_TIME**
     (number) Defines the maximun time (in seconds) a multicast subscription will be alive in the multicast table os a OVS bridge.
-    The count starts when a IGMP subscription packet from a port is read by a bridge. During this time, all multicast packets to this multicast group will be delivered to this port. If the count finish or a leave group packet is sent, the register for this port in the multicast table will be deleted.
+    The count starts when a IGMP subscription packet from a port is read by a bridge.
+    During this time, all multicast packets to this multicast group will be delivered to this port.
+    If the count finish or a leave group packet is sent, the register for this port in the multicast table will be deleted.
 
     Default: 3600
 

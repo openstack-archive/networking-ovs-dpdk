@@ -161,14 +161,16 @@ variable to local.conf:
 
 | [[post-config|/etc/neutron/plugins/ml2/ml2_conf.ini]]
 | [securitygroup]
-| firewall_driver = networking_ovs_dpdk.agent.ovs_dpdk_firewall.OVSFirewallDriver
+| firewall_driver = openvswitch
 
-By default, the multicast support is enabled. The default aging time for the
+Multicast
+---------
+By default, the multicast support is disabled. The default aging time for the
 IGMP subscriptions in the bridges is 3600 seconds. To configure the multicast
 support both variables could be setup in local.conf:
 
 | [[local|localrc]]
-| OVS_ENABLE_SG_FIREWALL_MULTICAST=[True/False]
+| OVS_ENABLE_MULTICAST=[True/False]
 | OVS_MULTICAST_SNOOPING_AGING_TIME=[15..3600]
 
 Enable overlay networks
