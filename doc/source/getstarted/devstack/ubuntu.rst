@@ -161,7 +161,7 @@ variable to local.conf:
 
 | [[post-config|/etc/neutron/plugins/ml2/ml2_conf.ini]]
 | [securitygroup]
-| firewall_driver = networking_ovs_dpdk.agent.ovs_dpdk_firewall.OVSFirewallDriver
+| firewall_driver = openvswitch
 
 By default, the multicast support is enabled. The default aging time for the
 IGMP subscriptions in the bridges is 3600 seconds. To configure the multicast
@@ -170,6 +170,9 @@ support both variables could be setup in local.conf:
 | [[local|localrc]]
 | OVS_ENABLE_SG_FIREWALL_MULTICAST=[True/False]
 | OVS_MULTICAST_SNOOPING_AGING_TIME=[15..3600]
+
+`More info on the Open vSwitch Firewall Driver in OpenStack
+<http://docs.openstack.org/developer/neutron/devref/openvswitch_firewall.html>`_
 
 Enable overlay networks
 -----------------------
@@ -216,10 +219,12 @@ In fact Networking-OVS-DPDK plugin will install OVS-DPDK on the system.
 By default the Networking-ODL plugin will try to install Kernel OVS.
 To workaround this conflict it is possible to forbid Networking-ODL from
 installing any version of Open vSwitch by adding followning to the local.conf::
+
   SKIP_OVS_INSTALL=True
 
 To enable integration of odl with neutron the opendaylight mechanism provided by
 Networking-ODL must be enabled::
+
   Q_ML2_PLUGIN_MECHANISM_DRIVERS=opendaylight
 
 OVS with DPDK exposes accelerated virtual network interfaces such as vhost-user
