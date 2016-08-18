@@ -4,7 +4,7 @@
    contain the root `toctree` directive.
 
 Welcome to networking-ovs-dpdk's documentation!
-========================================================
+===============================================
 
 Contents:
 
@@ -15,6 +15,23 @@ Contents:
    installation
    usage
    contributing
+   usage_puppet
+
+Devstack
+========
+
+.. toctree::
+   :maxdepth: 2
+
+   getstarted/devstack/index
+
+Puppet
+======
+
+.. toctree::
+   :maxdepth: 2
+
+   getstarted/puppet/index
 
 Indices and tables
 ==================

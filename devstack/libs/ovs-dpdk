@@ -523,12 +523,6 @@ function ovs_dpdk_configure_debug_command {
     fi
 }
 
-function ovs_dpdk_configure_firewall_driver {
-    if [[ ! -z "$OVS_ENABLE_SG_FIREWALL_MULTICAST" && "$OVS_ENABLE_SG_FIREWALL_MULTICAST" == "True" ]]; then
-        iniset /$Q_PLUGIN_CONF_FILE ovs enable_sg_firewall_multicast $OVS_ENABLE_SG_FIREWALL_MULTICAST
-    fi
-}
-
 function ovs_dpdk_configure_l3_agent {
     Q_USE_PROVIDERNET_FOR_PUBLIC=$(trueorfalse False Q_USE_PROVIDERNET_FOR_PUBLIC)
     Q_USE_PUBLIC_VETH=$(trueorfalse False Q_USE_PUBLIC_VETH)
@@ -592,28 +586,3 @@ function update_ovs_pmd_core_mask {
         OVS_PMD_CORE_MASK=`printf "%x" $RESULT`
     fi
 }
-
-function configure_multicast(){
-    # Read multicast support variable status.
-    if [[ -z $OVS_ENABLE_SG_FIREWALL_MULTICAST || "$OVS_ENABLE_SG_FIREWALL_MULTICAST" != "True" ]]; then
-        return 0
-    fi
-
-    # List bridges.
-    for bridge in $( sudo ovs-vsctl --columns name find bridge | grep name | awk '{ print $3 }' | tr -d '\"' ); do
-        # Enable multicast snooping.
-        sudo ovs-vsctl set bridge $bridge mcast_snooping_enable=true
-        # Setup the multicast aging time.
-        sudo ovs-vsctl set bridge $bridge other_config:mcast-snooping-aging-time=$OVS_MULTICAST_SNOOPING_AGING_TIME
-        # Disable unregistered multicast (disable multicast flooding).
-        sudo ovs-vsctl set Bridge $bridge other_config:mcast-snooping-disable-unregistered=true
-    done
-
-    # List patch ports.
-    for patch_port in $( sudo ovs-vsctl --columns name find interface type=patch | grep name | awk '{ print $3 }' | tr -d '\"' ); do
-        # Enable multicast snooping flood reports (IGMP reports) in all patch
-        # port between all bridges.
-        sudo ovs-vsctl set Port $patch_port other_config:mcast-snooping-flood-reports=true
-    done
-}
-
