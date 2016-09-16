@@ -286,6 +286,13 @@ function build_ovs_dpdk(){
         OVS_DPDK_VHOST_USER_DEBUG='n'
     fi
 
+    OVS_DPDK_BUILD_SHARED_LIBRARY=$(trueorfalse False OVS_DPDK_BUILD_SHARED_LIB)
+    if [ "$OVS_DPDK_BUILD_SHARED_LIB" == "True" ]; then
+        OVS_DPDK_BUILD_SHARED_LIB='y'
+    else
+        OVS_DPDK_BUILD_SHARED_LIB='n'
+    fi
+
     local enable_igb_uio='n'
     if [ "$OVS_INTERFACE_DRIVER" == "igb_uio" ]; then
         enable_igb_uio='y'
@@ -297,6 +304,7 @@ function build_ovs_dpdk(){
     sed "s/CONFIG_RTE_LIBRTE_VHOST_DEBUG=.*$/CONFIG_RTE_LIBRTE_VHOST_DEBUG=${OVS_DPDK_VHOST_USER_DEBUG}/" -i ${OVS_DPDK_DIR}/build/.config
     sed "s/CONFIG_RTE_LIBRTE_KNI=.*$/CONFIG_RTE_LIBRTE_KNI=n/" -i ${OVS_DPDK_DIR}/build/.config
     sed "s/CONFIG_RTE_EAL_IGB_UIO=.*$/CONFIG_RTE_EAL_IGB_UIO=${enable_igb_uio}/" -i ${OVS_DPDK_DIR}/build/.config
+    sed "s/CONFIG_RTE_BUILD_SHARED_LIB=.*$/CONFIG_RTE_BUILD_SHARED_LIB=${OVS_DPDK_BUILD_SHARED_LIB}/" -i ${OVS_DPDK_DIR}/build/.config
 
     make -j $(nproc) EXTRA_CFLAGS='-fPIC'
     sudo cp ${OVS_DPDK_DIR}/build/lib/*dpdk.* /lib
