@@ -236,3 +236,9 @@ Default values for the below settings can be found in `settings` file in devstac
     a valid subdirectory
 
     Default: ""
+
+**OVS_DPDK_BUILD_SHARED_LIB**
+    (True|False) Toggles whether the dpdk library should be shared or static.
+    Using true will compile the combined, shared library, False will leave the library static.
+
+    Default: False (static library)
