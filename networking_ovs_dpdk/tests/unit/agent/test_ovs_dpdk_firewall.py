@@ -22,7 +22,7 @@ from networking_ovs_dpdk.common._i18n import _
 from neutron.agent.common import config as a_cfg
 from neutron.agent.common import ovs_lib
 from neutron.agent.ovsdb import api as ovsdb
-from neutron.agent import securitygroups_rpc as sg_cfg
+from neutron.conf.agent import securitygroups_rpc as sg_cfg
 from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl \
     import br_int
 from neutron.plugins.ml2.drivers.openvswitch.agent.ovs_agent_extension_api\
