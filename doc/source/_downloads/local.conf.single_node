@@ -1,10 +1,12 @@
 #All in one single node config
-
 [[local|localrc]]
 
 HOST_IP_IFACE=<SINGLE NODE API INTERFACE>
 HOST_IP=<SINGLE NODE IP>
 HOST_NAME=$(hostname)
+
+VERBOSE=True
+FORCE=yes
 
 MYSQL_PASSWORD=password
 DATABASE_PASSWORD=password
@@ -37,7 +39,6 @@ ENABLE_TENANT_VLANS=True
 ENABLE_TENANT_TUNNELS=False
 ML2_VLAN_RANGES=default:<VLAN RANGES>
 
-
 # vxlan tenant networks only
 #Q_ML2_TENANT_NETWORK_TYPE=vxlan
 #ENABLE_TENANT_VLANS=False
@@ -55,7 +56,6 @@ ML2_VLAN_RANGES=default:<VLAN RANGES>
 # Note: vlan,vxlan and gre networking can be enabled concurrently by
 # combining the examples above.
 
-
 #Dual socket platform with 16GB RAM,3072*2048kB hugepages leaves ~4G for the system.
 OVS_NUM_HUGEPAGES=3072
 
@@ -66,7 +66,3 @@ OVS_DATAPATH_TYPE=netdev
 OVS_LOG_DIR=/opt/stack/logs
 OVS_BRIDGE_MAPPINGS="default:br-<SINGLE NODE DATA INTERFACE>"
 
-[[post-config|$NOVA_CONF]]
-[DEFAULT]
-firewall_driver=nova.virt.firewall.NoopFirewallDriver
-scheduler_default_filters=RamFilter,ComputeFilter,AvailabilityZoneFilter,ComputeCapabilitiesFilter,ImagePropertiesFilter,PciPassthroughFilter,NUMATopologyFilter
