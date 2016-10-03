@@ -1,4 +1,4 @@
-===========================================
+==========================================
 Getting started with Openstack and OVS-DPDK
 ===========================================
 
@@ -71,8 +71,8 @@ kernel synchronization mechanisms.
 
 Internal proxy config
 =====================
-If you are working behind a proxy, you will need to complete the following steps
-to provide git and yum with access to the outside world.
+If you are working behind a proxy, you will need to complete the following
+steps to provide git and yum with access to the outside world.
 
 Configure yum proxy:
 
@@ -122,7 +122,8 @@ QEMU configuration
 ---------------------
 The default qemu version on CentOS 7.2 is incompatible with ovs with dpdk.
 To provide compatible versions the CentOS virt SIG must be enabled.
-To enable the virt SIG create /etc/yum.repos.d/centos-virt-sig.repo with the following content:
+To enable the virt SIG create /etc/yum.repos.d/centos-virt-sig.repo with
+the following content:
 
 [virt7-kvm-common-release]
 name=virt7-kvm-common-release
@@ -174,7 +175,7 @@ variable to local.conf:
 
 | [[post-config|/etc/neutron/plugins/ml2/ml2_conf.ini]]
 | [securitygroup]
-| firewall_driver = networking_ovs_dpdk.agent.ovs_dpdk_firewall.OVSFirewallDriver
+| firewall_driver = openvswitch
 
 By default, the multicast support is enabled. The default aging time for the
 IGMP subscriptions in the bridges is 3600 seconds. To configure the multicast
@@ -184,22 +185,41 @@ support both variables could be setup in local.conf:
 | OVS_ENABLE_SG_FIREWALL_MULTICAST=[True/False]
 | OVS_MULTICAST_SNOOPING_AGING_TIME=[15..3600]
 
+`More info on the Open vSwitch Firewall Driver in OpenStack
+<http://docs.openstack.org/developer/neutron/devref/openvswitch_firewall.html>`_
+
 Enable overlay networks
 -----------------------
 To enable overlay networking (vxlan/gre) with the dpdk netdev datapath
 the tunnel enpoint ip must be assigned to a phyical bridge(a bridge with
 a dpdk phyical port). This can be done by setting the OVS_TUNNEL_CIDR_MAPPING
 variable in the local.conf. e.g. OVS_TUNNEL_CIDR_MAPPING=br-phy:192.168.50.1/24
-assigns the ip of 192.168.50.1 with subnetmask 255.255.255.0 to the br-phy local port.
+assigns the ip of 192.168.50.1 with subnetmask 255.255.255.0 to the br-phy
+local port.
 
 Known Issues
 ------------
-OVS_PMD_CORE_MASK default value '4' doesn't work for NIC's from numa nodes other
-than 0. It's value is used for other_config:pmd-cpu-mask parameter in ovsdb and we
-are subsequently using it for vcpu_pin_set in nova.conf. Unfortunatelly if DPDK
-NIC's from numa nodes other than 0 are used, there is no PMD thread generated for
-them. If you are using host with multiple numa nodes please consider using not
-default OVS_PMD_CORE_MASK value.
+OVS_PMD_CORE_MASK default value '4' doesn't work for NIC's from numa nodes
+other than 0. It's value is used for other_config:pmd-cpu-mask parameter in
+ovsdb and we are subsequently using it for vcpu_pin_set in nova.conf.
+Unfortunatelly if DPDK NIC's from numa nodes other than 0 are used, there is no
+PMD thread generated for them. If you are using host with multiple numa nodes
+please consider using not default OVS_PMD_CORE_MASK value.
+
+Additional more general issues with OVS and OVS with DPDK can be found at the
+following link.
+ 
+ https://github.com/openstack/networking-ovs-dpdk/tree/master/doc/source
+
+Additional more general issues with OVS and OVS with DPDK can be found at the following
+link.
+ 
+ https://github.com/openstack/networking-ovs-dpdk/tree/master/doc/source
+
+Additional more general issues with OVS and OVS with DPDK can be found at the following
+link.
+ 
+ https://github.com/openstack/networking-ovs-dpdk/tree/master/doc/source
 
 Using with OpenDaylight
 =======================
@@ -224,20 +244,31 @@ In fact Networking-OVS-DPDK plugin will install OVS-DPDK on the system.
 By default the Networking-ODL plugin will try to install Kernel OVS.
 To workaround this conflict it is possible to forbid Networking-ODL from
 installing any version of Open vSwitch by adding followning to the local.conf::
+
   SKIP_OVS_INSTALL=True
 
+<<<<<<< HEAD
+To enable integration of odl with neutron the opendaylight mechanism provided
+by Networking-ODL must be enabled::
+=======
 To enable integration of odl with neutron the opendaylight mechanism provided by
 Networking-ODL must be enabled::
+<<<<<<< HEAD
+>>>>>>> f2abef8... Update the ubuntu getting started guide.
+=======
+>>>>>>> f2abef8... Update the ubuntu getting started guide.
+
   Q_ML2_PLUGIN_MECHANISM_DRIVERS=opendaylight
 
 OVS with DPDK exposes accelerated virtual network interfaces such as vhost-user
 that can be requested by a VM. The OpenDaylight mechanism driver is capable of
-detecting the supported virtual interface types supported by OVS and OVS with DPDK
-allowing coexistence of Kernel and DPDK OVS.
+detecting the supported virtual interface types supported by OVS and OVS with
+DPDK allowing coexistence of Kernel and DPDK OVS.
 
-To detect if 'vhostuser' is supported the Networking-ODL driver (running on control node)
-must be able to translate the host name of compute nodes to their IP addresses on the
-management network (the one used by OVS to connect to OpenDaylight).
-To archive that you could edit file /etc/hosts on control node where the neutron server
-is running adding all compute nodes where you want to use 'vhostuser', or configure DNS
-in your environment to enable name resolution.
+To detect if 'vhostuser' is supported the Networking-ODL driver (running on
+control node) must be able to translate the host name of compute nodes to
+their IP addresses on the management network (the one used by OVS to connect
+to OpenDaylight). To archive that you could edit file /etc/hosts on control
+node where the neutron server is running adding all compute nodes where you
+want to use 'vhostuser', or configure DNS in your environment to enable name
+resolution.
