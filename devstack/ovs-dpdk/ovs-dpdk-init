@@ -186,6 +186,10 @@ unbind_nics(){
 
     for pair in "${PCI_ARRAY[@]}"; do
         addr=`echo $pair | cut -f 1 -d "#"`
+
+        echo "Removing driver_override from device $addr"
+        echo | sudo tee /sys/bus/pci/devices/$addr/driver_override
+
         sudo RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk-devbind.py -u $addr
         local interface=$(sudo ovs-vsctl --column name --bare find interface other_config:pci_address=$(echo $addr|  sed "s/:/\\\:/g" ))
         drv=$(sudo ovs-vsctl get interface $interface other_config:previous_driver)
@@ -204,6 +208,10 @@ add_nics_to_bridges(){
     for pair in "${PCI_ARRAY[@]}"; do
         addr=`echo $pair | cut -f 1 -d "#"`
         nic=`echo $pair | cut -f 2 -d "#"`
+
+        echo "Adding module ${OVS_INTERFACE_DRIVER} to driver_override for pci device $addr / $nic"
+        echo "${OVS_INTERFACE_DRIVER}" | sudo tee /sys/bus/pci/devices/$addr/driver_override
+
         STATUS=$(RTE_SDK=${OVS_DPDK_DIR} RTE_TARGET=build ${OVS_DPDK_DIR}/tools/dpdk-devbind.py --status)
         while read line; do
             # Check if this physical nic it's using OVS_INTERFACE_DRIVER.
