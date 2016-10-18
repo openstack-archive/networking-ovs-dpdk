@@ -87,7 +87,7 @@ Modify grub to boot into the required kernel version and reboot.
 
 Internal proxy config
 =====================
-If you are working behind a proxy, you will need complete the following steps
+If you are working behind a proxy, you will need to complete the following steps
 to provide git and yum with access to the outside world.
 
 Configure yum proxy:
@@ -95,7 +95,7 @@ Configure yum proxy:
 | cat /etc/yum.conf
 | proxy=http://<PROXY>:<PROXY PORT NUMBER>
 
-Here is a sample script to provide git access through a proxy.
+Here is a sample script to provide git access through a proxy:
 
 | sudo cat ~/git-proxy-wrapper
 
@@ -109,7 +109,7 @@ Here is a sample script to provide git access through a proxy.
 
 Add proxy variables and export to shell:
 
-| cat ~/.bashrc
+| cat /home/<USER>/.bashrc
 
 | export GIT_PROXY_COMMAND=~/git-proxy-wrapper
 | export http_proxy=http://<PROXY>:<PROXY PORT NUMBER>
@@ -119,9 +119,9 @@ Add proxy variables and export to shell:
 | export NO_PROXY=localhost,127.0.0.1,127.0.1.1,<IP OF CONTROLLER NODE>,<IP OF COMPUTE NODE>
 | export no_proxy=localhost,127.0.0.1,127.0.1.1,<IP OF CONTROLLER NODE>,<IP OF COMPUTE NODE>
 
-Export these variables
+Export these variables:
 
-| source ~/.bashrc
+| source /home/<USER>/.bashrc
 
 Install required packages
 -------------------------
@@ -152,35 +152,35 @@ Modify your libvirt config file to include the following:
 
 | hugetlbfs_mount = "/mnt/huge"
 
-Restart libvirtd
+Restart libvirtd:
 
 | sudo service libvirtd restart
 
 Devstack configuration
 ----------------------
-Clone the devstack repo.
+Clone the devstack repo:
 
-| cd ~
+| cd /home/<USER>
 | git clone https://github.com/openstack-dev/devstack.git
 
-When you have cloned devstack, the next step is to configure you controller
-and compute nodes.
+Configure your controller and compute nodes.
 
-Here are some local.conf examples based on the topology described above.
+The following is a link to a single node local.conf example.
 
-Controller node config example
+  https://github.com/openstack/networking-ovs-dpdk/blob/master/doc/source/_downloads/local.conf.single_node
 
-.. include:: _downloads/local.conf.controller_node
-   :literal:
+Certain modifications to this file are required to match the users environment.
+E.g. Including the appropriate IP address:
+| HOST_IP=<SINGLE NODE IP>
+ the correct VLAN ranges:
+| ML2_VLAN_RANGES=default:<VLAN RANGES>
+ and OVS bridges mappings:
+| OVS_BRIDGE_MAPPINGS="default:br-<SINGLE NODE DATA INTERFACE>
 
-Compute node config example
+Once the local.conf is edited, it must be added to the /home/<USER>/devstack
+directory and then it can be stacked:
 
-.. include:: _downloads/local.conf.compute_node
-   :literal:
-
-Add the local.conf file to /home/<USER>/devstack directory and stack.
-
-| cd ~/devstack
+| cd /home/<USER>/devstack
 | ./stack.sh
 
 Boot a VM with OVS-DPDK
@@ -203,7 +203,7 @@ variable to local.conf:
 
 By default, the multicast support is enabled. The default aging time for the
 IGMP subscriptions in the bridges is 3600 seconds. To configure the multicast
-support both variables could be setup in local.conf:
+support, both variables can be setup in local.conf:
 
 | [[local|localrc]]
 | OVS_ENABLE_SG_FIREWALL_MULTICAST=[True/False]
@@ -216,58 +216,62 @@ Enable overlay networks
 -----------------------
 To enable overlay networking (vxlan/gre) with the dpdk netdev datapath
 the tunnel enpoint ip must be assigned to a phyical bridge(a bridge with
-a dpdk phyical port). This can be done by setting the OVS_TUNNEL_CIDR_MAPPING
-variable in the local.conf. e.g. OVS_TUNNEL_CIDR_MAPPING=br-phy:192.168.50.1/24
-assigns the ip of 192.168.50.1 with subnetmask 255.255.255.0 to the br-phy local port.
+a dpdk physical port). This can be done by setting the OVS_TUNNEL_CIDR_MAPPING
+variable in the local.conf.
+e.g. OVS_TUNNEL_CIDR_MAPPING=br-phy:192.168.50.1/24 assigns the ip of
+192.168.50.1 with subnetmask 255.255.255.0 to the br-phy local port.
 
 Known Issues
 ------------
-OVS_PMD_CORE_MASK default value '4' doesn't work for NIC's from numa nodes other
-than 0. It's value is used for other_config:pmd-cpu-mask parameter in ovsdb and we
-are subsequently using it for vcpu_pin_set in nova.conf. Unfortunatelly if DPDK
-NIC's from numa nodes other than 0 are used, there is no PMD thread generated for
-them. If you are using host with multiple numa nodes please consider using not
-default OVS_PMD_CORE_MASK value.
+OVS_PMD_CORE_MASK default value '4' doesn't work for NICs from NUMA nodes
+other than 0. Its value is used for other_config:pmd-cpu-mask parameter
+in ovsdb and we are subsequently using it for vcpu_pin_set in nova.conf.
+Unfortunatelly if DPDK NICs from NUMA nodes other than 0 are used, there
+is no PMD thread generated for them. If you are using a host with multiple
+NUMA nodes please consider not using default OVS_PMD_CORE_MASK value.
 
-Using with OpenDaylight
-=======================
+Additional more general issues relating to OVS and OVS with DPDK can be found
+at the following link.
+ https://github.com/openstack/networking-ovs-dpdk/tree/master/doc/source/known_issues
 
-To use this plugin with OpenDaylight you need Neutron and Networking-ODL plugin:
+Using OVS-DPDK with OpenDaylight
+--------------------------------
+To use this plugin with OpenDaylight you need Neutron networking and
+Networking-ODL plugin:
 
-  https://github.com/openstack/networking-odl
+https://github.com/openstack/networking-odl
 
 In your local.conf you should enable following lines::
 
-  enable_plugin networking-odl http://git.openstack.org/openstack/networking-odl master
-  disable_service q-agt
+ enable_plugin networking-odl http://git.openstack.org/openstack/networking-odl master
+ disable_service q-agt
 
 Because both Networking-ODL and Networking-OVS-DPDK are going to try to install
-a different version of Open vSwitch this is order to enable both plugins this
-order matter::
+a different version of Open vSwitch, it is important to enable both plugins in
+the correct order::
 
-  enable_plugin networking-odl http://git.openstack.org/openstack/networking-odl master
-  enable_plugin networking-ovs-dpdk http://git.openstack.org/openstack/networking-ovs-dpdk master
+ enable_plugin networking-odl http://git.openstack.org/openstack/networking-odl master
+ enable_plugin networking-ovs-dpdk http://git.openstack.org/openstack/networking-ovs-dpdk master
 
-In fact Networking-OVS-DPDK plugin will install OVS-DPDK on the system.
-By default the Networking-ODL plugin will try to install Kernel OVS.
-To workaround this conflict it is possible to forbid Networking-ODL from
-installing any version of Open vSwitch by adding followning to the local.conf::
+In fact Networking-OVS-DPDK plugin will install OVS-DPDK on the system. By
+default the Networking-ODL plugin will try to install Kernel OVS. To workaround
+this conflict it is possible to forbid Networking-ODL from installing any
+version of Open vSwitch by adding following to the local.conf::
 
-  SKIP_OVS_INSTALL=True
+ SKIP_OVS_INSTALL=True
 
-To enable integration of odl with neutron the opendaylight mechanism provided by
-Networking-ODL must be enabled::
+To enable integration of ODL with Neutron, the OpenDaylight mechanism provided
+by Networking-ODL must be enabled::
 
-  Q_ML2_PLUGIN_MECHANISM_DRIVERS=opendaylight
+ Q_ML2_PLUGIN_MECHANISM_DRIVERS=opendaylight
 
 OVS with DPDK exposes accelerated virtual network interfaces such as vhost-user
 that can be requested by a VM. The OpenDaylight mechanism driver is capable of
-detecting the supported virtual interface types supported by OVS and OVS with DPDK
-allowing coexistence of Kernel and DPDK OVS.
+detecting the supported virtual interface types. These interface types are
+supported by OVS and OVS with DPDK, this allows the coexistence of Kernel and
+DPDK OVS.
 
-To detect if 'vhostuser' is supported the Networking-ODL driver (running on control node)
-must be able to translate the host name of compute nodes to their IP addresses on the
-management network (the one used by OVS to connect to OpenDaylight).
-To archive that you could edit file /etc/hosts on control node where the neutron server
-is running adding all compute nodes where you want to use 'vhostuser', or configure DNS
-in your environment to enable name resolution.
+To detect if 'vhostuser' is supported the Networking-ODL driver (running on
+control node) must be able to translate the host name of compute nodes to their
+IP addresses on the management network (the one used by OVS to connect to
+OpenDaylight).
