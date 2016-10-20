@@ -21,12 +21,12 @@ Hardware
 
 Software
 ========
-- Ubuntu 14.04 LTS server
-- Kernel version 3.13.0-24-generic
+- Ubuntu 16.04 LTS server
+- Kernel version 4.4.0-42-generic
 
 Pre-requisites
 ==============
-- Ubuntu 14.04 server minimal fresh installation
+- Ubuntu 16.04 server minimal fresh installation
 - Root access is required as of now (e.g. non root user from sudoers)
 - VT-d enabled in BIOS
 - VT-x enabled in BIOS
@@ -38,34 +38,30 @@ Pre-requisites
 
   E.g.:
 
-| puppet module list
-
-| /etc/puppet/modules
-| ├── dprince-qpid (v1.0.3)
-| ├── duritong-sysctl (v0.0.11)
-| ├── nanliu-staging (v1.0.3)
-| ├── openstack-cinder (v8.0.0)
-| ├── openstack-glance (v8.0.0)
-| ├── openstack-horizon (v8.0.0)
-| ├── openstack-keystone (v8.0.0)
-| ├── openstack-neutron (v8.0.0)
-| ├── openstack-nova (v8.0.0)
-| ├── openstack-openstack_extras (v8.0.0)
-| ├── openstack-openstacklib (v8.0.0)
-| ├── openstack-vswitch (v4.0.0)
-| ├── ovsdpdk (???)
-| ├── puppetlabs-apache (v1.8.1)
-| ├── puppetlabs-apt (v1.8.0)
-| ├── puppetlabs-concat (v1.2.5)
-| ├── puppetlabs-corosync (v0.7.0)
-| ├── puppetlabs-firewall (v1.8.0)
-| ├── puppetlabs-inifile (v1.4.3)
-| ├── puppetlabs-mysql (v3.6.2)
-| ├── puppetlabs-postgresql (v3.4.2)
-| ├── puppetlabs-rabbitmq (v5.3.1)
-| ├── puppetlabs-stdlib (v4.11.0)
-| ├── puppetlabs-vcsrepo (v1.3.2)
-| └── saz-memcached (v2.8.1)
+/etc/puppet/modules
+├── duritong-sysctl (v0.0.11)
+├── openstack-cinder (v9.4.1)
+├── openstack-glance (v9.4.0)
+├── openstack-keystone (v9.4.0)
+├── openstack-neutron (v9.4.0)
+├── openstack-nova (v9.4.0)
+├── openstack-openstack_extras (v9.4.0)
+├── openstack-openstacklib (v9.4.0)
+├── openstack-oslo (v9.4.0)
+├── openstack-tempest (v9.4.0)
+├── openstack-vswitch (v5.4.0)
+├── ovsdpdk (???)
+├── puppet-corosync (v5.0.0)  invalid
+├── puppet-staging (v2.0.2-rc0)  invalid
+├── puppetlabs-apache (v1.10.0)
+├── puppetlabs-apt (v2.3.0)
+├── puppetlabs-concat (v1.2.5)
+├── puppetlabs-inifile (v1.6.0)
+├── puppetlabs-mysql (v3.9.0)
+├── puppetlabs-postgresql (v4.8.0)
+├── puppetlabs-rabbitmq (v5.5.0)
+├── puppetlabs-stdlib (v4.13.1)
+└── puppetlabs-vcsrepo (v1.4.0)
 
 Topology
 ========

@@ -37,4 +37,5 @@ Support
 
 Supported platforms:
 * Ubuntu 14.04 LTS
+* Ubuntu 16.04 LTS
 * CentOS 7.2 server
