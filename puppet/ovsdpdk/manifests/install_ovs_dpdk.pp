@@ -5,13 +5,13 @@
 # options and setting huge pages into shared mode
 #
 class ovsdpdk::install_ovs_dpdk (
-  $networking_ovs_dpdk_dir  = $::ovsdpdk::params::networking_ovs_dpdk_dir,
-  $plugin_dir               = $::ovsdpdk::params::plugin_dir,
-  $ovs_dir                  = $::ovsdpdk::params::ovs_dir,
-  $openvswitch_service_file = $::ovsdpdk::params::openvswitch_service_file,
-  $openvswitch_service_path = $::ovsdpdk::params::openvswitch_service_path,
-  $qemu_kvm                 = $::ovsdpdk::params::qemu_kvm,
-  $compute                  = $::ovsdpdk::compute,
+  $networking_ovs_dpdk_dir = $::ovsdpdk::params::networking_ovs_dpdk_dir,
+  $plugin_dir              = $::ovsdpdk::params::plugin_dir,
+  $ovs_dir                 = $::ovsdpdk::params::ovs_dir,
+  $openvswitch_service_src = $::ovsdpdk::params::openvswitch_service_src,
+  $openvswitch_service_tgt = $::ovsdpdk::params::openvswitch_service_tgt,
+  $qemu_kvm                = $::ovsdpdk::params::qemu_kvm,
+  $compute                 = $::ovsdpdk::compute,
 
 ) inherits ovsdpdk {
 
@@ -32,11 +32,14 @@ class ovsdpdk::install_ovs_dpdk (
     }
 
     exec { 'update ovs service':
-      command => "cp ${plugin_dir}/files/${openvswitch_service_file} ${openvswitch_service_path}/${openvswitch_service_file}",
-      onlyif  => "test -f ${openvswitch_service_path}/${openvswitch_service_file}",
+      command => "cp ${plugin_dir}/files/${openvswitch_service_src} ${openvswitch_service_tgt}",
+      onlyif  => "test -f ${openvswitch_service_tgt}",
     }
 
-    if $::operatingsystem == 'CentOS' {
+    if ($::operatingsystem == 'Ubuntu') and (versioncmp($::operatingsystemmajrelease, '16') <= 0 {
+      # trusty or older
+    } else {
+      # systemd should be in place
       exec { 'systemctl daemon-reload':
         require => Exec['update ovs service'],
       }

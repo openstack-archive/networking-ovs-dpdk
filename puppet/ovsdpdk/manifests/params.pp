@@ -9,21 +9,32 @@ class ovsdpdk::params {
       $qemu_kvm = '/usr/bin/kvm'
       $install_packages = [ 'git', 'screen', 'patch', 'autoconf', 'libtool', 'bc',
                             'python-dev', 'python-pip', 'qemu-kvm' ]
-      $openvswitch_service_name = 'openvswitch-switch'
-      $openvswitch_service_file = 'openvswitch-switch.conf'
-      $openvswitch_service_path = '/etc/init'
       $nova_compute_service_name = 'nova-compute'
       $nova_scheduler_service_name = 'nova-scheduler'
+
+      $openvswitch_service_name = 'openvswitch-switch'
+      if (versioncmp($::operatingsystemmajrelease, '16') >=) {
+        # xenial and later - systemd handling
+        $openvswitch_service_src = 'openvswitch_systemd'
+        $openvswitch_service_tgt = '/lib/systemd/system/openvswitch-switch.service'
+      } else {
+        # trusty or below - upstart handling
+        $openvswitch_service_src = 'openvswitch_upstart'
+        $openvswitch_service_tgt = '/etc/init/openvswitch-switch.conf'
+      }
     }
     'CentOS': {
       $qemu_kvm = '/usr/libexec/qemu-kvm'
       $install_packages = [ 'git', 'screen', 'patch', 'pciutils', 'autoconf', 'libtool', 'bc',
                             'python-devel', 'python-pip', 'qemu-kvm', 'kernel-devel' ]
-      $openvswitch_service_name = 'openvswitch'
-      $openvswitch_service_file = 'openvswitch.service'
-      $openvswitch_service_path = '/usr/lib/systemd/system'
       $nova_compute_service_name = 'openstack-nova-compute'
       $nova_scheduler_service_name = 'openstack-nova-scheduler'
+
+      # systemd handling only
+      $openvswitch_service_name = 'openvswitch'
+      $openvswitch_service_src  = 'openvswitch_systemd'
+      $openvswitch_service_tgt  = '/usr/lib/systemd/system/openvswitch.service'
+
     }
     default: {
       fail("Unsupported os ${::operatingsystem}")
