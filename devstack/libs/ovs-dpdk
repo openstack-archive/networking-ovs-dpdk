@@ -254,7 +254,11 @@ function ovs_dpdk_pre_install(){
     if [ "$OFFLINE" != True ]; then
         if is_ubuntu; then
             sudo apt-get install -y linux-headers-$(uname -r) fdutils libxtst6 libnuma-dev automake
+            if [ "$OVS_INTERFACE_DRIVER" == "uio_pci_generic"  ]; then
+                 sudo apt-get install -y linux-image-extra-$(uname -r)
+            fi
         elif [ "$os_VENDOR" == "CentOS" ]; then
+            # NOTE: uio_pci_generic is between default modules
             sudo yum install -y kernel-devel-$(uname -r) redhat-lsb-core automake
         fi
     fi
