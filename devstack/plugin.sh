@@ -50,6 +50,7 @@ ERROR_ON_CLONE=False
                     ovs_dpdk_configure_firewall_driver
                 ;;
                 "extra")
+                    # no-op
                     # Multicast support.
                     configure_multicast
                     :
