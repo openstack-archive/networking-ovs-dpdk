@@ -53,3 +53,6 @@ ChangeLog
 .*sw?
 *.iml
 .idea
+
+# Files created by releasenoes build
+releasenotes/build
