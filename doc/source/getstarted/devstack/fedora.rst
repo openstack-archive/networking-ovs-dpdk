@@ -194,16 +194,23 @@ OVS-DPDK you will need to create a flavor that requests hugepages.
 
 Enable the OVS firewall
 -----------------------
-To enable the OVS firewall, you will need to modify (or add) the following
-variable to local.conf:
+To enable the OVS firewall integrated in Neutron, you will need to modify
+(or add) the following variable to local.conf:
 
 | [[post-config|/etc/neutron/plugins/ml2/ml2_conf.ini]]
 | [securitygroup]
 | firewall_driver = openvswitch
 
+This is a stateful firewall and uses connection tracking to control the traffic
+flows. In this repository also can be found a stateless firewall based in
+OpenFlow 'learn action', which can be enabled by setting the following
+variable:
+
+| firewall_driver = networking_ovs_dpdk.agent.ovs_dpdk_firewall.OVSFirewallDriver
+
 By default, the multicast support is enabled. The default aging time for the
 IGMP subscriptions in the bridges is 3600 seconds. To configure the multicast
-support, both variables can be setup in local.conf:
+support, both variables could be setup in local.conf:
 
 | [[local|localrc]]
 | OVS_ENABLE_SG_FIREWALL_MULTICAST=[True/False]
