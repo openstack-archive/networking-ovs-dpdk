@@ -195,6 +195,25 @@ function ovs_dpdk_pre_install(){
             sudo yum install -y kernel-devel-$(uname -r) redhat-lsb-core
         fi
     fi
+    # Check minimum Mellanox OFED Versions
+    # OVS_DPDK_GIT_TAG=v16.07 requires minimum MLNX_OFED > 3.3
+    # OVS_DPDK_GIT_TAG=v16.11 requires minimum MLNX_OFED > 3.4
+    if [ "$OVS_INTERFACE_DRIVER" == "mlnx" ]; then
+        ofed_installed_version=$(ofed_info -s|tr -d [MLNX_OFED_LINUX]|cut -d'-' -f2)
+
+        # Check if OVS_DPDK_GIT_TAG is a version X.Y
+        if [[ ! $OVS_DPDK_GIT_TAG =~ .*\..* ]]; then
+            return 0
+        fi
+        ovs_dpdk_git_version=$(echo $OVS_DPDK_GIT_TAG|tr -d [v])
+
+        if [ -z $ofed_installed_version ] || [[ $ofed_installed_version < 3.3 ]]; then
+            die $LINENO "Mellanox OFED version > 3.3 not found"
+        elif [[ $ofed_installed_version < 3.4 ]] && [[ $ofed_installed_version > 3.3 ]] &&
+             [[ $ovs_dpdk_git_version > 16.10 ]]; then
+            die $LINENO "Wrong version used. For OVS_DPDK_GIT_TAG > v16.11 use Mellanox OFED > 3.4"
+        fi
+    fi
 }
 
 function clone_ovs_dpdk(){
@@ -259,6 +278,7 @@ function patch_ovs_emc() {
 }
 
 function build_ovs_dpdk(){
+    local ADDFLAGS=""
     if [ -e "${OVS_DIR}/BUILD_COMPLETE" ]; then
         echo "Build alread done."
         cd ${OVS_DIR}
@@ -306,13 +326,21 @@ function build_ovs_dpdk(){
     sed "s/CONFIG_RTE_EAL_IGB_UIO=.*$/CONFIG_RTE_EAL_IGB_UIO=${enable_igb_uio}/" -i ${OVS_DPDK_DIR}/build/.config
     sed "s/CONFIG_RTE_BUILD_SHARED_LIB=.*$/CONFIG_RTE_BUILD_SHARED_LIB=${OVS_DPDK_BUILD_SHARED_LIB}/" -i ${OVS_DPDK_DIR}/build/.config
 
+    if [ "$OVS_INTERFACE_DRIVER" == "mlnx" ]; then
+        sed "s/CONFIG_RTE_LIBRTE_MLX5_PMD=n/CONFIG_RTE_LIBRTE_MLX5_PMD=y/" -i ${OVS_DPDK_DIR}/build/.config
+        sed "s/CONFIG_RTE_LIBRTE_MLX5_DEBUG=n/CONFIG_RTE_LIBRTE_MLX5_DEBUG=y/" -i ${OVS_DPDK_DIR}/build/.config
+        sed "s/CONFIG_RTE_LIBRTE_MLX4_PMD=n/CONFIG_RTE_LIBRTE_MLX4_PMD=y/" -i ${OVS_DPDK_DIR}/build/.config
+        sed "s/CONFIG_RTE_LIBRTE_MLX4_SGE_WR_N=4/CONFIG_RTE_LIBRTE_MLX4_SGE_WR_N=1/" -i ${OVS_DPDK_DIR}/build/.config
+        ADDFLAGS="LDFLAGS=-libverbs"
+    fi
+
     make -j $(nproc) EXTRA_CFLAGS='-fPIC'
     sudo cp ${OVS_DPDK_DIR}/build/lib/*dpdk.* /lib
     cd ${OVS_DIR}
     ./boot.sh
     ./configure --with-dpdk=${OVS_DPDK_DIR}/${RTE_TARGET} --prefix=/usr --with-dbdir=$OVS_DB_CONF_DIR --with-rundir=$OVS_DB_SOCKET_DIR
     patch_ovs_emc
-    make -j $(nproc) CFLAGS='-O3 -march=native -fPIC'
+    make -j $(nproc) CFLAGS='-O3 -march=native -fPIC' $ADDFLAGS
     touch ${OVS_DIR}/BUILD_COMPLETE
     sudo make install
 }
