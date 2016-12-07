@@ -259,6 +259,7 @@ function patch_ovs_emc() {
 }
 
 function build_ovs_dpdk(){
+    local ADDFLAGS=""
     if [ -e "${OVS_DIR}/BUILD_COMPLETE" ]; then
         echo "Build alread done."
         cd ${OVS_DIR}
@@ -306,13 +307,20 @@ function build_ovs_dpdk(){
     sed "s/CONFIG_RTE_EAL_IGB_UIO=.*$/CONFIG_RTE_EAL_IGB_UIO=${enable_igb_uio}/" -i ${OVS_DPDK_DIR}/build/.config
     sed "s/CONFIG_RTE_BUILD_SHARED_LIB=.*$/CONFIG_RTE_BUILD_SHARED_LIB=${OVS_DPDK_BUILD_SHARED_LIB}/" -i ${OVS_DPDK_DIR}/build/.config
 
+    if [ "$OVS_INTERFACE_DRIVER" == "mlnx_uio" ]; then
+        sed "s/CONFIG_RTE_LIBRTE_MLX5_PMD=n/CONFIG_RTE_LIBRTE_MLX5_PMD=y/" -i ${OVS_DPDK_DIR}/build/.config
+        sed "s/CONFIG_RTE_LIBRTE_MLX4_PMD=n/CONFIG_RTE_LIBRTE_MLX4_PMD=y/" -i ${OVS_DPDK_DIR}/build/.config
+        sed "s/CONFIG_RTE_LIBRTE_MLX4_SGE_WR_N=n/CONFIG_RTE_LIBRTE_MLX4_SGE_WR_N=y/" -i ${OVS_DPDK_DIR}/build/.config
+        ADDFLAGS="LDFLAGS=-libverbs"
+    fi
+
     make -j $(nproc) EXTRA_CFLAGS='-fPIC'
     sudo cp ${OVS_DPDK_DIR}/build/lib/*dpdk.* /lib
     cd ${OVS_DIR}
     ./boot.sh
     ./configure --with-dpdk=${OVS_DPDK_DIR}/${RTE_TARGET} --prefix=/usr --with-dbdir=$OVS_DB_CONF_DIR --with-rundir=$OVS_DB_SOCKET_DIR
     patch_ovs_emc
-    make -j $(nproc) CFLAGS='-O3 -march=native -fPIC'
+    make -j $(nproc) CFLAGS='-O3 -march=native -fPIC' $ADDFLAGS
     touch ${OVS_DIR}/BUILD_COMPLETE
     sudo make install
 }
