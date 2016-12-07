@@ -1,0 +1,20 @@
+---
+prelude: >
+    Mellanox NIC Support
+features:
+  - Added Mellanox NICs support for OpenStack.
+issues:
+  - 
+upgrade:
+  - 
+deprecations:
+  - 
+critical:
+  - 
+security:
+  - 
+fixes:
+  - 
+other:
+  - More details about how to configure Mellanox NIC can be found here
+    https://community.mellanox.com/docs/DOC-2732
