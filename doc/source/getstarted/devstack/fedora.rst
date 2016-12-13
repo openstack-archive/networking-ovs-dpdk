@@ -171,10 +171,15 @@ The following is a link to a single node local.conf example.
 
 Certain modifications to this file are required to match the users environment.
 E.g. Including the appropriate IP address:
+
 | HOST_IP=<SINGLE NODE IP>
- the correct VLAN ranges:
+
+the correct VLAN ranges
+
 | ML2_VLAN_RANGES=default:<VLAN RANGES>
- and OVS bridges mappings:
+
+and OVS bridges mappings.
+
 | OVS_BRIDGE_MAPPINGS="default:br-<SINGLE NODE DATA INTERFACE>
 
 Once the local.conf is edited, it must be added to the /home/<USER>/devstack
@@ -239,7 +244,8 @@ NUMA nodes please consider not using default OVS_PMD_CORE_MASK value.
 
 Additional more general issues relating to OVS and OVS with DPDK can be found
 at the following link.
- https://github.com/openstack/networking-ovs-dpdk/tree/master/doc/source/known_issues
+
+https://github.com/openstack/networking-ovs-dpdk/tree/master/doc/source/known_issues
 
 Using OVS-DPDK with OpenDaylight
 --------------------------------

@@ -119,7 +119,7 @@ The system will need to be rebooted for the changes to take effect.
 | sudo reboot
 
 QEMU configuration
----------------------
+------------------
 The default qemu version on CentOS 7.2 is incompatible with ovs with dpdk.
 To provide compatible versions the CentOS virt SIG must be enabled.
 To enable the virt SIG create /etc/yum.repos.d/centos-virt-sig.repo with
@@ -130,7 +130,6 @@ name=virt7-kvm-common-release
 baseurl=http://cbs.centos.org/repos/virt7-kvm-common-release/x86_64/os
 enabled=1
 gpgcheck=0
-
 
 Devstack configuration
 ----------------------
@@ -145,10 +144,15 @@ The following is a link to a single node local.conf example.
 
 Certain modifications to this file are required to match the users environment.
 E.g. Including the appropriate IP address:
+
 | HOST_IP=<SINGLE NODE IP>
- the correct VLAN ranges
+
+the correct VLAN ranges
+
 | ML2_VLAN_RANGES=default:<VLAN RANGES>
- and OVS bridges mappings.
+
+and OVS bridges mappings.
+
 | OVS_BRIDGE_MAPPINGS="default:br-<SINGLE NODE DATA INTERFACE>
 
 Once the local.conf is edited, it must be added to the /home/<USER>/devstack
