@@ -1,0 +1,8 @@
+Code-Review+2: sean mooney <sean.k.mooney@intel.com>
+Workflow+1: sean mooney <sean.k.mooney@intel.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Sun, 18 Dec 2016 03:07:29 +0000
+Reviewed-on: https://review.openstack.org/396609
+Project: openstack/networking-ovs-dpdk
+Branch: refs/heads/master
