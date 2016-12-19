@@ -1,0 +1,9 @@
+Code-Review+2: Waldemar Znoinski <waldemar.znoinski@intel.com>
+Code-Review+2: sean mooney <sean.k.mooney@intel.com>
+Workflow+1: sean mooney <sean.k.mooney@intel.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 19 Dec 2016 15:41:16 +0000
+Reviewed-on: https://review.openstack.org/407958
+Project: openstack/networking-ovs-dpdk
+Branch: refs/heads/master
