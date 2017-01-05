@@ -543,7 +543,7 @@ start_ovs(){
     # the permeisions must be adjusted to allow qemu to create vhost-user sockets when in server mode.
     sudo chown root:$qemu_group ${OVS_DB_SOCKET_DIR}
     sudo chmod 777 ${OVS_DB_SOCKET_DIR}
-    start_cmd="screen -dms ovs-vswitchd sudo sg $qemu_group -c \"umask 002; ${OVS_INSTALL_DIR}/sbin/ovs-vswitchd -- unix:$OVS_DB_SOCKET 2>&1 | tee ${OVS_LOG_DIR}/ovs-vswitchd.log\""
+    start_cmd="screen -dms ovs-vswitchd sudo sg $qemu_group -c \"umask 002; ${OVS_INSTALL_DIR}/sbin/ovs-vswitchd --pidfile=${OVS_DB_SOCKET_DIR}/ovs-vswitchd.pid -- unix:$OVS_DB_SOCKET 2>&1 | tee ${OVS_LOG_DIR}/ovs-vswitchd.log\""
     if [ "$OVS_INIT_POLICY" == "cmd" ]; then
         local pciAddressWhitelist
         generate_pciwhitelist pciAddressWhitelist
