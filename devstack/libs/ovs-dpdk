@@ -112,6 +112,16 @@ while [ $# -gt 0 ]; do
                 shift
         fi
         ;;
+    -netdev)
+        args[i]="$1"
+        (( i++ ))
+        shift
+        if [[ "$1" =~ "vhost-user" ]]; then
+                args[i]=${1},${VHOST_FORCE}
+                (( i++))
+                shift
+        fi
+        ;;
     *)
          args[i]="$1"
          (( i++ ))
