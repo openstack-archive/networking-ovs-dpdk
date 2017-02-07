@@ -388,7 +388,8 @@ function build_ovs_dpdk(){
     fi
 
     make -j $(nproc) EXTRA_CFLAGS='-fPIC'
-    sudo cp ${OVS_DPDK_DIR}/build/lib/*dpdk.* /lib
+    sudo make install
+
     cd ${OVS_DIR}
     ./boot.sh
     ./configure --with-dpdk=${OVS_DPDK_DIR}/${RTE_TARGET} --prefix=/usr --with-dbdir=$OVS_DB_CONF_DIR --with-rundir=$OVS_DB_SOCKET_DIR
