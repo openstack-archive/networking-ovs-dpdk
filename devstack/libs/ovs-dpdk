@@ -303,6 +303,7 @@ function build_ovs_dpdk(){
     sed "s/CONFIG_RTE_LIBRTE_VHOST=.*$/CONFIG_RTE_LIBRTE_VHOST=${OVS_DPDK_RTE_LIBRTE_VHOST}/" -i ${OVS_DPDK_DIR}/build/.config
     sed "s/CONFIG_RTE_LIBRTE_VHOST_DEBUG=.*$/CONFIG_RTE_LIBRTE_VHOST_DEBUG=${OVS_DPDK_VHOST_USER_DEBUG}/" -i ${OVS_DPDK_DIR}/build/.config
     sed "s/CONFIG_RTE_LIBRTE_KNI=.*$/CONFIG_RTE_LIBRTE_KNI=n/" -i ${OVS_DPDK_DIR}/build/.config
+    sed "s/CONFIG_RTE_KNI_KMOD=.*$/CONFIG_RTE_KNI_KMOD=n/" -i ${OVS_DPDK_DIR}/build/.config
     sed "s/CONFIG_RTE_EAL_IGB_UIO=.*$/CONFIG_RTE_EAL_IGB_UIO=${enable_igb_uio}/" -i ${OVS_DPDK_DIR}/build/.config
     sed "s/CONFIG_RTE_BUILD_SHARED_LIB=.*$/CONFIG_RTE_BUILD_SHARED_LIB=${OVS_DPDK_BUILD_SHARED_LIB}/" -i ${OVS_DPDK_DIR}/build/.config
 
@@ -454,7 +455,7 @@ function install_dpdk_modules {
 
     sudo mkdir -p /lib/modules/$(uname -r)/extra/dpdk
     for mod in ${OVS_DPDK_DIR}/build/kmod/*.ko ; do
-        sudo cp -f -v $mod /lib/modules/$(uname -r)/extra/dpdk/
+        [[ "$mod" != "${OVS_DPDK_DIR}/build/kmod/*.ko" ]] && sudo cp -f -v $mod /lib/modules/$(uname -r)/extra/dpdk/
     done
     sudo depmod -a
 
