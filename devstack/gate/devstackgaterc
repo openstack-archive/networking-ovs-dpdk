@@ -1,0 +1,77 @@
+#!/bin/bash -xe
+
+# TODO(sean-k-mooney): remove later
+# sudo modprobe uio uio_pci_generic
+
+case "$ZUUL_BRANCH" in
+    "stable/mitaka") export OVERRIDE_NETWORKING_OVS_DPDK_PROJECT_BRANCH="stable/mitaka";;
+    "stable/newton") export OVERRIDE_NETWORKING_OVS_DPDK_PROJECT_BRANCH="stable/newton";;
+    "stable/ocata")  export OVERRIDE_NETWORKING_OVS_DPDK_PROJECT_BRANCH="master";;
+    *)               export OVERRIDE_NETWORKING_OVS_DPDK_PROJECT_BRANCH="master";;
+esac
+
+
+export DEVSTACK_GATE_LIBVIRT_TYPE=kvm
+export DEVSTACK_GATE_TEMPEST=1
+export DEVSTACK_GATE_NEUTRON=1
+export DEVSTACK_GATE_EXERCISES=0
+# TODO(sean-k-mooney): enable later when running againsts nova.
+# export DEVSTACK_GATE_TEMPEST_FULL=1
+# construct regex with included and excluded tempest tests
+r='^(?!.*'
+
+# exclude migration test
+r="$r(?:tempest\.scenario\.test_network_advanced_server_ops\.TestNetworkAdvancedServerOps\.test_server_connectivity_suspend_resume.*)"
+# exclude pause_unpause - failing since DPDK v16.7
+r="$r|(?:tempest\.scenario\.test_network_advanced_server_ops\.TestNetworkAdvancedServerOps\.test_server_connectivity_pause_unpause.*)"
+# end the regex
+r="$r)"
+
+# include networking tests
+r="$r((?:tempest\.scenario\.test_network_basic_ops.*)"
+r="$r|(?:tempest\.scenario\.test_network_advanced_server_ops.*)"
+r="$r|(?:tempest\.api\.network.*)).*$"
+
+export DEVSTACK_GATE_TEMPEST_REGEX="$r"
+export DEVSTACK_LOCAL_CONFIG='
+
+enable_plugin networking-ovs-dpdk git://git.openstack.org/openstack/networking-ovs-dpdk
+
+# setting them here will make testing of changes to openstack/networking-ovs-dpdk harder to troubleshoot
+# and testing new default values of the below two variables (set in settings file) manual process
+# dont change below unless you know what youre doing
+# OVS_GIT_TAG
+# DPDK_GIT_TAG
+
+# PUBLIC_INTERFACE=ens5
+# Q_USE_PROVIDERNET_FOR_PUBLIC=True
+# OVS_PHYSICAL_BRIDGE=br-ex
+# PUBLIC_BRIDGE=br-ex
+# OVS_BRIDGE_MAPPINGS=public:br-ex,default:br-ens4
+
+# ovs settings
+OVS_SOCKET_MEM=512
+OVS_NUM_HUGEPAGES=768
+OVS_DATAPATH_TYPE=netdev
+OVS_LOG_DIR=/opt/stack/logs
+OVS_HUGEPAGE_MOUNT_PAGESIZE=2M
+OVS_HUGEPAGE_MOUNT=/dev/hugepages
+OVS_ALLOCATE_HUGEPAGES=True
+OVS_PMD_CORE_MASK=0x2
+OVS_DATAPATH_TYPE=netdev
+OVS_DPDK_MODE=controller_ovs_dpdk
+OVS_DPDK_BIND_PORT=False
+
+# TODO(sean-k-mooney) enable to test learn action driver later
+OVS_ENABLE_SG_FIREWALL_MULTICAST=False
+
+# dpdk settings
+OVS_DPDK_MEM_SEGMENTS=10240
+OVS_DPDK_VHOST_USER_DEBUG=y
+OVS_DPDK_SERVICE_DEBUG_OUTPUT=True
+
+# TODO(sean-k-mooney): remove later if not needed.
+# SUBNETPOOL_PREFIX_V4="172.16.0.0/16"
+# SUBNETPOOL_SIZE_V4=24
+'
+
