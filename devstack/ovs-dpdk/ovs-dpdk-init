@@ -259,11 +259,20 @@ add_nics_to_bridges(){
                 if [ $bonded_nic == "True" ]; then
                     echo "interface $nic skipped from individual binding under dpdk$phys_ofport, it will be added inside bond"
                 else
+                    # for ovs <2.7
                     # Map this physical nic interface to the logical bridge.
                     local cmd="ovs-vsctl --no-wait --may-exist add-port $bridge dpdk$phys_ofport -- set Interface dpdk$phys_ofport type=dpdk other_config:pci_address=$addr  \
-                               other_config:driver=${OVS_INTERFACE_DRIVER} other_config:previous_driver=${driver_map[$addr]}"
-                    echo "$cmd"
+                                other_config:driver=${OVS_INTERFACE_DRIVER} other_config:previous_driver=${driver_map[$addr]}"
+
+                    echo "try: $cmd"
                     sudo $cmd
+                    if [[ $? -ne 0 ]]; then
+                        # for ovs >=2.7
+                        local cmd="ovs-vsctl --no-wait --may-exist add-port $bridge $nic -- set Interface $nic type=dpdk options:dpdk-devargs=$addr other_config:pci_address=$addr  \
+                                other_config:driver=${OVS_INTERFACE_DRIVER} other_config:previous_driver=${driver_map[$addr]}"
+                        echo "try ovs<2.7 cmd: $cmd"
+                        sudo $cmd
+                    fi
                 fi
                 # Remove element from list.
                 PCI_ARRAY[$index]=''
