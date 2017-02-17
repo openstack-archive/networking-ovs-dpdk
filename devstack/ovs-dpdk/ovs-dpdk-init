@@ -201,6 +201,10 @@ unbind_nics(){
 
 
 add_nics_to_bridges(){
+    # parse ovs version
+    ovs_version=$(ovs-vsctl --version | awk '/ovs-vsctl/{print $4}')
+    ovs_major_ver=$(echo $ovs_version | cut -d'.' -f1,2)
+
     # bind nic to dpdk driver
     PCI_MAPPINGS=${OVS_PCI_MAPPINGS//,/ }
     PCI_ARRAY=( $PCI_MAPPINGS )
@@ -260,8 +264,15 @@ add_nics_to_bridges(){
                     echo "interface $nic skipped from individual binding under dpdk$phys_ofport, it will be added inside bond"
                 else
                     # Map this physical nic interface to the logical bridge.
-                    local cmd="ovs-vsctl --no-wait --may-exist add-port $bridge dpdk$phys_ofport -- set Interface dpdk$phys_ofport type=dpdk other_config:pci_address=$addr  \
-                               other_config:driver=${OVS_INTERFACE_DRIVER} other_config:previous_driver=${driver_map[$addr]}"
+                    if [[ $ovs_major_ver = "2.7" ]]; then
+                        # for ovs >=2.7
+                        local cmd="ovs-vsctl --no-wait --may-exist add-port $bridge $nic -- set Interface $nic type=dpdk options:dpdk-devargs=$addr other_config:pci_address=$addr  \
+                                other_config:driver=${OVS_INTERFACE_DRIVER} other_config:previous_driver=${driver_map[$addr]}"
+                    else
+                        # for ovs <2.7
+                        local cmd="ovs-vsctl --no-wait --may-exist add-port $bridge dpdk$phys_ofport -- set Interface dpdk$phys_ofport type=dpdk other_config:pci_address=$addr  \
+                                other_config:driver=${OVS_INTERFACE_DRIVER} other_config:previous_driver=${driver_map[$addr]}"
+                    fi
                     echo "$cmd"
                     sudo $cmd
                 fi
