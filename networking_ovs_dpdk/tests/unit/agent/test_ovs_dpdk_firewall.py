@@ -23,8 +23,6 @@ from neutron.agent.ovsdb import api as ovsdb
 from neutron.conf.agent import securitygroups_rpc as sg_cfg
 from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl \
     import br_int
-from neutron.plugins.ml2.drivers.openvswitch.agent.ovs_agent_extension_api\
-    import OVSCookieBridge
 from neutron.tests import base
 from oslo_config import cfg
 
@@ -128,13 +126,16 @@ class BaseOVSDPDKFirewallTestCase(base.BaseTestCase):
 class OVSDPDKFirewallTestCase(BaseOVSDPDKFirewallTestCase):
     def setUp(self):
         super(OVSDPDKFirewallTestCase, self).setUp()
+        # NOTE(ralonsoh): by default, OVSFirewallDriver._deferred = False,
+        #                 therefore neutron.agent.common.ovs_lib.OVSBridge is
+        #                 used.
         self._mock_add_flow = \
-            mock.patch.object(OVSCookieBridge, "add_flow")
+            mock.patch.object(ovs_lib.OVSBridge, "add_flow")
         self.mock_add_flow = self._mock_add_flow.start()
         self._mock_delete_flows = \
-            mock.patch.object(OVSCookieBridge, "delete_flows")
+            mock.patch.object(ovs_lib.OVSBridge, "delete_flows")
         self.mock_delete_flows = self._mock_delete_flows.start()
-        self._mock_get_vif_port_by_id =\
+        self._mock_get_vif_port_by_id = \
             mock.patch.object(ovs_lib.OVSBridge, "get_vif_port_by_id")
         self.mock_get_vif_port_by_id = self._mock_get_vif_port_by_id.start()
         self._mock_db_get_val =\
