@@ -64,9 +64,26 @@ OVS_INIT_POLICY
 
     OVS_INIT_POLICY=db
 
+OVS_VSWITCHD_INIT
+~~~~~~~~~~~~~~~~~
+    This setting controls when the ovs-vswitchd is started.
+
+    Allowed values: 'immediate', 'delayed', 'auto'
+
+    auto:       setting this value instructs the plugin to try and determine the correct value to use.
+    delayed:    setting this value enables the legacy workflow where the ovs-vswitchd is started after
+                all configuration has been done via that ovsdb.
+    immediate:  setting this value enables the new workflow where the ovs-vswitchd is started before configuring
+                ovs bridges and interfaces.
+
+    Default: 'auto'
+
+    Example:
+
+    OVS_VSWITCHD_INIT=delayed
+
 OVS_SOCKET_MEM
 ~~~~~~~~~~~~~~
-
     (Size in MB/auto) Amount of memory reserved by OVS from each NUMA node.
 
     Default: 'auto' (2048MB per NUMA node)

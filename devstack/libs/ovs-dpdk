@@ -286,6 +286,7 @@ function ovs_dpdk_pre_install(){
 function clone_ovs_dpdk(){
     OFFLINE=$(trueorfalse False OFFLINE)
     RECLONE=$(trueorfalse False RECLONE)
+
     if [[ "$OFFLINE" != True && ( "$RECLONE" == True || ! -e ${OVS_DIR}/BUILD_COMPLETE ) ]]; then
         if [ ! -d ${OVS_DIR} ] || [ "$RECLONE" == True ]; then
             # if directory exists and should be just refreshed
@@ -320,11 +321,21 @@ function clone_ovs_dpdk(){
             popd
         fi
     fi
+
     if [ "$OVS_INIT_POLICY" == "auto" ] && [ $(grep dpdk-init "${OVS_DIR}/vswitchd/vswitch.xml" > /dev/null ; echo $?) == "0" ]; then
         OVS_INIT_POLICY='db'
     elif [ "$OVS_INIT_POLICY" == "auto" ]; then
         OVS_INIT_POLICY='cmd'
     fi
+
+    pushd  ${OVS_DIR}
+    if [ "$OVS_VSWITCHD_INIT" == "auto" ] && \
+       [ $(git branch --contains  "55e075e65ef9ecbd70e5e0fada2704c3d73724d8" | grep \* | grep "${OVS_GIT_TAG}"  > /dev/null ; echo $?) == "0" ]; then
+        OVS_VSWITCHD_INIT='immediate'
+    elif [ "$OVS_VSWITCHD_INIT" == "auto" ]; then
+        OVS_VSWITCHD_INIT='delayed'
+    fi
+    popd
 }
 
 function patch_ovs_emc() {
@@ -434,6 +445,7 @@ function ovs_dpdk_write_conf {
     sudo sed "s#OVS_TUNNEL_CIDR_MAPPING=.*#OVS_TUNNEL_CIDR_MAPPING=$OVS_TUNNEL_CIDR_MAPPING#" -i /etc/default/ovs-dpdk
     sudo sed "s#OVS_DPDK_SERVICE_DEBUG_OUTPUT=.*#OVS_DPDK_SERVICE_DEBUG_OUTPUT=$OVS_DPDK_SERVICE_DEBUG_OUTPUT#" -i /etc/default/ovs-dpdk
     sudo sed "s#OVS_INIT_POLICY=.*#OVS_INIT_POLICY=$OVS_INIT_POLICY#" -i /etc/default/ovs-dpdk
+    sudo sed "s#OVS_VSWITCHD_INIT=.*#OVS_VSWITCHD_INIT=$OVS_VSWITCHD_INIT#" -i /etc/default/ovs-dpdk
     sudo sed "s#OVS_VHOST_USER_SOCKET_DIR=.*#OVS_VHOST_USER_SOCKET_DIR=$OVS_VHOST_USER_SOCKET_DIR#" -i /etc/default/ovs-dpdk
 
     if [ "$OVS_SOCKET_MEM" == "auto" ]; then
