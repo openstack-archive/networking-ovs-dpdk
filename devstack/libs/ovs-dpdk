@@ -392,6 +392,9 @@ function build_ovs_dpdk(){
         ADDFLAGS="LDFLAGS=-libverbs"
     fi
 
+    # uninstall flake8-import-order since it generates unwanted warnings during ovs build
+    sudo -H pip uninstall -y flake8-import-order || true
+
     make -j $(nproc) EXTRA_CFLAGS='-fPIC'
     sudo make install
 
