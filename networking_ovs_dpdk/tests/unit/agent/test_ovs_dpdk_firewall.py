@@ -18,10 +18,8 @@ import mock
 import six
 
 from networking_ovs_dpdk.agent import ovs_dpdk_firewall
-from networking_ovs_dpdk.common._i18n import _
 from neutron.agent.common import ovs_lib
 from neutron.agent.ovsdb import api as ovsdb
-from neutron.conf.agent import common as a_cfg
 from neutron.conf.agent import securitygroups_rpc as sg_cfg
 from neutron.plugins.ml2.drivers.openvswitch.agent.openflow.ovs_ofctl \
     import br_int
@@ -92,24 +90,24 @@ OF_INGRESS_EXT_TABLE = 81
 DEFAULT_BRIDGE_MAPPINGS = []
 ovs_opts = [
     cfg.StrOpt('integration_bridge', default='br-int',
-               help=_("Integration bridge to use.")),
+               help="Integration bridge to use."),
     cfg.StrOpt('tunnel_bridge', default='br-tun',
-               help=_("Tunnel bridge to use.")),
+               help="Tunnel bridge to use."),
     cfg.StrOpt('int_peer_patch_port', default='patch-tun',
-               help=_("Peer patch port in integration bridge for tunnel "
-                      "bridge.")),
+               help="Peer patch port in integration bridge for tunnel "
+                    "bridge."),
     cfg.StrOpt('tun_peer_patch_port', default='patch-int',
-               help=_("Peer patch port in tunnel bridge for integration "
-                      "bridge.")),
+               help="Peer patch port in tunnel bridge for integration "
+                    "bridge."),
     cfg.IPOpt('local_ip', version=4,
-              help=_("Local IP address of tunnel endpoint.")),
+              help="Local IP address of tunnel endpoint."),
     cfg.ListOpt('bridge_mappings',
                 default=DEFAULT_BRIDGE_MAPPINGS,
-                help=_("List of <physical_network>:<bridge>. "
-                       "Deprecated for ofagent.")),
+                help="List of <physical_network>:<bridge>. "
+                     "Deprecated for ofagent."),
     cfg.BoolOpt('use_veth_interconnection', default=False,
-                help=_("Use veths instead of patch ports to interconnect the "
-                       "integration bridge to physical bridges."))
+                help="Use veths instead of patch ports to interconnect the "
+                     "integration bridge to physical bridges.")
 ]
 
 COOKIE = 1
@@ -118,7 +116,6 @@ COOKIE = 1
 class BaseOVSDPDKFirewallTestCase(base.BaseTestCase):
     def setUp(self):
         super(BaseOVSDPDKFirewallTestCase, self).setUp()
-        cfg.CONF.register_opts(a_cfg.ROOT_HELPER_OPTS, 'AGENT')
         cfg.CONF.register_opts(sg_cfg.security_group_opts, 'SECURITYGROUP')
         cfg.CONF.register_opts(ovs_opts, "OVS")
         self._mock_ovsdb =\
