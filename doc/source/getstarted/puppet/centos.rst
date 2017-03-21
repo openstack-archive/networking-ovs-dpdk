@@ -241,7 +241,7 @@ with following content:
 
 | [virt7-kvm-common-release]
 | name=virt7-kvm-common-release
-| baseurl=http://cbs.centos.org/repos/virt7-kvm-common-release/x86_64/os
+| baseurl=https://cbs.centos.org/repos/virt7-kvm-common-release/x86_64/os
 | enabled=1
 | gpgcheck=0
 
