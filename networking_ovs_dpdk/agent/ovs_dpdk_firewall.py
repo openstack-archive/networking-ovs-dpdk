@@ -21,7 +21,7 @@ from neutron_lib import constants
 from oslo_config import cfg
 from oslo_log import log as logging
 
-from networking_ovs_dpdk.common._i18n import _, _LW
+from networking_ovs_dpdk.common._i18n import _
 
 from neutron.agent import firewall
 from neutron.common import utils as neutron_utils
@@ -801,9 +801,8 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         """Write the needed flows per each IP in the port."""
         vif_port = self._int_br.br.get_vif_port_by_id(port['device'])
         if not vif_port:
-            LOG.warning(_LW("Port %(port_id)s not present in bridge. Skip "
-                            "applying rules for this port"),
-                        {'port_id': port})
+            LOG.warning("Port %(port_id)s not present in bridge. Skip "
+                        "applying rules for this port", {'port_id': port})
             return
 
         # Write a rule(s) per ip.
@@ -910,9 +909,8 @@ class OVSFirewallDriver(firewall.FirewallDriver):
                   port)
         vif_port = self._int_br.br.get_vif_port_by_id(port['device'])
         if not vif_port:
-            LOG.warning(_LW("Port %(port_id)s not present in bridge. Skip"
-                            "applying rules for this port"),
-                        {'port_id': port})
+            LOG.warning("Port %(port_id)s not present in bridge. Skip"
+                        "applying rules for this port", {'port_id': port})
             return
         port['vinfo'] = self._vif_port_info(vif_port.port_name)
         self._remove_flows(port)
@@ -932,9 +930,8 @@ class OVSFirewallDriver(firewall.FirewallDriver):
         old_port = self._filtered_ports.get(port['device'])
         vif_port = self._int_br.br.get_vif_port_by_id(port['device'])
         if not vif_port:
-            LOG.warning(_LW("Port %(port_id)s not present in bridge. Skip"
-                            "applying rules for this port"),
-                        {'port_id': port})
+            LOG.warning("Port %(port_id)s not present in bridge. Skip"
+                        "applying rules for this port", {'port_id': port})
             return
         port['vinfo'] = self._vif_port_info(vif_port.port_name)
         self._remove_flows(old_port)
