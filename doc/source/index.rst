@@ -15,7 +15,6 @@ Contents:
    installation
    usage
    contributing
-   usage_puppet
 
 Devstack
 ========
@@ -24,14 +23,6 @@ Devstack
    :maxdepth: 2
 
    getstarted/devstack/index
-
-Puppet
-======
-
-.. toctree::
-   :maxdepth: 2
-
-   getstarted/puppet/index
 
 Indices and tables
 ==================

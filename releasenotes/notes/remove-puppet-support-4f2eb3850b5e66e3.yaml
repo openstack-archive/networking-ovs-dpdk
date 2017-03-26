@@ -1,0 +1,8 @@
+---
+other:
+  - |
+    During the Newton cycle support for deploying ovs-dpdk was added
+    to the puppet-vswitch project. With the release of the Newton branch
+    puppet support in networking-ovs-dpdk was deprecated. In the ocata
+    cycle support for deploying ovs-dpdk from source via puppet has been
+    removed from newton.
