@@ -1,0 +1,8 @@
+Code-Review+2: Rodolfo Alonso Hernandez <rodolfo.alonso.hernandez@intel.com>
+Workflow+1: Rodolfo Alonso Hernandez <rodolfo.alonso.hernandez@intel.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Mon, 27 Mar 2017 13:23:26 +0000
+Reviewed-on: https://review.openstack.org/440626
+Project: openstack/networking-ovs-dpdk
+Branch: refs/heads/master
