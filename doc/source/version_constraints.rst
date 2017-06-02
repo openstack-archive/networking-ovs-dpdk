@@ -32,7 +32,7 @@ information relating to the installation of OVS with DPDK on specific
 Linux platforms.
 
 The information contained in this file is based on the FAQ document for OVS.
- https://github.com/openvswitch/ovs/blob/master/FAQ.md
+ https://github.com/openvswitch/ovs/blob/master/Documentation/faq/releases.rst
 
 General Issues
 ------------------
@@ -58,7 +58,7 @@ General Issues
   |    2.6.x     |    3.10 to 4.7       |
   ---------------------------------------
 
- https://github.com/openvswitch/ovs/blob/master/FAQ.md#q-what-linux-kernel-versions-does-each-open-vswitch-release-work-with
+ https://github.com/openvswitch/ovs/blob/master/Documentation/faq/releases.rst#q-what-linux-kernel-versions-does-each-open-vswitch-release-work-with
 
 * Linux Kernel version configuration error:
 
@@ -106,7 +106,7 @@ Solution options:
   | Multiple VTEP's     |      YES       |      YES       |    YES    |   NO    |
   -------------------------------------------------------------------------------
 
-  https://github.com/openvswitch/ovs/blob/master/FAQ.md#q-are-all-features-available-with-all-datapaths
+  https://github.com/openvswitch/ovs/blob/master/Documentation/faq/releases.rst#q-are-all-features-available-with-all-datapaths
 
 * DPDK versions that successfully build with Open vSwitch.
 
@@ -120,7 +120,7 @@ Solution options:
   |    2.6.x     | 16.07 |
   ------------------------
 
-  https://github.com/openvswitch/ovs/blob/master/FAQ.md#q-what-dpdk-version-does-each-open-vswitch-release-work-with
+  https://github.com/openvswitch/ovs/blob/master/Documentation/faq/releases.rst#q-what-dpdk-version-does-each-open-vswitch-release-work-with
 
 * If there is a performance drop when OVS is upgraded, this could mean that the
   OVS kernel datapath may have been updated to a newer version. Sometimes new
@@ -148,7 +148,7 @@ Solution options:
    [*] Supported, with one or more missing features.
    [%] Experimental, unsafe implementation.
 
- https://github.com/openvswitch/ovs/blob/master/FAQ.md#q-what-versions-of-openflow-does-open-vswitch-support
+ https://github.com/openvswitch/ovs/blob/master/Documentation/faq/openflow.rst#q-what-versions-of-openflow-does-open-vswitch-support
 
   In Open vSwitch 1.10 through 2.2, OpenFlow 1.1, 1.2 and 1.3 must be enabled
   manually in ovs-switched.
