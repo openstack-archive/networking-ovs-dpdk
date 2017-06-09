@@ -330,7 +330,7 @@ function clone_ovs_dpdk(){
 
     pushd  ${OVS_DIR}
     if [ "$OVS_VSWITCHD_INIT" == "auto" ] && \
-       [ $(git branch --contains  "55e075e65ef9ecbd70e5e0fada2704c3d73724d8" | grep \* | grep "${OVS_GIT_TAG}"  > /dev/null ; echo $?) == "0" ]; then
+       [ $(git branch --no-abbrev -v --contains  "55e075e65ef9ecbd70e5e0fada2704c3d73724d8" | grep \* | grep "${OVS_GIT_TAG}"  > /dev/null ; echo $?) == "0" ]; then
         OVS_VSWITCHD_INIT='immediate'
     elif [ "$OVS_VSWITCHD_INIT" == "auto" ]; then
         OVS_VSWITCHD_INIT='delayed'
