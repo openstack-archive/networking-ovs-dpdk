@@ -67,11 +67,8 @@ function ovs_dpdk_create_kvm_wrapper {
 
     sudo mv $KVM_CMD $KVM_CMD.orig
     if [ "$os_VENDOR" == "CentOS" ]; then
-        if [ ! -e /usr/bin/qemu-system-x86_64.org ]; then
-            sudo mv /usr/bin/qemu-system-x86_64 /usr/bin/qemu-system-x86_64.org
-        fi
         if [ -e /usr/bin/qemu-system-x86_64 ]; then
-            sudo rm -f /usr/bin/qemu-system-x86_64
+            sudo mv /usr/bin/qemu-system-x86_64 /usr/bin/qemu-system-x86_64.org
         fi
         sudo ln -s $KVM_CMD /usr/bin/qemu-system-x86_64
     fi
