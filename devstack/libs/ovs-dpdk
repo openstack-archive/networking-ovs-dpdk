@@ -547,6 +547,7 @@ function ovs_dpdk_write_conf {
 }
 
 function install_qemu_kvm {
+        install_package qemu
         install_package qemu-kvm
 }
 
