@@ -223,7 +223,7 @@ add_nics_to_bridges(){
             if [[ "$line" =~ "unused="[[:graph:]]*"${OVS_INTERFACE_DRIVER}" ]] && [[ "$line" =~ "$addr" ]]; then
                 # Check the status of the nic. If it's up, take it down.
                 if [[ $line =~ "Active" ]]; then
-                    sudo ip link set dev $nic down
+                    sudo ifdown $nic || sudo ip link set dev $nic down
                 fi
                 oldDriver=$(echo $line | sed -r 's/[[:alnum:]]+=/\n&/g' | grep drv= | cut -d "=" -f 2)
                 # Bind nic to OVS_INTERFACE_DRIVER.
