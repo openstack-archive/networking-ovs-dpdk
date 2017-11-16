@@ -596,13 +596,13 @@ function install_ovs_dpdk {
     # Install deps
     set +o errexit
     if is_ubuntu; then
-        if [ dpkg -s openvswitch-switch | grep installed > /dev/null ]; then
+        if $(dpkg -s openvswitch-switch &> | grep installed &> /dev/null ); then
             stop_service openvswitch-switch
             uninstall_package openvswitch-switch openvswitch-datapath-dkms openvswitch-common
         fi
         install_package autoconf libtool libfuse-dev screen
     else
-        if [ rpm -qa | grep openvswitch > /dev/null ]; then
+        if $(rpm -qa &> | grep openvswitch &> /dev/null ); then
             stop_service openvswitch
             uninstall_package openvswitch
         fi
