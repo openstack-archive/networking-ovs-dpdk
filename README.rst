@@ -41,4 +41,5 @@ insight into the outlined setup.
 
 Features
 --------
-* TODO
+* A driver is implemented which enforces security groups through Open vSwitch flows
+* A devstack plugin which is provided to compile and install ovs with dpdk
