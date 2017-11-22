@@ -41,4 +41,4 @@ insight into the outlined setup.
 
 Features
 --------
-* TODO
+* A driver is implemented which enforces security groups through Open vSwitch flows
