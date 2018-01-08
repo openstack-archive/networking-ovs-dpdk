@@ -108,7 +108,7 @@ OVS_CORE_MASK
     CPU core mask in hex format; CPU cores are selected according to this value.
     OVS_CORE_MASK is used for ovs-vswitchd process as -c option.
 
-    Deafult: 2
+    Default: 2
 
     Example:
     OVS_CORE_MASK=3 ( i.e. 0000 0011 in binary -> first two cores taken)
