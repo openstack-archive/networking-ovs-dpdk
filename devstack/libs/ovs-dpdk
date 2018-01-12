@@ -67,8 +67,8 @@ function ovs_dpdk_create_kvm_wrapper {
 
     sudo mv $KVM_CMD $KVM_CMD.orig
     if [ "$os_VENDOR" == "CentOS" ]; then
-        if [ ! -e /usr/bin/qemu-system-x86_64.org ]; then
-            sudo mv /usr/bin/qemu-system-x86_64 /usr/bin/qemu-system-x86_64.org
+        if [ ! -e /usr/bin/qemu-system-x86_64.orig ]; then
+            sudo mv /usr/bin/qemu-system-x86_64 /usr/bin/qemu-system-x86_64.orig
         fi
         if [ -e /usr/bin/qemu-system-x86_64 ]; then
             sudo rm -f /usr/bin/qemu-system-x86_64
@@ -164,6 +164,9 @@ function ovs_dpdk_db_cleanup {
     fi
     if [ -e "$KVM_CMD.orig" ]; then
         sudo mv $KVM_CMD.orig $KVM_CMD
+    fi
+    if [ -e /usr/bin/qemu-system-x86_64.orig ]; then
+            sudo mv /usr/bin/qemu-system-x86_64.orig /usr/bin/qemu-system-x86_64
     fi
 
 }
@@ -547,6 +550,7 @@ function ovs_dpdk_write_conf {
 }
 
 function install_qemu_kvm {
+        install_package qemu
         install_package qemu-kvm
 }
 
