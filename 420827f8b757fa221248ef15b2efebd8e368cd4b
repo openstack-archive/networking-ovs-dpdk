@@ -1,0 +1,9 @@
+Code-Review+1: Long Zhang <zhanglong@gohighsec.com>
+Code-Review+2: sean mooney <sean.k.mooney@intel.com>
+Workflow+1: sean mooney <sean.k.mooney@intel.com>
+Verified+2: Zuul
+Submitted-by: Zuul
+Submitted-at: Wed, 17 Jan 2018 22:23:25 +0000
+Reviewed-on: https://review.openstack.org/522129
+Project: openstack/networking-ovs-dpdk
+Branch: refs/heads/master
