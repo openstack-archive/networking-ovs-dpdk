@@ -9,6 +9,7 @@ fixtures>=3.0.0 # Apache-2.0/BSD
 discover
 python-subunit
 sphinx>=1.1.2
+os-testr>=1.0.0  # Apache-2.0
 oslosphinx
 oslotest>=1.1.0.0a1
 testrepository>=0.0.18
