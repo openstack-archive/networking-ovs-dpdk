@@ -862,7 +862,7 @@ class OVSFirewallDriver(firewall.FirewallDriver):
             dest_ip_prefix = rule.get('dest_ip_prefix')
 
             flow = {}
-            # Direcction.
+            # Direction.
             if direction == EGRESS_DIRECTION:
                 flow['priority'] = OF_EGRESS_PORT_RULE_PRIO
                 flow['table'] = OF_EGRESS_TABLE
