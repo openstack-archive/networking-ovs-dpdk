@@ -384,6 +384,13 @@ function build_ovs_dpdk(){
         OVS_DPDK_BUILD_SHARED_LIB='n'
     fi
 
+    OVS_DPDK_CONFIG_RTE_LIBRTE_VHOST_NUMA=$(trueorfalse True OVS_DPDK_CONFIG_RTE_LIBRTE_VHOST_NUMA)
+    if [ "$OVS_DPDK_CONFIG_RTE_LIBRTE_VHOST_NUMA" == "True" ]; then
+        OVS_DPDK_CONFIG_RTE_LIBRTE_VHOST_NUMA='y'
+    else
+        OVS_DPDK_CONFIG_RTE_LIBRTE_VHOST_NUMA='n'
+    fi
+
     local enable_igb_uio='n'
     if [ "$OVS_INTERFACE_DRIVER" == "igb_uio" ]; then
         enable_igb_uio='y'
@@ -392,6 +399,7 @@ function build_ovs_dpdk(){
     sed "s/CONFIG_RTE_BUILD_COMBINE_LIBS=n/CONFIG_RTE_BUILD_COMBINE_LIBS=y/" -i ${OVS_DPDK_DIR}/build/.config
     sed "s/CONFIG_RTE_MAX_MEMSEG=.*$/CONFIG_RTE_MAX_MEMSEG=${OVS_DPDK_MEM_SEGMENTS}/" -i ${OVS_DPDK_DIR}/build/.config
     sed "s/CONFIG_RTE_LIBRTE_VHOST=.*$/CONFIG_RTE_LIBRTE_VHOST=${OVS_DPDK_RTE_LIBRTE_VHOST}/" -i ${OVS_DPDK_DIR}/build/.config
+    sed "s/CONFIG_RTE_LIBRTE_VHOST_NUMA=.*$/CONFIG_RTE_LIBRTE_VHOST_NUMA=${OVS_DPDK_CONFIG_RTE_LIBRTE_VHOST_NUMA}/" -i ${OVS_DPDK_DIR}/build/.config
     sed "s/CONFIG_RTE_LIBRTE_VHOST_DEBUG=.*$/CONFIG_RTE_LIBRTE_VHOST_DEBUG=${OVS_DPDK_VHOST_USER_DEBUG}/" -i ${OVS_DPDK_DIR}/build/.config
     sed "s/CONFIG_RTE_LIBRTE_KNI=.*$/CONFIG_RTE_LIBRTE_KNI=n/" -i ${OVS_DPDK_DIR}/build/.config
     sed "s/CONFIG_RTE_KNI_KMOD=.*$/CONFIG_RTE_KNI_KMOD=n/" -i ${OVS_DPDK_DIR}/build/.config
