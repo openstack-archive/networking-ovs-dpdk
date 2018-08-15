@@ -1,0 +1,9 @@
+Code-Review+1: Filippo Inzaghi <zhao.daqing@99cloud.net>
+Code-Review+2: sean mooney <work@seanmooney.info>
+Workflow+1: sean mooney <work@seanmooney.info>
+Verified+2: Zuul
+Submitted-by: Zuul
+Submitted-at: Wed, 15 Aug 2018 20:03:16 +0000
+Reviewed-on: https://review.openstack.org/573923
+Project: openstack/networking-ovs-dpdk
+Branch: refs/heads/master
