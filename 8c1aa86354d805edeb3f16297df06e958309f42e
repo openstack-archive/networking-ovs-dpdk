@@ -1,0 +1,8 @@
+Code-Review+2: sean mooney <work@seanmooney.info>
+Workflow+1: sean mooney <work@seanmooney.info>
+Verified+2: Zuul
+Submitted-by: Zuul
+Submitted-at: Fri, 17 Aug 2018 09:41:49 +0000
+Reviewed-on: https://review.openstack.org/589766
+Project: openstack/networking-ovs-dpdk
+Branch: refs/heads/master
