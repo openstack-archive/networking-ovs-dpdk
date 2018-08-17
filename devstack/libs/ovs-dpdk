@@ -268,7 +268,7 @@ function ovs_dpdk_pre_install(){
             fi
         elif [ "$os_VENDOR" == "CentOS" ]; then
             # NOTE: uio_pci_generic is provided in default modules
-            sudo yum install -y kernel-devel-$(uname -r) redhat-lsb-core automake
+            sudo yum install -y kernel-devel-$(uname -r) redhat-lsb-core automake numactl-devel
         fi
     fi
     # Check minimum Mellanox OFED Versions
