@@ -145,16 +145,7 @@ EOF
 # ovs cleanup
 #
 
-function ovs_dpdk_db_cleanup {
-    # remove all OVS ports that look like Neutron created ports
-    for port in $(sudo ovs-vsctl list port | grep -o -e tap[0-9a-f\-]* -e q[rg]-[0-9a-f\-]*); do
-        sudo ovs-vsctl --no-wait del-port ${port}
-    done
-
-    # remove all OVS bridges created by Neutron
-    for bridge in $(sudo ovs-vsctl list-br | grep -o -e ${OVS_BRIDGE} -e ${PUBLIC_BRIDGE}); do
-        sudo ovs-vsctl --no-wait del-br ${bridge}
-    done
+function cleanup_qemu_kvm_wrapper {
     if [ -e /usr/bin/kvm ]; then
         KVM_CMD="/usr/bin/kvm"
     elif [ -e /usr/bin/qemu-kvm ]; then
@@ -167,6 +158,21 @@ function ovs_dpdk_db_cleanup {
     fi
     if [ -e /usr/bin/qemu-system-x86_64.orig ]; then
             sudo mv /usr/bin/qemu-system-x86_64.orig /usr/bin/qemu-system-x86_64
+    fi
+}
+
+function ovs_dpdk_db_cleanup {
+    # remove all OVS ports that look like Neutron created ports
+    for port in $(sudo ovs-vsctl list port | grep -o -e tap[0-9a-f\-]* -e q[rg]-[0-9a-f\-]*); do
+        sudo ovs-vsctl --no-wait del-port ${port}
+    done
+
+    # remove all OVS bridges created by Neutron
+    for bridge in $(sudo ovs-vsctl list-br | grep -o -e ${OVS_BRIDGE} -e ${PUBLIC_BRIDGE}); do
+        sudo ovs-vsctl --no-wait del-br ${bridge}
+    done
+    if [ "${OVS_DPDK_USE_QEMU_KVM_WRAPPER}" == "True" ]; then
+        cleanup_qemu_kvm_wrapper
     fi
 
 }
@@ -627,7 +633,10 @@ function install_ovs_dpdk {
     sudo cp $NETWORKING_OVS_DPDK_DIR/devstack/ovs-dpdk/ovs-dpdk-init /etc/init.d/ovs-dpdk
     type systemctl 2>&1 >/dev/null && sudo systemctl daemon-reload
     ovs_dpdk_write_conf
-    ovs_dpdk_create_kvm_wrapper
+
+    if [ "${OVS_DPDK_USE_QEMU_KVM_WRAPPER}" == "True" ]; then
+        ovs_dpdk_create_kvm_wrapper
+    fi
 
     sudo chmod +x /etc/init.d/ovs-dpdk
     sudo service ovs-dpdk init
