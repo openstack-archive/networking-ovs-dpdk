@@ -645,15 +645,6 @@ function install_ovs_dpdk {
     ovs_dpdk_add_bridge $OVS_BRIDGE
 }
 
-function ovs_dpdk_configure_debug_command {
-    Q_USE_PROVIDERNET_FOR_PUBLIC=$(trueorfalse False Q_USE_PROVIDERNET_FOR_PUBLIC)
-    if [ "$Q_USE_PROVIDERNET_FOR_PUBLIC" == "True" ]; then
-        iniset $NEUTRON_TEST_CONFIG_FILE DEFAULT external_network_bridge ""
-    else
-        iniset $NEUTRON_TEST_CONFIG_FILE DEFAULT external_network_bridge $PUBLIC_BRIDGE
-    fi
-}
-
 function ovs_dpdk_configure_firewall_driver {
     if [[ ! -z "$OVS_ENABLE_SG_FIREWALL_MULTICAST" && "$OVS_ENABLE_SG_FIREWALL_MULTICAST" == "True" ]]; then
         iniset /$Q_PLUGIN_CONF_FILE ovs enable_sg_firewall_multicast $OVS_ENABLE_SG_FIREWALL_MULTICAST
@@ -661,13 +652,7 @@ function ovs_dpdk_configure_firewall_driver {
 }
 
 function ovs_dpdk_configure_l3_agent {
-    Q_USE_PROVIDERNET_FOR_PUBLIC=$(trueorfalse False Q_USE_PROVIDERNET_FOR_PUBLIC)
     Q_USE_PUBLIC_VETH=$(trueorfalse False Q_USE_PUBLIC_VETH)
-    if [ "$Q_USE_PROVIDERNET_FOR_PUBLIC" == "True" ]; then
-        iniset $Q_L3_CONF_FILE DEFAULT external_network_bridge ""
-    else
-        iniset $Q_L3_CONF_FILE DEFAULT external_network_bridge $PUBLIC_BRIDGE
-    fi
     if [ "$Q_USE_PUBLIC_VETH" == "True" ]; then
         ip link show $Q_PUBLIC_VETH_INT > /dev/null 2>&1 ||
         sudo ip link add $Q_PUBLIC_VETH_INT type veth peer name $Q_PUBLIC_VETH_EX
