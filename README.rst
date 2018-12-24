@@ -16,7 +16,7 @@ vSwitch with neutron.
 * Code Reviews:
    https://review.openstack.org/#/q/status:open+project:openstack/networking-ovs-dpdk,n,z
 * Questions: E-mail the dev mailing list with the [networking-ovs-dpdk] tag
-             mailto:openstack-dev@lists.openstack.org?subject=[networking-ovs-dpdk]
+             mailto:openstack-discuss@lists.openstack.org?subject=[networking-ovs-dpdk]
 
 The following are links to background information that provide additional
 insight into the outlined setup.
