@@ -1,5 +1,0 @@
----
-prelude: >
-    During the ocata cycle, the supported ovs version was increased
-    OVS 2.7 with DPDK 16.11. This enables a number of features,
-    bugfixes and performance enhancements.
